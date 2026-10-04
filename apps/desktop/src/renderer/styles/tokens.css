@@ -29,6 +29,7 @@
   --lead: rgba(255, 255, 255, 0.34); --lead-dot: #fff; --pill-ring: rgba(255, 255, 255, 0.6); --pill-bg: rgba(13, 11, 16, 0.55);
   --key: rgba(255, 255, 255, 0.08); --key-hover: rgba(255, 255, 255, 0.15); --foot-bg: rgba(255, 255, 255, 0.04);
   --xb-a: #6fcf4a; --xb-b: #ff5a5a; --xb-x: #4a90ff; --xb-y: #f2c230;
+  --st-ok: #8fd14f; --st-warn: #f0a028; --st-error: #ff5a5a; /* health lamps: the DualSense lightbar's three moods */
   --font: 'Poppins', 'Segoe UI', system-ui, sans-serif; --mono: 'Cascadia Mono', Consolas, monospace;
   color-scheme: dark;
 }
@@ -55,5 +56,6 @@
   --lead: rgba(20, 20, 30, 0.3); --lead-dot: #1a1a1f; --pill-ring: rgba(20, 20, 30, 0.35); --pill-bg: #ffffff;
   --key: rgba(20, 20, 30, 0.06); --key-hover: rgba(20, 20, 30, 0.11); --foot-bg: rgba(20, 20, 30, 0.03);
   --xb-a: #3f9a1f; --xb-b: #d63231; --xb-x: #2563eb; --xb-y: #b88a00;
+  --st-ok: #4f9a1c; --st-warn: #c47a00; --st-error: #d63231;
   color-scheme: light;
 }

@@ -49,6 +49,15 @@
 .icon-btn:hover:not(:disabled) { background: var(--hover); }
 .icon-btn:disabled { opacity: 0.4; cursor: default; }
 .icon-btn.active { background: var(--accent); color: #fff; }
+/* Health: a lightbar-style lamp in the corner shows the worst check result */
+.health-btn { position: relative; }
+.health-lamp {
+  position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--header-bg);
+}
+.health-lamp.ok { background: var(--st-ok); }
+.health-lamp.warn { background: var(--st-warn); box-shadow: 0 0 0 2px var(--header-bg), 0 0 6px var(--st-warn); }
+.health-lamp.error { background: var(--st-error); box-shadow: 0 0 0 2px var(--header-bg), 0 0 6px var(--st-error); }
 
 /* ---------- profile slots (top rail, centred above the section tabs) ---------- */
 .ptabs {

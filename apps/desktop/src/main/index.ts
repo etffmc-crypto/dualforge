@@ -5,6 +5,7 @@ import { existsSync, statSync } from 'node:fs';
 import { z } from 'zod';
 import { logger, LOG_DIR } from './logger.js';
 import { clearLogs, pruneLogs } from './log-prune.js';
+import { registerLogIpc } from './log-tail.js';
 import { createHealthService, createEngineFeed } from './health/service.js';
 import { gatherInput, defaultExec, queryVigemService } from './health/adapters.js';
 import { buildSystemInfo, createBundleExporter } from './bundle.js';
@@ -107,6 +108,7 @@ const bundle = createBundleExporter({
   }),
 });
 registerHealthIpc({ ipc: ipcMain, service: health, log: logger, exportBundle: () => bundle.exportWithDialog() });
+registerLogIpc({ ipc: ipcMain, dir: LOG_DIR, log: logger });
 
 const MAX_REPLAY_BYTES = 16 * 1024 * 1024;
 function validateReplayPath(raw: unknown): string {

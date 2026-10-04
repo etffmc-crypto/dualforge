@@ -16,6 +16,11 @@
 .home-name { display: flex; align-items: center; gap: 10px; margin: 6px 0 0; font-size: 20px; font-weight: 600; letter-spacing: 1.5px; }
 .home-status { margin: 10px 0 18px; color: var(--text-tertiary); font-size: 15px; }
 .home-hint { max-width: 520px; margin: 14px 0 0; color: var(--muted); font-size: 13px; text-align: center; }
+.home-help {
+  margin-top: 12px; padding: 4px 6px; border: 0; border-radius: 6px; background: transparent;
+  color: var(--link); font: inherit; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer;
+}
+.home-help:hover { color: var(--text-strong); }
 .battery { position: relative; width: 34px; height: 18px; padding: 3px; border-radius: 9px; border: 2px solid var(--badge-a); display: inline-flex; }
 .battery-fill { height: 100%; border-radius: 5px; background: var(--badge-a); }
 .battery-bolt { position: absolute; inset: 0; display: grid; place-items: center; font-size: 10px; line-height: 1; filter: grayscale(1) brightness(0.2); }

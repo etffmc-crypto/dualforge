@@ -122,7 +122,15 @@ export const ProfilesIcon = (p: IconProps) => (
   </Svg>
 );
 
-export const CopyIcon = (p: IconProps) => (
+/** A heart with a pulse trace through it: the Health page. */
+export const HeartPulseIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 20.5s-7.8-4.6-8.9-10.1C2.4 6.9 4.6 4 7.7 4c1.9 0 3.3 1 4.3 2.6C13 5 14.4 4 16.3 4c3.1 0 5.3 2.9 4.6 6.4-1.1 5.5-8.9 10.1-8.9 10.1Z" />
+    <path d="M3.5 12.5h4.2l1.6-3 2.6 5.5 1.8-3.6 1.2 1.1h5.6" />
+  </Svg>
+);
+
+export const CopyIcon =(p: IconProps) => (
   <Svg {...p}><rect x="8.5" y="8.5" width="11" height="11" rx="2" /><path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5" /></Svg>
 );
 

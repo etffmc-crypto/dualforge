@@ -13,6 +13,7 @@ import { Motion } from './pages/Motion';
 import { Vibrations } from './pages/Vibrations';
 import { Lights } from './pages/Lights';
 import { Profiles } from './pages/Profiles';
+import { Health } from './pages/Health';
 import './styles/shell.css';
 import './styles/pages.css';
 import './styles/controls.css';
@@ -32,6 +33,7 @@ function Page() {
     case 'lights': return <Lights />;
     case 'macros': return <Macros />;
     case 'profiles': return <Profiles />;
+    case 'health': return <Health />;
   }
 }
 

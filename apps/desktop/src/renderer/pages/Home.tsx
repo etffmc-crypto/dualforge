@@ -5,6 +5,7 @@ import { Battery } from '../components/Battery';
 export function Home() {
   const s = useStore((st) => st.snapshot);
   const p = useStore((st) => st.profile);
+  const setPage = useStore((st) => st.setPage);
   const connected = s?.connected ?? false;
   return (
     <div className="home">
@@ -30,6 +31,9 @@ export function Home() {
       </div>
       {!s?.vigemReady && (
         <p className="home-hint">Install the ViGEmBus driver to enable the virtual Xbox controller. Lights, triggers and live view still work without it.</p>
+      )}
+      {!connected && (
+        <button data-nav type="button" className="home-help" onClick={() => setPage('health')}>Unable to connect?</button>
       )}
     </div>
   );

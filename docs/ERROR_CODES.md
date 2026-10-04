@@ -186,6 +186,12 @@ A repair threw an error (see `msg` in the log). Fix: retry; export a diagnostics
 ### E_HEALTH_OPEN_LOGS
 Explorer could not open the logs folder. Fix: open `%APPDATA%\DualForge\logs` manually.
 
+### E_LOGS_REQUEST
+`logs:tail` got a payload other than `{ lines: 1..500 }`. Fix: none; this indicates a bug.
+
+### E_LOGS_READ
+The Health page's log viewer could not read today's log file (locked or removed mid-read; see `msg`). Fix: press Refresh, or open the logs folder.
+
 ## Driver installer
 
 ### E_DRIVER_REQUEST
@@ -210,12 +216,12 @@ The installer's Authenticode signature is not Valid (not signed, hash mismatch, 
 The signature is valid but not from Nefarius Software Solutions. The file is deleted and never launched.
 
 ### E_DRIVER_LAUNCH
-Windows could not start the installer (for example the UAC prompt was declined). The downloaded file stays in a `run-*` folder under `%TEMP%DualForge`. Fix: click install again and accept the prompt.
+Windows could not start the installer (for example the UAC prompt was declined). The downloaded file stays in a `run-*` folder under `%TEMP%\DualForge`. Fix: click install again and accept the prompt.
 
 ## HidHide
 
 ### E_HIDHIDE_NOT_INSTALLED
-HidHide was asked to enable but `HidHideCLI.exe` was not found at its default path, `%ProgramFiles%Nefarius Software SolutionsHidHidedHidHideCLI.exe`. Fix: install HidHide from the Health page.
+HidHide was asked to enable but `HidHideCLI.exe` was not found at its default path, `%ProgramFiles%\Nefarius Software Solutions\HidHide\x64\HidHideCLI.exe`. Fix: install HidHide from the Health page.
 
 ### E_HIDHIDE_NO_DEVICE
 No connected DualSense "HID-compliant game controller" was found through PnP, so there is nothing to hide. The setting stays off. Fix: connect the controller over USB and try again.

@@ -348,6 +348,28 @@ test('Lights page: Rainbow animation and player LEDs reach the engine profile', 
   await app.close();
 });
 
+test('Health page: the attached DualSense is OK, HidHide (not installed) warns, Run checks now runs the checks', async () => {
+  const app = await launchApp();
+  const page = await app.firstWindow();
+  // the first connected snapshot routes Home → Overview: the real pad is up before the checks run
+  await expect(page.getByRole('tablist', { name: 'Sections' }).getByRole('tab', { name: 'Overview', exact: true }))
+    .toHaveAttribute('aria-selected', 'true', { timeout: 15_000 });
+  await page.getByRole('button', { name: 'Open Health' }).click();
+  await expect(page.getByRole('heading', { name: 'Health', exact: true })).toBeVisible();
+  const before = (await page.evaluate(() => window.dualforge.health.get())).ranAt;
+  await page.getByRole('button', { name: 'Run checks now' }).click();
+  await expect.poll(async () => (await page.evaluate(() => window.dualforge.health.get())).ranAt, { timeout: 15_000 }).toBeGreaterThan(before);
+
+  const device = page.getByRole('article', { name: 'DualSense connected' });
+  await expect(device.getByRole('img', { name: 'OK' })).toBeVisible({ timeout: 10_000 });
+  const hid = page.getByRole('article', { name: 'HidHide not installed' });
+  await expect(hid.getByRole('img', { name: 'Warning' })).toBeVisible();
+  await expect(hid.getByRole('button', { name: 'Install HidHide' })).toBeEnabled();   // offered, never clicked here
+  await expect(page.getByTestId('health-lamp')).toHaveClass(/warn|error/);
+  await expect(page.getByRole('log', { name: 'Log lines' }).getByRole('listitem').first()).toBeVisible();
+  await app.close();
+});
+
 const FIXTURE = resolve(import.meta.dirname, '../../../packages/engine/test/fixtures/stick-sweep.hidlog');
 
 test('Home: the first connected controller routes to Overview once; Home stays reachable afterwards', async () => {

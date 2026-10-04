@@ -3,7 +3,24 @@ import { useStore } from '../store';
 import { TabStrip } from './TabStrip';
 import { ProfileTabs } from './ProfileTabs';
 import { Modal } from './Modal';
-import { FlaskIcon, GearIcon, HomeIcon, ProfilesIcon, ResetIcon } from './icons';
+import { FlaskIcon, GearIcon, HeartPulseIcon, HomeIcon, ProfilesIcon, ResetIcon } from './icons';
+import { healthSummary } from '../pages/health/summary';
+
+/** Health icon with a status lamp (green / amber / red) from the cached check results. */
+function HealthButton() {
+  const page = useStore((s) => s.page);
+  const setPage = useStore((s) => s.setPage);
+  const health = useStore((s) => s.health);
+  const sum = health ? healthSummary(health.results) : null;
+  const title = sum ? `Health: ${sum.headline}` : 'Health';
+  return (
+    <button data-nav className={`icon-btn health-btn${page === 'health' ? ' active' : ''}`} title={title} aria-label="Open Health"
+      aria-pressed={page === 'health'} onClick={() => setPage('health')}>
+      <HeartPulseIcon size={18} />
+      {sum && <span className={`health-lamp ${sum.worst}`} data-testid="health-lamp" aria-hidden="true" />}
+    </button>
+  );
+}
 
 function ResetDialog({ onClose }: { onClose(): void }) {
   const name = useStore((s) => s.profiles.find((p) => p.id === s.activeProfileId)?.name ?? s.profile?.name ?? 'this profile');
@@ -47,6 +64,7 @@ export function Header() {
         <button data-nav className="icon-btn" title="Reset profile" aria-label="Reset profile" onClick={() => setConfirmReset(true)}><ResetIcon size={18} /></button>
         <button data-nav className="icon-btn" title="Input Test" aria-label="Open Input Test" onClick={() => setPage('inputTest')}><FlaskIcon size={18} /></button>
         <button data-nav className="icon-btn" title="Home" aria-label="Go to Home" onClick={() => setPage('home')}><HomeIcon size={18} /></button>
+        <HealthButton />
         <button data-nav className={`icon-btn${page === 'settings' ? ' active' : ''}`} title="Settings" aria-label="Open Settings" aria-pressed={page === 'settings'} onClick={() => setPage('settings')}><GearIcon size={18} /></button>
       </div>
       <div className="win-controls">

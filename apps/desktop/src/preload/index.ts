@@ -69,6 +69,10 @@ const api = {
       return () => ipcRenderer.removeListener('health:changed', h);
     },
   },
+  logs: {
+    /** Last `lines` (1..500) lines of today's log (raw pino JSON lines); `file` is null when there is no log yet. */
+    tail: (lines: number): Promise<{ file: string | null; lines: string[] }> => ipcRenderer.invoke('logs:tail', { lines }),
+  },
   updates: {
     /** Opt-in update check ("Check now"); { available:false, code } when updates are off, in a dev build, or the check failed. */
     check: (): Promise<{ available: boolean; version?: string; code?: string }> => ipcRenderer.invoke('updates:check'),

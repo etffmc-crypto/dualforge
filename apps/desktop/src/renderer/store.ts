@@ -1,8 +1,12 @@
 import { create } from 'zustand';
-import { ensureDenseMappings, ProfileSchema, type EngineSnapshot, type Profile, type ProfileSummary, type Settings } from '@dualforge/shared';
+import { ensureDenseMappings, ProfileSchema, type EngineSnapshot, type HealthState, type Profile, type ProfileSummary, type Settings } from '@dualforge/shared';
 
-export type Page =
-  | 'home' | 'overview' | 'buttons' | 'sticks' | 'triggers' | 'motion' | 'vibrations' | 'lights' | 'macros' | 'inputTest' | 'settings' | 'profiles';
+export const PAGES = [
+  'home', 'overview', 'buttons', 'sticks', 'triggers', 'motion', 'vibrations', 'lights', 'macros', 'inputTest', 'settings', 'profiles', 'health',
+] as const;
+export type Page = (typeof PAGES)[number];
+/** Whitelist for page ids that arrive from outside the renderer (tray "Health" via `app.onNavigate`). */
+export const isPage = (p: unknown): p is Page => typeof p === 'string' && (PAGES as readonly string[]).includes(p);
 export type Side = 'left' | 'right';
 export type SubTabPage = 'sticks' | 'triggers';
 
@@ -21,6 +25,8 @@ interface State {
   profiles: ProfileSummary[];
   settings: Settings | null;
   subTab: Record<SubTabPage, Side>;
+  /** Latest health-check results (header dot, Health page); null until the first answer from main. */
+  health: HealthState | null;
   /**
    * Outstanding gamepad-navigation holds (macro recorder, macro play test): while any is held the pad means something
    * else and navigation ignores it. Use `suspendNav()` / `navSuspended()` rather than this count.
@@ -78,6 +84,7 @@ export const useStore = create<State>((set, get) => {
     snapshot: null, lastError: null, page: 'home', autoRouted: false,
     profile: null, activeProfileId: null, profiles: [], settings: null,
     subTab: { sticks: 'left', triggers: 'left' },
+    health: null,
     navHolds: 0,
     clearError: () => set({ lastError: null }),
     suspendNav: () => {
