@@ -52,3 +52,5 @@
 .gm-value { text-align: right; color: var(--text-soft); font-variant-numeric: tabular-nums; font-size: 12px; }
 
 @media (prefers-reduced-motion: reduce) { .mbody, .mpill, .mbtn { transition: none; } }
+/* the fieldset already fades its contents; don't fade disabled sliders a second time */
+.mbody:disabled .slider:disabled { opacity: 1; }

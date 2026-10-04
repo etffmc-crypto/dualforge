@@ -219,3 +219,34 @@ test('Motion page: Aim with Mouse output and a horizontal sensitivity reach the 
   expect(p.gyro.sensitivityY).toBe(1);
   await app.close();
 });
+
+test('Vibrations page: the rumble motors switch is saved in settings, on and off again', async () => {
+  const app = await launchApp();
+  const page = await app.firstWindow();
+  await page.getByRole('tab', { name: 'Vibrations' }).click();
+  const sw = page.getByRole('switch', { name: 'This controller has rumble motors' });
+  await expect(sw).toHaveAttribute('aria-checked', 'false');
+  await expect(page.getByRole('slider', { name: 'Left motor strength' })).toBeDisabled();
+  await sw.click();
+  await expect.poll(() => page.evaluate(async () => (await window.dualforge.settings.get()).hasRumble)).toBe(true);
+  await expect(page.getByRole('slider', { name: 'Left motor strength' })).toBeEnabled();
+  await page.getByRole('button', { name: 'Test left motor' }).click();
+  await sw.click();
+  await expect.poll(() => page.evaluate(async () => (await window.dualforge.settings.get()).hasRumble)).toBe(false);
+  await app.close();
+});
+
+test('Lights page: Rainbow animation and player LEDs reach the engine profile', async () => {
+  const app = await launchApp();
+  const page = await app.firstWindow();
+  await page.getByRole('tab', { name: 'Lights' }).click();
+  await page.getByRole('radiogroup', { name: 'Light animation' }).getByRole('radio', { name: 'Rainbow' }).click();
+  await page.getByRole('tab', { name: 'Player LEDs' }).click();
+  const before = await page.evaluate(async () => (await window.dualforge.getProfile()).lights.playerLeds);
+  await page.getByRole('switch', { name: 'Player LED 1' }).click();
+  await page.waitForTimeout(200);
+  const p = await page.evaluate(() => window.dualforge.getProfile());
+  expect(p.lights.mode).toBe('rainbow');
+  expect(p.lights.playerLeds).toBe(before ^ 1);
+  await app.close();
+});

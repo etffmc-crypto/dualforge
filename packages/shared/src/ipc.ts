@@ -16,6 +16,12 @@ export const EngineSnapshotSchema = z.object({
 });
 export type EngineSnapshot = z.infer<typeof EngineSnapshotSchema>;
 
+/** UI rumble test: motor levels 0..1 (left = large motor) played for `ms`, then the game's rumble resumes. */
+export const TestRumbleSchema = z.object({
+  left: z.number().min(0).max(1), right: z.number().min(0).max(1), ms: z.number().int().min(50).max(2000),
+}).strict();
+export type TestRumble = z.infer<typeof TestRumbleSchema>;
+
 export const EngineCommandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('setProfile'), profile: ProfileSchema }),
   z.object({ type: z.literal('replay'), path: z.string() }),  // use a .hidlog instead of a device
@@ -23,6 +29,7 @@ export const EngineCommandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('uiFocused'), focused: z.boolean() }),
   z.object({ type: z.literal('setSettings'), settings: SettingsSchema }),
   z.object({ type: z.literal('runMacro'), id: z.string().min(1).max(64) }),   // play-test a macro of the running profile
+  TestRumbleSchema.extend({ type: z.literal('testRumble') }),
   z.object({ type: z.literal('shutdown') }),
 ]);
 export type EngineCommand = z.infer<typeof EngineCommandSchema>;

@@ -118,3 +118,7 @@
 @media (prefers-reduced-motion: reduce) {
   .slider::-webkit-slider-thumb, .seg-btn, .toggle, .toggle-knob, .ce-handle { transition: none; }
 }
+
+/* disabled sliders (e.g. Speed for a static light, motors without rumble) */
+.slider:disabled { cursor: default; opacity: 0.4; }
+.rs.disabled .rs-value, .rs.disabled .rs-label { opacity: 0.5; }

@@ -578,3 +578,49 @@ describe('engine loop plan 3b: runMacro and the focus gate', () => {
     await loop.stop(); vi.useRealTimers();
   });
 });
+
+describe('engine loop plan 3b: testRumble', () => {
+  async function rumbleRig(hasRumble: boolean) {
+    const writes: Uint8Array[] = [];
+    const src: InputSource = { kind: 'device', start(_r, st) { st(true); }, async write(r) { writes.push(r); }, async stop() {} };
+    const loop = createEngineLoop({ source: src, sink: fakeSink(), emit: () => {}, now: () => performance.now() });
+    const p = defaultProfile('p', 'p');
+    p.vibration = { left: 30, right: 30 };   // the test pulse plays its own levels, not scaled again by the profile
+    loop.setProfile(p);
+    loop.setSettings({ ...defaultSettings(), hasRumble });
+    await loop.start();
+    return { loop, writes };
+  }
+  it('plays the requested levels on bytes 4 (left) / 3 (right), then zero after ms', async () => {
+    vi.useFakeTimers();
+    const { loop, writes } = await rumbleRig(true);
+    loop.testRumble(1, 0.5, 300);
+    let last = writes.at(-1)!;
+    expect(last[4]).toBe(255);
+    expect(last[3]).toBe(128);
+    await vi.advanceTimersByTimeAsync(200);
+    last = writes.at(-1)!;
+    expect([last[4], last[3]]).toEqual([255, 128]);
+    await vi.advanceTimersByTimeAsync(150);
+    last = writes.at(-1)!;
+    expect([last[4], last[3]]).toEqual([0, 0]);
+    await loop.stop(); vi.useRealTimers();
+  });
+  it('is ignored when the controller has no rumble motors', async () => {
+    vi.useFakeTimers();
+    const { loop, writes } = await rumbleRig(false);
+    loop.testRumble(1, 1, 500);
+    await vi.advanceTimersByTimeAsync(300);
+    for (const w of writes) { expect(w[3]).toBe(0); expect(w[4]).toBe(0); }
+    await loop.stop(); vi.useRealTimers();
+  });
+  it('turning hasRumble off ends a running test pulse at once', async () => {
+    vi.useFakeTimers();
+    const { loop, writes } = await rumbleRig(true);
+    loop.testRumble(0.8, 0.8, 2000);
+    expect(writes.at(-1)![4]).toBe(204);
+    loop.setSettings({ ...defaultSettings(), hasRumble: false });
+    expect([writes.at(-1)![4], writes.at(-1)![3]]).toEqual([0, 0]);
+    await loop.stop(); vi.useRealTimers();
+  });
+});

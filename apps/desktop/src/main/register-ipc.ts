@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { PROFILE_IDS, ProfileSchema, SettingsSchema, type EngineCommand, type Profile, type Settings } from '@dualforge/shared';
+import { PROFILE_IDS, ProfileSchema, SettingsSchema, TestRumbleSchema, type EngineCommand, type Profile, type Settings } from '@dualforge/shared';
 import type { ProfileStore } from './profile-store.js';
 import type { SettingsStore } from './settings-store.js';
 import { profileFromShareCode, shareCodeFor } from './share.js';
@@ -108,6 +108,7 @@ export function registerIpc(d: IpcDeps) {
     return next;
   });
   h('engine:runMacro', (id) => d.engine.send({ type: 'runMacro', id: MacroIdSchema.parse(id) }));
+  h('engine:testRumble', (req) => d.engine.send({ type: 'testRumble', ...TestRumbleSchema.parse(req) }));
   // Plan 1 channels, kept for the existing renderer: they act on the profile the engine is running (so UI edits go live even during an auto-switch).
   h('profile:get', () => d.store.get(engineProfileId));
   h('profile:set', saveProfile);

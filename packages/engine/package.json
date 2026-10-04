@@ -9,7 +9,8 @@
     "./curve": "./src/stages/stick-curve.ts",
     "./shape": "./src/stages/stick-shape.ts",
     "./calibration": "./src/stages/calibration.ts",
-    "./gyro": "./src/stages/gyro.ts"
+    "./gyro": "./src/stages/gyro.ts",
+    "./lights": "./src/lights.ts"
   },
   "dependencies": { "@dualforge/shared": "*" }
 }

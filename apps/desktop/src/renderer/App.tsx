@@ -1,5 +1,4 @@
 import { Shell } from './components/Shell';
-import { ComingSoon } from './components/ComingSoon';
 import { useStore } from './store';
 import { Home } from './pages/Home';
 import { InputTest } from './pages/InputTest';
@@ -10,6 +9,8 @@ import { Overview } from './pages/Overview';
 import { Buttons } from './pages/Buttons';
 import { Macros } from './pages/Macros';
 import { Motion } from './pages/Motion';
+import { Vibrations } from './pages/Vibrations';
+import { Lights } from './pages/Lights';
 import './styles/shell.css';
 import './styles/pages.css';
 import './styles/controls.css';
@@ -25,8 +26,8 @@ function Page() {
     case 'sticks': return <Sticks />;
     case 'triggers': return <Triggers />;
     case 'motion': return <Motion />;
-    case 'vibrations': return <ComingSoon title="Vibrations" note="Coming in Plan 3." />;
-    case 'lights': return <ComingSoon title="Lights" note="Coming in Plan 3." />;
+    case 'vibrations': return <Vibrations />;
+    case 'lights': return <Lights />;
     case 'macros': return <Macros />;
   }
 }

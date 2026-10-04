@@ -53,6 +53,8 @@ export function createEngineLoop(d: LoopDeps) {
   const latencies = new Float64Array(LAT_RING);
   let latIdx = 0, latCount = 0;
   let rumble = { large: 0, small: 0 };
+  /** UI test pulse: plays its own levels instead of the game's rumble until it expires. */
+  let testPulse: { left: number; right: number; timer: ReturnType<typeof setTimeout> } | null = null;
   let lastRaw: RawState | null = null, lastOut: XInputState | null = null;
   let settings: Settings = defaultSettings();
   // Safe until main reports otherwise: never type into the DualForge window itself.
@@ -66,14 +68,17 @@ export function createEngineLoop(d: LoopDeps) {
     const p = profile!;
     const lb = computeLightbar(p.lights, Math.floor((now - t0) / ANIM_MS) * ANIM_MS, lastRaw?.battery ?? { percent: 0, state: 'unknown' });
     animated = lb.animated;
-    const rl = settings.hasRumble ? rumble.large * (p.vibration.left / 100) : 0;
-    const rr = settings.hasRumble ? rumble.small * (p.vibration.right / 100) : 0;
+    const rl = !settings.hasRumble ? 0 : testPulse ? testPulse.left : rumble.large * (p.vibration.left / 100);
+    const rr = !settings.hasRumble ? 0 : testPulse ? testPulse.right : rumble.small * (p.vibration.right / 100);
     return {
       rumbleLeft: rl, rumbleRight: rr,
       lightbar: { r: lb.r, g: lb.g, b: lb.b },
       brightness: lb.brightness, playerLeds: lb.playerLeds, micLed: lb.micLed,
       triggers: { left: p.triggers.left.effect, right: p.triggers.right.effect },
     };
+  }
+  function endTestPulse() {
+    if (testPulse) { clearTimeout(testPulse.timer); testPulse = null; }
   }
   function releaseInjected() {
     const inj = d.injector;
@@ -188,7 +193,7 @@ export function createEngineLoop(d: LoopDeps) {
     // Pipeline state (filters, hair-trigger hysteresis, turbo) is deliberately preserved so live edits do not jump.
     setSettings(s: Settings) {
       settings = s;
-      if (!s.hasRumble) rumble = { large: 0, small: 0 };
+      if (!s.hasRumble) { rumble = { large: 0, small: 0 }; endTestPulse(); }
       maybeWriteOutput(d.now(), true);
     },
     setUiFocused(focused: boolean) {
@@ -209,6 +214,13 @@ export function createEngineLoop(d: LoopDeps) {
       if (!compiled) return;
       startMacro(state.macros, id, Math.max(0, state.lastMs), compiled.macros);
     },
+    /** Plays a rumble test pulse (levels 0..1) for `ms`, then hands rumble back to the game. No-op without rumble motors. */
+    testRumble(left: number, right: number, ms: number) {
+      if (!settings.hasRumble) return;
+      endTestPulse();
+      testPulse = { left, right, timer: setTimeout(() => { testPulse = null; maybeWriteOutput(d.now(), true); }, ms) };
+      maybeWriteOutput(d.now(), true);
+    },
     /** Synchronously releases every injected key/mouse button and neutralizes the virtual pad (crash / fault path). */
     releaseAll() { neutralize(); },
     async start() {
@@ -227,6 +239,7 @@ export function createEngineLoop(d: LoopDeps) {
     },
     async stop() {
       if (idle) clearInterval(idle);
+      endTestPulse();
       releaseInjected();
       if (graceTimer) { clearTimeout(graceTimer); graceTimer = null; }
       if (profile) await d.source.write(safeReport());   // rumble + trigger effects off before the handle closes

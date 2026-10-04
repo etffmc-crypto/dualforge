@@ -118,4 +118,15 @@ describe('engine IPC', () => {
     expect(() => call('engine:runMacro', 'x'.repeat(65))).toThrow();
     expect(sent).toHaveLength(n);
   });
+  it('engine:testRumble validates levels and duration and forwards a testRumble command', () => {
+    const { call, sent } = rig();
+    call('engine:testRumble', { left: 0.6, right: 0, ms: 500 });
+    expect(sent.at(-1)).toEqual({ type: 'testRumble', left: 0.6, right: 0, ms: 500 });
+    const n = sent.length;
+    expect(() => call('engine:testRumble', { left: 1.5, right: 0, ms: 500 })).toThrow();
+    expect(() => call('engine:testRumble', { left: 0.5, right: 0, ms: 10_000 })).toThrow();
+    expect(() => call('engine:testRumble', { left: 0.5, right: 0, ms: 500, extra: 1 })).toThrow();
+    expect(() => call('engine:testRumble', 'loud')).toThrow();
+    expect(sent).toHaveLength(n);
+  });
 });

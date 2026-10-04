@@ -20,6 +20,7 @@ port.on('message', (m) => {
     case 'setSettings': loop.setSettings(c.settings); break;
     case 'uiFocused': loop.setUiFocused(c.focused); break;
     case 'runMacro': loop.runMacro(c.id); break;
+    case 'testRumble': loop.testRumble(c.left, c.right, c.ms); break;
     case 'replay':
       void (async () => {
         try { await loop.swapSource(createReplaySource(c.path, true)); }
