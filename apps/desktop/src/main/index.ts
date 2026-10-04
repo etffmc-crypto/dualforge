@@ -38,13 +38,13 @@ const ipc = registerIpc({
 const injector = createInjector((code, msg) => logger.error({ code, msg }));
 const watcher = createGameWatcher({
   foreground: () => injector.foreground(), settings: () => settings.get(), onSwitch: (id) => ipc.applyProfile(id, 'auto'), log: (code, msg) => logger.error({ code, msg }),
-  available: injector.available,
+  available: injector.available, foregroundElevated: () => injector.foregroundElevated(),
 });
 
 const health = createHealthService({
   gather: () => gatherInput({
     exec: defaultExec, dataDir, logDir: LOG_DIR, ownExe: process.execPath, appVersion: app.getVersion(), engine: () => engineFeed.view(),
-    injector: { available: injector.available, foregroundElevated: () => injector.foregroundElevated() },
+    injector: { available: injector.available, foregroundElevated: () => watcher.lastForeignForeground()?.elevated ?? null, selfElevated: () => injector.selfElevated() },
     onError: (code, msg) => logger.warn({ code, msg }),
   }),
   emit: (s) => { if (win && !win.isDestroyed()) win.webContents.send('health:changed', s); },
@@ -54,7 +54,7 @@ const health = createHealthService({
     resetProfile: (id) => { ipc.resetProfile(id); },
     clearLogs: () => clearLogs(LOG_DIR),
     openLogs: () => shell.openPath(LOG_DIR),
-    exportBundle: async () => { await bundle.exportWithDialog(); return { ok: true }; },
+    exportBundle: async () => ((await bundle.exportWithDialog()) ? { ok: true } : { ok: false, code: 'E_BUNDLE_CANCELLED' }),
   },
 });
 const bundle = createBundleExporter({

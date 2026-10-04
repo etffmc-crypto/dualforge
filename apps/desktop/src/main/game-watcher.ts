@@ -11,9 +11,14 @@ export interface GameWatcherOpts {
   /** False when the native addon is missing: the watcher then does nothing. */
   available?: boolean;
   log?: (code: string, msg: string) => void;
+  /** Elevation of the foreground process (sampled on the same poll); null when unknown. */
+  foregroundElevated?: () => boolean | null;
+  now?: () => number;
   /** Executable basenames treated like an unknown foreground (DualForge itself). Default: this process and electron.exe. */
   ignore?: string[];
 }
+
+export interface ForeignForeground { name: string; elevated: boolean | null; at: number }
 
 /**
  * Polls the foreground process. A match against `settings.autoSwitch` (case-insensitive exe) switches to that rule's profile once;
@@ -23,6 +28,7 @@ export function createGameWatcher(o: GameWatcherOpts) {
   const intervalMs = o.intervalMs ?? 2000;
   let timer: ReturnType<typeof setInterval> | null = null;
   const ignore = new Set((o.ignore ?? [basename(process.execPath), 'electron.exe']).map((n) => n.toLowerCase()));
+  let lastForeign: ForeignForeground | null = null;   // sticky: last foreground that was not DualForge itself
   let current: string | null = null;   // profile the watcher last loaded; null while following the manual profile
 
   function safeSwitch(id: string) {
@@ -32,6 +38,9 @@ export function createGameWatcher(o: GameWatcherOpts) {
   function tick() {
     const fg = o.foreground().toLowerCase();
     if (fg === '' || ignore.has(fg)) return;   // transient (no window, UAC) or DualForge itself: keep the current profile
+    let elevated: boolean | null = null;
+    try { elevated = o.foregroundElevated?.() ?? null; } catch { /* unknown */ }
+    lastForeign = { name: fg, elevated, at: (o.now ?? Date.now)() };
     const s = o.settings();
     const rule = s.autoSwitch.find((r) => r.exe.toLowerCase() === fg);
     if (rule) {
@@ -50,6 +59,8 @@ export function createGameWatcher(o: GameWatcherOpts) {
 
   return {
     start() { if (o.available === false || timer) return; timer = setInterval(tick, intervalMs); },
+    /** The most recent foreground program other than DualForge (name, elevation, when), or null before any was seen. */
+    lastForeignForeground(): ForeignForeground | null { return lastForeign; },
     stop() { if (timer) clearInterval(timer); timer = null; },
   };
 }

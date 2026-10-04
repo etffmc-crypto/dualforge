@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -103,6 +103,7 @@ describe('collectEntries / writeBundle', () => {
     const entries = [e('missing.txt', 1, 0, 'log')];
     const out = join(dir, 'bad.zip');
     await expect(writeBundle(out, entries)).rejects.toThrow('E_BUNDLE_WRITE');
+    await vi.waitFor(() => expect(existsSync(out)).toBe(false));   // partial zip removed after the handle closed
     await expect(writeBundle(join(dir, 'no-such-dir', 'x.zip'), [])).rejects.toThrow('E_BUNDLE_WRITE');
   });
 

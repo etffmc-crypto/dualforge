@@ -95,16 +95,17 @@ export function writeBundle(dest: string, entries: readonly BundleEntry[]): Prom
     const zip = new ZipFile();
     const out = createWriteStream(dest);
     let settled = false;
+    let failed = false;
     const fail = (e: Error) => {
       if (settled) return;
-      settled = true;
-      out.destroy();
-      try { unlinkSync(dest); } catch { /* may not exist */ }
+      settled = true; failed = true;
+      out.destroy();   // the partial file is removed once the handle has closed (Windows cannot unlink an open file)
       reject(Object.assign(new Error('E_BUNDLE_WRITE'), { cause: e }));
     };
     zip.on('error', fail);
     out.on('error', fail);
     out.on('close', () => {
+      if (failed) { try { unlinkSync(dest); } catch { /* may not exist */ } return; }
       if (settled) return;
       settled = true;
       try { resolve({ path: dest, files: entries.length, bytes: statSync(dest).size }); } catch (e) { reject(Object.assign(new Error('E_BUNDLE_WRITE'), { cause: e })); }

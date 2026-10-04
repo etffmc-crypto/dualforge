@@ -17,11 +17,16 @@ export type Exec = (file: string, args: string[], opts: { timeoutMs: number }) =
 export type ErrorSink = (code: string, msg: string) => void;
 
 /** execFile with a hard timeout (E_HEALTH_TIMEOUT). Other failures keep their error (and `stdout`) for the caller to interpret. */
+const SYS32 = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32');
+export const SC_EXE = join(SYS32, 'sc.exe');
+export const POWERSHELL_EXE = join(SYS32, 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+
 export const defaultExec: Exec = (file, args, { timeoutMs }) =>
   new Promise((resolve, reject) => {
     execFile(file, args, { timeout: timeoutMs, windowsHide: true, maxBuffer: 1024 * 1024, encoding: 'utf8' }, (err, stdout) => {
       if (!err) { resolve({ stdout }); return; }
-      if ((err as { killed?: boolean }).killed) reject(new HealthAdapterError('E_HEALTH_TIMEOUT', `${file} timed out after ${timeoutMs} ms`));
+      if ((err as { code?: unknown }).code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') reject(new HealthAdapterError('E_HEALTH_OUTPUT_TOO_LARGE', `${file} produced too much output`));
+      else if ((err as { killed?: boolean }).killed) reject(new HealthAdapterError('E_HEALTH_TIMEOUT', `${file} timed out after ${timeoutMs} ms`));
       else reject(Object.assign(err, { stdout }));
     });
   });
@@ -38,7 +43,7 @@ export function parseScState(stdout: string): 'running' | 'stopped' | 'unknown' 
 /** `sc query ViGEmBus`; exit code 1060 means "service does not exist". */
 export async function queryVigemService(exec: Exec, onError: ErrorSink): Promise<HealthInput['vigem']['serviceState']> {
   try {
-    return parseScState((await exec('sc.exe', ['query', 'ViGEmBus'], { timeoutMs: ADAPTER_TIMEOUT_MS })).stdout);
+    return parseScState((await exec(SC_EXE, ['query', 'ViGEmBus'], { timeoutMs: ADAPTER_TIMEOUT_MS })).stdout);
   } catch (e) {
     const err = e as { code?: unknown; stdout?: string; message: string };
     if (err.code === 1060 || /\b1060\b/.test(err.stdout ?? '')) return 'missing';
@@ -51,7 +56,7 @@ export async function queryVigemService(exec: Exec, onError: ErrorSink): Promise
 export async function queryVigemBus(exec: Exec, onError: ErrorSink): Promise<boolean> {
   const cmd = `Get-PnpDevice -FriendlyName '${VIGEM_BUS_NAME}' -ErrorAction SilentlyContinue | Where-Object Status -eq 'OK' | Select-Object -First 1 -ExpandProperty Status`;
   try {
-    return (await exec('powershell.exe', ['-NoProfile', '-Command', cmd], { timeoutMs: ADAPTER_TIMEOUT_MS })).stdout.trim() === 'OK';
+    return (await exec(POWERSHELL_EXE, ['-NoProfile', '-Command', cmd], { timeoutMs: ADAPTER_TIMEOUT_MS })).stdout.trim() === 'OK';
   } catch (e) {
     onError(e instanceof HealthAdapterError ? e.code : 'E_HEALTH_PNP', (e as Error).message);
     return false;
@@ -67,16 +72,17 @@ export interface HidHideDeps { exec: Exec; cliPath: string; exists: (p: string) 
 /** Missing CLI means "not installed" (no error). CLI failures degrade to "not whitelisted / not hidden" plus a coded error. */
 export async function queryHidHide(d: HidHideDeps): Promise<HealthInput['hidhide']> {
   if (!d.exists(d.cliPath)) return { installed: false, cliPath: null, whitelisted: false, deviceHidden: false };
-  const list = async (flag: string): Promise<string> => {
+  const list = async (flag: string): Promise<string | null> => {
     try { return (await d.exec(d.cliPath, [flag], { timeoutMs: ADAPTER_TIMEOUT_MS })).stdout; }
-    catch (e) { d.onError(e instanceof HealthAdapterError ? e.code : 'E_HEALTH_HIDHIDE', `${flag}: ${(e as Error).message}`); return ''; }
+    catch (e) { d.onError(e instanceof HealthAdapterError ? e.code : 'E_HEALTH_HIDHIDE', `${flag}: ${(e as Error).message}`); return null; }
   };
   const [apps, devs] = [await list('--app-list'), await list('--dev-list')];
-  const own = d.ownExe.toLowerCase();
+  const norm = (p: string) => p.trim().replace(/^["']+|["']+$/g, '').replace(/\//g, '\\').toLowerCase();
+  const own = norm(d.ownExe);
   return {
     installed: true, cliPath: d.cliPath,
-    whitelisted: apps.split(/\r?\n/).some((l) => l.trim().toLowerCase() === own),
-    deviceHidden: DUALSENSE_VID.test(devs),
+    whitelisted: apps === null ? null : apps.split(/\r?\n/).some((l) => norm(l) === own),
+    deviceHidden: devs !== null && DUALSENSE_VID.test(devs),
   };
 }
 
@@ -122,7 +128,8 @@ export interface GatherDeps {
   ownExe: string;
   appVersion: string;
   engine: () => EngineView;
-  injector: { available: boolean; foregroundElevated: () => boolean | null };
+  /** `foregroundElevated` is the sticky sample of the last non-DualForge foreground (see the game watcher). */
+  injector: { available: boolean; foregroundElevated: () => boolean | null; selfElevated: () => boolean | null };
   onError: ErrorSink;
   cliPath?: string;
   exists?: (p: string) => boolean;
@@ -141,7 +148,8 @@ export async function gatherInput(d: GatherDeps): Promise<GatheredInput> {
   const e = d.engine();
   const s = e.snapshot;
   let foregroundElevated: boolean | null = null;
-  try { foregroundElevated = d.injector.foregroundElevated(); } catch (err) { d.onError('E_HEALTH_ELEVATION', (err as Error).message); }
+  let ownElevated: boolean | null = null;
+  try { ownElevated = d.injector.selfElevated(); foregroundElevated = d.injector.foregroundElevated(); } catch (err) { d.onError('E_HEALTH_ELEVATION', (err as Error).message); }
   return {
     vigem: { serviceState, busDevicePresent },
     hidhide,
@@ -150,6 +158,6 @@ export async function gatherInput(d: GatherDeps): Promise<GatheredInput> {
     profiles: profileStatuses(d.dataDir, d.fs),
     disk: diskUsage(d.logDir, d.fs),
     app: { version: d.appVersion, updateAvailable: null },
-    inject: { available: d.injector.available, foregroundElevated },
+    inject: { available: d.injector.available, foregroundElevated, ownElevated },
   };
 }

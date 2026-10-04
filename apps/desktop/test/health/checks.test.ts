@@ -9,7 +9,7 @@ const GOOD: HealthInput = {
   profiles: [1, 2, 3, 4].map((n) => ({ slot: `p${n}`, status: 'ok' as const })),
   disk: { logBytes: 5_000_000, logFiles: 3 },
   app: { version: '0.1.0', updateAvailable: false },
-  inject: { available: true, foregroundElevated: false },
+  inject: { available: true, foregroundElevated: false, ownElevated: false },
 };
 const mod = (patch: (i: HealthInput) => void): HealthInput => { const i = structuredClone(GOOD); patch(i); return i; };
 const byId = (i: HealthInput, id: string) => runChecks(i).find((r) => r.id === id)!;
@@ -45,6 +45,8 @@ describe('runChecks', () => {
     { name: 'logs over 200 MB warn with clearLogs', patch: (i) => { i.disk.logBytes = 201 * 1024 * 1024; }, id: 'logs', status: 'warn', repair: 'clearLogs' },
     { name: 'injector unavailable warns', patch: (i) => { i.inject.available = false; }, id: 'inject', status: 'warn' },
     { name: 'an elevated foreground game warns', patch: (i) => { i.inject.foregroundElevated = true; }, id: 'inject', status: 'warn' },
+    { name: 'an elevated foreground is fine when DualForge is elevated too', patch: (i) => { i.inject.foregroundElevated = true; i.inject.ownElevated = true; }, id: 'inject', status: 'ok' },
+    { name: 'HidHide whitelist that could not be read warns without a repair', patch: (i) => { i.hidhide.whitelisted = null; }, id: 'hidhide', status: 'warn' },
     { name: 'an unknown foreground elevation is fine', patch: (i) => { i.inject.foregroundElevated = null; }, id: 'inject', status: 'ok' },
     { name: 'an available update is surfaced as a warning', patch: (i) => { i.app.updateAvailable = true; }, id: 'app', status: 'warn' },
     { name: 'an unknown update state is fine', patch: (i) => { i.app.updateAvailable = null; }, id: 'app', status: 'ok' },

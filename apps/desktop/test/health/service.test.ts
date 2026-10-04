@@ -12,7 +12,7 @@ const GOOD: GatheredInput = {
   profiles: [{ slot: 'p1', status: 'ok' }],
   disk: { logBytes: 1, logFiles: 1 },
   app: { version: '0.1.0', updateAvailable: null },
-  inject: { available: true, foregroundElevated: null },
+  inject: { available: true, foregroundElevated: null, ownElevated: false },
 };
 
 function rig(gathered: () => GatheredInput = () => GOOD) {
@@ -85,6 +85,55 @@ describe('health service scheduling', () => {
     expect((await svc.run()).results.find((r) => r.id === 'reportRate')!.status).toBe('ok');
     hz = 3000;
     expect((await svc.run()).results.find((r) => r.id === 'reportRate')!.status).toBe('warn');
+  });
+});
+
+describe('health service change detection and baseline', () => {
+  it('emits health:changed only when status or detail differ', async () => {
+    let hz = 8000;
+    const { svc, emitted } = rig(() => ({ ...GOOD, device: { present: true, reportHz: hz, source: 'device' } }));
+    await svc.run(); await svc.run();
+    expect(emitted).toHaveLength(1);                 // identical second run: nothing pushed
+    hz = 7990;
+    await svc.run();
+    expect(emitted).toHaveLength(2);                 // the detail text changed (7990 Hz)
+    await svc.run();
+    expect(emitted).toHaveLength(2);
+  });
+
+  it('a replayed or absent pad never raises the baseline, and a source change resets it', async () => {
+    let dev: GatheredInput['device'] = { present: true, reportHz: 1000, source: 'device' };
+    const { svc } = rig(() => ({ ...GOOD, device: dev }));
+    const rate = async () => (await svc.run()).results.find((r) => r.id === 'reportRate')?.status;
+    dev = { present: true, reportHz: 8000, source: 'replay' };
+    await svc.run();
+    dev = { present: false, reportHz: 8000, source: 'device' };
+    await svc.run();
+    dev = { present: true, reportHz: 1000, source: 'device' };
+    expect(await rate()).toBe('ok');                 // 1 kHz is not "halved" by the replay's 8 kHz
+    dev = { present: true, reportHz: 8000, source: 'device' };
+    await svc.run();
+    dev = { present: true, reportHz: 5000, source: 'replay' };
+    await svc.run();                                  // source change resets the device baseline
+    dev = { present: true, reportHz: 3000, source: 'device' };
+    expect(await rate()).toBe('ok');
+  });
+
+  it('a repair starts a fresh run after an in-flight one finishes', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    let calls = 0;
+    const { svc } = rig();
+    const gather = vi.fn(async () => { calls++; if (calls === 1) await gate; return GOOD; });
+    const s2 = createHealthService({ gather, emit: vi.fn(), log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      repairs: { restartEngine: vi.fn(), resetProfile: vi.fn(), clearLogs: () => 0, openLogs: () => '' } });
+    void svc;
+    const first = s2.run();
+    await s2.repair({ id: 'clearLogs' });
+    expect(gather).toHaveBeenCalledTimes(1);          // still waiting for the in-flight run
+    release();
+    await first;
+    await vi.waitFor(() => expect(gather).toHaveBeenCalledTimes(2));
   });
 });
 

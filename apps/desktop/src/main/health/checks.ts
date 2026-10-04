@@ -2,14 +2,15 @@ import type { HealthResult } from '@dualforge/shared';
 
 export interface HealthInput {
   vigem: { serviceState: 'running' | 'stopped' | 'missing' | 'unknown'; busDevicePresent: boolean };
-  hidhide: { installed: boolean; cliPath: string | null; whitelisted: boolean; deviceHidden: boolean };
+  /** `whitelisted` is null when the CLI call failed (unknown). */
+  hidhide: { installed: boolean; cliPath: string | null; whitelisted: boolean | null; deviceHidden: boolean };
   /** `highestSeenHz` is the best report rate observed this session (kept by the service). */
   device: { present: boolean; reportHz: number; highestSeenHz: number; source: 'device' | 'replay' };
   engine: { alive: boolean; restartsLastHour: number; p99Ms: number; lastErrorCodes: string[] };
   profiles: { slot: string; status: 'ok' | 'quarantined' | 'default' }[];
   disk: { logBytes: number; logFiles: number };
   app: { version: string; updateAvailable: boolean | null };
-  inject: { available: boolean; foregroundElevated: boolean | null };
+  inject: { available: boolean; foregroundElevated: boolean | null; ownElevated: boolean | null };
 }
 
 export const MIN_REPORT_HZ = 800;
@@ -35,6 +36,7 @@ export function runChecks(i: HealthInput): HealthResult[] {
   // HidHide
   const h = i.hidhide;
   if (!h.installed) out.push({ id: 'hidhide', status: 'warn', title: 'HidHide not installed', detail: 'Optional, but without it games also see the physical DualSense next to the virtual Xbox pad and may double-count input.', repair: 'installHidHide' });
+  else if (h.whitelisted === null) out.push({ id: 'hidhide', status: 'warn', title: 'HidHide state unknown', detail: 'HidHide is installed but its application list could not be read (see the log for health error codes).' });
   else if (!h.whitelisted) out.push({ id: 'hidhide', status: 'warn', title: 'DualForge is not allowed through HidHide', detail: 'HidHide is installed but DualForge is not on its application list, so it cannot read the hidden pad.', repair: 'enableHidHide' });
   else if (!h.deviceHidden) out.push({ id: 'hidhide', status: 'warn', title: 'DualSense not hidden from games', detail: 'HidHide is installed but the DualSense is not hidden, so games can see both pads.', repair: 'enableHidHide' });
   else out.push(ok('hidhide', 'HidHide active', 'The DualSense is hidden from games; only the virtual pad is visible.'));
@@ -77,7 +79,7 @@ export function runChecks(i: HealthInput): HealthResult[] {
 
   // Key and mouse injection
   if (!i.inject.available) out.push({ id: 'inject', status: 'warn', title: 'Keyboard and mouse output unavailable', detail: 'The native input addon did not load (E_INJECT_LOAD). Key/mouse mappings and per-game profiles are disabled.' });
-  else if (i.inject.foregroundElevated === true) out.push({ id: 'inject', status: 'warn', title: 'Foreground program is elevated', detail: "Keys and mouse can't be injected into an elevated (administrator) game. Run DualForge as administrator or the game without it." });
+  else if (i.inject.foregroundElevated === true && i.inject.ownElevated !== true) out.push({ id: 'inject', status: 'warn', title: 'Foreground program is elevated', detail: "Keys and mouse can't be injected into an elevated (administrator) game. Run DualForge as administrator or the game without it." });
   else out.push(ok('inject', 'Keyboard and mouse output ready', 'The native input addon is loaded.'));
 
   // App

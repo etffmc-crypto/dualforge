@@ -18,6 +18,27 @@ describe('game watcher', () => {
   beforeEach(() => { vi.useFakeTimers(); });
   afterEach(() => { vi.useRealTimers(); });
 
+  it('keeps a sticky sample of the last foreign foreground and its elevation, ignoring DualForge itself', () => {
+    const seq = ['', 'game.exe', 'electron.exe', 'electron.exe'];
+    const elev = [true, false, false, false];
+    let i = 0;
+    const w = createGameWatcher({
+      foreground: () => seq[Math.min(i, seq.length - 1)]!,
+      foregroundElevated: () => elev[Math.min(i++, elev.length - 1)] ?? null,
+      settings: () => ({ ...defaultSettings() }), onSwitch: vi.fn(), now: () => 42,
+    });
+    expect(w.lastForeignForeground()).toBeNull();
+    w.start();
+    vi.advanceTimersByTime(2000);                       // '' : transient, no sample
+    expect(w.lastForeignForeground()).toBeNull();
+    i = 1; elev[1] = true;
+    vi.advanceTimersByTime(2000);                       // game.exe elevated
+    expect(w.lastForeignForeground()).toEqual({ name: 'game.exe', elevated: true, at: 42 });
+    vi.advanceTimersByTime(4000);                       // DualForge in front: sample unchanged
+    expect(w.lastForeignForeground()).toEqual({ name: 'game.exe', elevated: true, at: 42 });
+    w.stop();
+  });
+
   it('switches once to the mapped profile (case-insensitive) and back when the game leaves the foreground', () => {
     const { w, switched } = rig(['explorer.exe', 'cod.exe', 'cod.exe', 'cod.exe', 'explorer.exe', 'explorer.exe']);
     w.start();

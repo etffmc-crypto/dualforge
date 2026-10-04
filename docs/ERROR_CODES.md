@@ -165,6 +165,9 @@ HidHideCLI.exe was found but `--app-list` or `--dev-list` failed. Cause: broken 
 ### E_HEALTH_ELEVATION
 The native addon threw while checking whether the foreground program is elevated; treated as unknown. Fix: none needed; reinstall if it repeats.
 
+### E_HEALTH_OUTPUT_TOO_LARGE
+A health probe printed more than 1 MiB and was cut off; the affected check shows "unknown". Fix: run the checks again; report with a diagnostics bundle if it repeats.
+
 ### E_HEALTH_CHECK
 A whole health run failed unexpectedly; the previous results are kept. Fix: run again; report with a diagnostics bundle if it repeats.
 
@@ -187,6 +190,9 @@ Explorer could not open the logs folder. Fix: open `%APPDATA%\DualForge\logs` ma
 
 ### E_BUNDLE_WRITE
 The diagnostics zip could not be written (partial file removed). Cause: disk full, read-only or locked destination. Fix: choose another location.
+
+### E_BUNDLE_CANCELLED
+The user closed the save dialog, so no diagnostics bundle was written (returned by the exportBundle repair; not a fault).
 
 ### E_BUNDLE_COLLECT
 The health or system part of the bundle could not be produced; the bundle is still written with an error placeholder for that file. Fix: none needed; report if it repeats.

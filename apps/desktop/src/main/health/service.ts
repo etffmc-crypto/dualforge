@@ -1,4 +1,4 @@
-import { PROFILE_IDS, type EngineEvent, type HealthRepairRequest, type HealthRepairResult, type HealthState } from '@dualforge/shared';
+import { PROFILE_IDS, type EngineEvent, type HealthResult, type HealthRepairRequest, type HealthRepairResult, type HealthState } from '@dualforge/shared';
 import { runChecks } from './checks.js';
 import type { EngineView, GatheredInput } from './adapters.js';
 
@@ -28,9 +28,14 @@ export interface HealthDeps {
 
 const UNAVAILABLE: HealthRepairResult = { ok: false, code: 'E_HEALTH_REPAIR_UNAVAILABLE' };
 
+function sameResults(a: readonly HealthResult[], b: readonly HealthResult[]): boolean {
+  return a.length === b.length && a.every((r, i) => r.id === b[i]!.id && r.status === b[i]!.status && r.detail === b[i]!.detail);
+}
+
 export function createHealthService(d: HealthDeps) {
   const now = d.now ?? Date.now;
   let state: HealthState | null = null;
+  let highestSource: 'device' | 'replay' | null = null;
   let highestSeenHz = 0;   // best report rate this session, so a pad that drops from 8 kHz is noticed even above 800 Hz
   let inflight: Promise<HealthState> | null = null;
   let startTimer: ReturnType<typeof setTimeout> | null = null;
@@ -39,11 +44,13 @@ export function createHealthService(d: HealthDeps) {
   async function doRun(): Promise<HealthState> {
     try {
       const g = await d.gather();
-      highestSeenHz = Math.max(highestSeenHz, g.device.reportHz);
+      if (g.device.source !== highestSource) { highestSource = g.device.source; highestSeenHz = 0; }   // a new source starts a new baseline
+      if (g.device.source === 'device' && g.device.present) highestSeenHz = Math.max(highestSeenHz, g.device.reportHz);
       const results = runChecks({ ...g, device: { ...g.device, highestSeenHz } });
+      const changed = !state || !sameResults(state.results, results);
       state = { results, ranAt: now() };
       for (const r of results) if (r.status === 'error') d.log.warn({ code: 'HEALTH_RESULT', id: r.id, status: r.status });
-      d.emit(state);
+      if (changed) d.emit(state);
     } catch (e) {
       d.log.error({ code: 'E_HEALTH_CHECK', msg: (e as Error).message });
       state ??= { results: [], ranAt: now() };
@@ -54,6 +61,11 @@ export function createHealthService(d: HealthDeps) {
   function run(): Promise<HealthState> {
     inflight ??= doRun().finally(() => { inflight = null; });
     return inflight;
+  }
+
+  /** A fresh run that starts after any in-flight one finishes (that one may have gathered before the fix). */
+  function rerun(): Promise<HealthState> {
+    return inflight ? inflight.then(() => run()) : run();
   }
 
   async function repair(req: HealthRepairRequest): Promise<HealthRepairResult> {
@@ -75,7 +87,7 @@ export function createHealthService(d: HealthDeps) {
         case 'installViGEm': case 'installHidHide': case 'enableHidHide': res = UNAVAILABLE; break;
       }
       if (!res.ok) d.log.warn({ code: res.code, msg: res.msg, repair: req.id });
-      else if (req.id !== 'openLogs' && req.id !== 'exportBundle') void run();   // re-check so the page reflects the fix
+      else if (req.id !== 'openLogs' && req.id !== 'exportBundle') void rerun();   // re-check so the page reflects the fix
       return res;
     } catch (e) {
       d.log.error({ code: 'E_HEALTH_REPAIR_FAILED', msg: (e as Error).message, repair: req.id });
