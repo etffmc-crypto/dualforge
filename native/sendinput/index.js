@@ -1,12 +1,12 @@
 'use strict';
 const path = require('node:path');
-// electron-rebuild stores ABI-specific builds in bin/<platform>-<arch>-<abi>/; plain node-gyp builds land in build/Release.
-const candidates = [
-  path.join(__dirname, 'bin', `${process.platform}-${process.arch}-${process.versions.modules}`, 'sendinput.node'),
-  path.join(__dirname, 'build', 'Release', 'sendinput.node'),
-];
-let lastErr;
-for (const c of candidates) {
-  try { module.exports = require(c); lastErr = undefined; break; } catch (e) { lastErr = e; }
+// Only build/Release is supported (electron-rebuild and node-gyp both write there). In a packaged app the .node file is
+// asarUnpack'ed; electron redirects require() of it automatically, but resolve the unpacked path explicitly as a fallback.
+const addon = path.join(__dirname, 'build', 'Release', 'sendinput.node');
+const unpacked = addon.replace(/app\.asar([\/])/, 'app.asar.unpacked$1');
+try {
+  module.exports = require(addon);
+} catch (e) {
+  if (unpacked === addon) throw e;
+  module.exports = require(unpacked);
 }
-if (lastErr) throw lastErr;

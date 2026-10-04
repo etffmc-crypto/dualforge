@@ -9,7 +9,8 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "test:ui": "electron-vite build && playwright test",
-    "rebuild": "electron-rebuild -f -w node-hid,vigemclient,@dualforge/sendinput"
+    "rebuild": "electron-rebuild -f -w node-hid,vigemclient,@dualforge/sendinput",
+    "test:packaged": "node scripts/test-packaged.mjs"
   },
   "dependencies": {
     "@dualforge/engine": "*",
@@ -36,8 +37,11 @@
     "@types/yazl": "^3.3.1",
     "@vitejs/plugin-react": "^4.6.0",
     "electron": "^44.0.0",
+    "electron-builder": "^26.15.3",
     "electron-vite": "^4.0.0",
     "jsdom": "^30.1.1",
+    "png-to-ico": "^3.0.2",
+    "pngjs": "^7.0.0",
     "vite": "^7.0.0"
   }
 }

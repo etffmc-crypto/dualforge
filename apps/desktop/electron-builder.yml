@@ -1,0 +1,36 @@
+appId: com.dualforge.app
+productName: DualForge
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**
+  - package.json
+  # trim native-dep payload: other-platform prebuilds, stale ABI copies of our addon, debug/link artifacts
+  - "!**/node_modules/node-hid/prebuilds/{HID-darwin-*,HID-linux-*,HID_hidraw-linux-*}/**"
+  - "!**/node_modules/@dualforge/sendinput/{bin,src}/**"
+  - "!**/*.{pdb,ipdb,iobj,exp,lib,obj}"
+  - "!**/build/Release/obj/**"
+asarUnpack:
+  - '**/*.node'
+extraResources:
+  - from: resources
+    to: resources
+    filter:
+      - "*.png"
+# Electron is hoisted to the root node_modules, so electron-builder cannot resolve the "^44" range; keep in sync with the installed version.
+electronVersion: 44.5.1
+electronDist: ../../node_modules/electron/dist
+npmRebuild: false
+win:
+  target: nsis
+  icon: build/icon.ico
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  artifactName: DualForge-Setup-${version}.exe
+publish:
+  provider: github
+  owner: dualforge
+  repo: dualforge
