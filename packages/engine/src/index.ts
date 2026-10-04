@@ -6,3 +6,4 @@ export * from './stages/stick-filter.js';
 export * from './stages/triggers.js';
 export * from './stages/mapping.js';
 export * from './pipeline.js';
+export * from './replay/hidlog.js';
