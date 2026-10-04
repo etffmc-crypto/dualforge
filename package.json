@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "workspaces": ["packages/*", "apps/*"],
+  "workspaces": ["packages/*", "apps/*", "native/*"],
   "scripts": {
     "typecheck": "tsc -b packages/shared packages/engine apps/desktop",
     "lint": "eslint . --max-warnings 0",
