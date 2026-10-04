@@ -12,21 +12,28 @@ export function createEngineHost(opts: { onEvent: (e: EngineEvent) => void; log:
   let killTimer: NodeJS.Timeout | null = null;
 
   function spawn() {
-    child = utilityProcess.fork(join(__dirname, 'engine-process.js'), [], { serviceName: 'dualforge-engine', stdio: 'pipe' });
+    const thisChild = utilityProcess.fork(join(__dirname, 'engine-process.js'), [], { serviceName: 'dualforge-engine', stdio: 'pipe' });
+    child = thisChild;
     child.stderr?.on('data', (d: Buffer) => opts.log.warn({ code: 'ENGINE_STDERR', msg: d.toString().trim() }));
     child.on('message', (m: unknown) => {
       const p = EngineEventSchema.safeParse(m);
-      if (p.success) { if (p.data.type === 'error') opts.log.error({ code: p.data.code, msg: p.data.msg }); opts.onEvent(p.data); }
+      if (p.success) {
+        if (p.data.type === 'error') opts.log.error({ code: p.data.code, msg: p.data.msg });
+        else if (p.data.type === 'status') opts.log.info({ code: 'ENGINE_STATUS', connected: p.data.connected, vigemReady: p.data.vigemReady });
+        opts.onEvent(p.data);
+      }
       else opts.log.warn({ code: 'E_IPC_EVENT', msg: p.error.message });
     });
     child.on('exit', (code) => {
+      if (child !== thisChild) return;
       opts.log.warn({ code: 'ENGINE_EXIT', exitCode: code });
       child = null;
+      opts.onEvent({ type: 'status', connected: false, vigemReady: false });
       if (stopping) return;
       const now = Date.now();
       restarts = restarts.filter((t) => now - t < 60_000);
       restarts.push(now);
-      if (restarts.length >= 5) {
+      if (restarts.length >= 5) {   // the 5th crash within 60 s trips the limit
         const msg = 'engine crashed 5× in 60 s';
         opts.log.error({ code: 'E_ENGINE_RESTART_LIMIT', msg });
         opts.onEvent({ type: 'error', code: 'E_ENGINE_RESTART_LIMIT', msg });
