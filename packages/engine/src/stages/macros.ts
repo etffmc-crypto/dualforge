@@ -56,6 +56,9 @@ export function reconcileMacros(
   }
 }
 
+/** A tick later than this after a step's deadline means the loop stalled (sleep, debugger): do not catch up. */
+const STALL_RESYNC_MS = 1000;
+
 const cycleMs = (m: Macro): number => {
   let t = 0;
   for (const st of m.steps) t += st.holdMs + st.delayMs;
@@ -64,7 +67,9 @@ const cycleMs = (m: Macro): number => {
 
 /**
  * Advances every running macro to `nowMs` and applies the active step targets (hold phase only) into `out`.
- * A step with holdMs 0 is never observed as active. A looping macro whose cycle is 0 ms restarts 1 ms later (no spin).
+ * A step with holdMs 0 is never observed as active. After a stall longer than STALL_RESYNC_MS the schedule resyncs to `nowMs`
+ * instead of replaying every missed step. A looping macro whose cycle is 0 ms restarts 1 ms after `nowMs` (the loop below
+ * would otherwise never advance `untilMs` past `nowMs`).
  */
 export function tickMacros(
   s: MacroState,
@@ -76,6 +81,7 @@ export function tickMacros(
     const r = s.running[i]!;
     const m = macros.get(r.id);
     let alive = !!m && r.step < m.steps.length; // a stale step index (profile edited mid-run) drops the macro
+    if (alive && nowMs - r.untilMs > STALL_RESYNC_MS) r.untilMs = nowMs;
     while (alive && m && nowMs >= r.untilMs) {
       const step = m.steps[r.step]!;
       if (r.phase === 'hold') {

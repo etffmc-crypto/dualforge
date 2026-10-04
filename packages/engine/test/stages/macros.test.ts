@@ -148,4 +148,18 @@ describe('macros survive profile edits', () => {
     reconcileMacros(s2, prev, same, 50);
     expect(s2.running[0]!.step).toBe(1);
   });
+  it('resyncs instead of replaying missed steps after a stall longer than 1 s', () => {
+    const macros = mk();
+    const s = createMacroState();
+    startMacro(s, 'm', 0, macros);
+    expect(at(s, 5000, macros)).toEqual([]); // stalled: step 0's hold ended, delay restarts from now
+    expect(s.running).toHaveLength(1); // not run to completion by catch-up
+    expect(at(s, 5050, macros)).toEqual(['VK_B']);
+  });
+  it('still catches up normally for stalls up to 1 s', () => {
+    const macros = mk();
+    const s = createMacroState();
+    startMacro(s, 'm', 0, macros);
+    expect(at(s, 160, macros)).toEqual(['VK_B']); // 100 hold + 50 delay elapsed
+  });
 });
