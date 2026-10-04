@@ -4,6 +4,11 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts",
+    "./curve": "./src/stages/stick-curve.ts",
+    "./shape": "./src/stages/stick-shape.ts",
+    "./calibration": "./src/stages/calibration.ts"
+  },
   "dependencies": { "@dualforge/shared": "*" }
 }
