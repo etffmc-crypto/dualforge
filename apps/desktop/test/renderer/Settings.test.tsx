@@ -13,6 +13,7 @@ const settingsApi = {
   set: vi.fn(async (patch: Partial<S>) => { stored = { ...stored, ...patch }; return stored; }),
 };
 const openDataDir = vi.fn(async () => '');
+const updatesApi = { check: vi.fn(async (): Promise<{ available: boolean; version?: string; code?: string }> => ({ available: false })) };
 let healthState: HealthState = { results: [{ id: 'hidhide', status: 'ok', title: 'HidHide active', detail: '' }], ranAt: 0 };
 const healthApi = { get: vi.fn(async () => healthState), onChanged: vi.fn(() => () => undefined) };
 
@@ -22,7 +23,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   stored = defaultSettings();
   healthState = { results: [{ id: 'hidhide', status: 'ok', title: 'HidHide active', detail: '' }], ranAt: 0 };
-  vi.stubGlobal('dualforge', { settings: settingsApi, system: { openDataDir }, health: healthApi });
+  vi.stubGlobal('dualforge', { settings: settingsApi, system: { openDataDir }, health: healthApi, updates: updatesApi });
   useStore.setState({ settings: defaultSettings(), lastError: null });
   delete document.documentElement.dataset.theme;
   localStorage.clear();
@@ -86,12 +87,28 @@ describe('Settings page', () => {
     await waitFor(() => expect(document.documentElement.dataset.theme).toBe('dark'));
   });
 
-  it('startup and update switches say they are not active yet', () => {
+  it('the startup, tray and update switches are live: no "not active yet" notes, Close to tray defaults on', async () => {
     render(<Settings />);
-    expect(screen.getAllByText('Not active yet — coming in Plan 4.')).toHaveLength(3);
-    for (const name of ['Start with Windows', 'Start minimized', 'Check for updates']) {
-      expect(sw(name).getAttribute('aria-describedby')!.split(' ')).toHaveLength(2);
-    }
+    expect(screen.queryByText(/Not active yet/)).toBeNull();
+    expect(sw('Close to tray').getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(sw('Close to tray'));
+    expect(settingsApi.set).toHaveBeenCalledWith({ closeToTray: false });
+    await waitFor(() => expect(stored.closeToTray).toBe(false));
+  });
+
+  it('Check now shows what the updater found', async () => {
+    updatesApi.check.mockResolvedValueOnce({ available: true, version: '0.2.0' });
+    render(<Settings />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check now' }));
+    await waitFor(() => expect(screen.getByText('Version 0.2.0 is available.')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Check now' }));
+    await waitFor(() => expect(screen.getByText('You are on the latest version.')).toBeTruthy());
+    updatesApi.check.mockResolvedValueOnce({ available: false, code: 'E_UPDATE_DEV' });
+    fireEvent.click(screen.getByRole('button', { name: 'Check now' }));
+    await waitFor(() => expect(screen.getByText(/development build/)).toBeTruthy());
+    updatesApi.check.mockResolvedValueOnce({ available: false, code: 'E_UPDATE_DISABLED' });
+    fireEvent.click(screen.getByRole('button', { name: 'Check now' }));
+    await waitFor(() => expect(screen.getByText(/Turn on "Check for updates"/)).toBeTruthy());
   });
 
   it('remembers the theme for the next boot and applies it before React mounts', async () => {

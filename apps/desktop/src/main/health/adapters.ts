@@ -133,6 +133,8 @@ export interface GatherDeps {
   injector: { available: boolean; lastForeign: () => { name: string; elevated: boolean | null; at: number } | null; selfElevated: () => boolean | null };
   now?: () => number;
   onError: ErrorSink;
+  /** Last opt-in update check result (null when updates are off or no check has run). */
+  updateAvailable?: () => boolean | null;
   cliPath?: string;
   exists?: (p: string) => boolean;
   fs?: FsLike;
@@ -165,7 +167,7 @@ export async function gatherInput(d: GatherDeps): Promise<GatheredInput> {
     engine: { alive: e.alive, restartsLastHour: e.restartsLastHour, p99Ms: s?.pipelineP99Ms ?? 0, lastErrorCodes: e.lastErrorCodes },
     profiles: profileStatuses(d.dataDir, d.fs),
     disk: diskUsage(d.logDir, d.fs),
-    app: { version: d.appVersion, updateAvailable: null },
+    app: { version: d.appVersion, updateAvailable: d.updateAvailable?.() ?? null },
     inject: { available: d.injector.available, foregroundElevated, ownElevated, foregroundSeen },
   };
 }

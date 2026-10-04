@@ -174,6 +174,11 @@ describe('gatherInput', () => {
     expect(r.app.version).toBe('1.2.3');
     expect(r.inject).toEqual({ available: true, foregroundElevated: null, ownElevated: false, foregroundSeen: null });
   });
+  it('app.update comes from the opt-in updater (null when off or unchecked)', async () => {
+    expect((await gatherInput(deps())).app.updateAvailable).toBeNull();
+    expect((await gatherInput(deps({ updateAvailable: () => true }))).app.updateAvailable).toBe(true);
+    expect((await gatherInput(deps({ updateAvailable: () => null }))).app.updateAvailable).toBeNull();
+  });
   it('handles no snapshot yet and a throwing elevation probe', async () => {
     const onError = vi.fn();
     const r = await gatherInput(deps({

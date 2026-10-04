@@ -19,6 +19,11 @@ describe('settings store', () => {
     s.set({ activeProfile: 'p3' });
     expect(createSettingsStore(dir, log).get()).toMatchObject({ hasRumble: true, activeProfile: 'p3' });
   });
+  it('closeToTray defaults to true, including for a settings file written before it existed', () => {
+    expect(defaultSettings().closeToTray).toBe(true);
+    writeFileSync(join(dir, 'settings.json'), JSON.stringify({ schemaVersion: 1, theme: 'light' }));
+    expect(createSettingsStore(dir, log).get()).toMatchObject({ theme: 'light', closeToTray: true });
+  });
   it('rejects an invalid patch without changing state', () => {
     const s = createSettingsStore(dir, log);
     expect(() => s.set({ theme: 'neon' as never })).toThrow();

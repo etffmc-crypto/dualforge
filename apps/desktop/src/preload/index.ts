@@ -69,6 +69,18 @@ const api = {
       return () => ipcRenderer.removeListener('health:changed', h);
     },
   },
+  updates: {
+    /** Opt-in update check ("Check now"); { available:false, code } when updates are off, in a dev build, or the check failed. */
+    check: (): Promise<{ available: boolean; version?: string; code?: string }> => ipcRenderer.invoke('updates:check'),
+  },
+  app: {
+    /** Main asks the window to open a page (tray "Health"). */
+    onNavigate(cb: (page: string) => void): () => void {
+      const h = (_: unknown, page: string) => cb(page);
+      ipcRenderer.on('app:navigate', h);
+      return () => ipcRenderer.removeListener('app:navigate', h);
+    },
+  },
   drivers: {
     /** The consent click: downloads the official installer, checks its signature, then launches it (Windows asks for permission). */
     install: (driver: 'vigem' | 'hidhide'): Promise<DriverStatus> => ipcRenderer.invoke('driver:install', { driver }),

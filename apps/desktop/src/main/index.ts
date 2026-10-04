@@ -1,7 +1,7 @@
-import { app, BrowserWindow, crashReporter, dialog, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, crashReporter, dialog, ipcMain, Menu, nativeImage, shell, Tray } from 'electron';
 import os from 'node:os';
 import { basename, join, resolve, extname } from 'node:path';
-import { statSync } from 'node:fs';
+import { existsSync, statSync } from 'node:fs';
 import { z } from 'zod';
 import { logger, LOG_DIR } from './logger.js';
 import { clearLogs, pruneLogs } from './log-prune.js';
@@ -18,9 +18,14 @@ import { createInjector } from './injector.js';
 import { createGameWatcher } from './game-watcher.js';
 import { createProcessLister } from './processes.js';
 import { createHidHide } from './hidhide.js';
+import { applyLoginItem, shouldHideOnClose, shouldStartHidden } from './startup.js';
+import { createTray, type AppTray } from './tray.js';
+import { createUpdater } from './updater.js';
 import { createDriverInstaller, registerDriverIpc, type DriverStatus } from './driver-installer.js';
 
 let win: BrowserWindow | null = null;
+let tray: AppTray | null = null;
+let quitting = false;
 const engine = createEngineHost({ log: logger, onEvent: (e) => { engineFeed.onEvent(e); if (win && !win.isDestroyed()) win.webContents.send('engine:event', e); } });
 const engineFeed = createEngineFeed(() => engine.stats());
 
@@ -30,12 +35,20 @@ const crashDir = join(dataDir, 'crashes');
 startCrashReporter(app, crashReporter, crashDir);
 const store = createProfileStore(dataDir, logger);
 const settings = createSettingsStore(dataDir, logger);
+const updater = createUpdater({
+  enabled: () => settings.get().updates, isPackaged: app.isPackaged, currentVersion: app.getVersion(), log: logger,
+  load: async () => (await import('electron-updater')).autoUpdater,
+  onResult: () => { void health.run(); },
+});
+ipcMain.handle('updates:check', () => updater.check());
 const hidhide = createHidHide({ ownExe: process.execPath, log: logger });
 const ipc = registerIpc({
   ipc: ipcMain, dialog, store, settings, engine, log: logger,
   processes: createProcessLister(undefined, [basename(process.execPath)]),
-  notifyActive: (id) => { if (win && !win.isDestroyed()) win.webContents.send('profiles:active', id); },
+  notifyActive: (id) => { if (win && !win.isDestroyed()) win.webContents.send('profiles:active', id); tray?.refresh(); },
   onSettingsChanged: async (prev, next) => {
+    if (prev.startWithWindows !== next.startWithWindows) applyLoginItem(app, next, logger);
+    if (!prev.updates && next.updates) void updater.check();
     if (prev.hidHide === next.hidHide) return;
     const r = next.hidHide ? await hidhide.enable() : await hidhide.disable();
     void health.run();   // re-check so Health reflects the new state at once
@@ -68,6 +81,7 @@ const installRepair = (driver: 'vigem' | 'hidhide') => async () => {
 const health = createHealthService({
   gather: () => gatherInput({
     exec: defaultExec, dataDir, logDir: LOG_DIR, ownExe: process.execPath, appVersion: app.getVersion(), engine: () => engineFeed.view(),
+    updateAvailable: () => updater.last()?.available ?? null,
     injector: { available: injector.available, lastForeign: () => watcher.lastForeignForeground(), selfElevated: () => injector.selfElevated() },
     onError: (code, msg) => logger.warn({ code, msg }),
   }),
@@ -110,12 +124,18 @@ function validateReplayPath(raw: unknown): string {
 }
 
 function createWindow(): void {
+  const startHidden = shouldStartHidden(process.argv, settings.get());
   win = new BrowserWindow({
     width: 1280, height: 800, minWidth: 1000, minHeight: 680,
     frame: false, backgroundColor: '#0d0b10', show: false,
     webPreferences: { preload: join(__dirname, '../preload/index.js'), sandbox: true, contextIsolation: true },
   });
-  win.on('ready-to-show', () => win?.show());
+  win.on('ready-to-show', () => { if (!startHidden) win?.show(); });
+  // The close button hides to the tray (when enabled and a tray exists); Quit from the tray menu really quits.
+  win.on('close', (e) => {
+    if (shouldHideOnClose({ closeToTray: settings.get().closeToTray, hasTray: tray?.exists() ?? false, quitting })) { e.preventDefault(); win?.hide(); }
+  });
+  win.on('hide', () => tray?.refresh());
   win.on('focus', () => engine.send({ type: 'uiFocused', focused: true }));
   win.on('blur', () => engine.send({ type: 'uiFocused', focused: false }));
   win.on('closed', () => { win = null; });
@@ -139,15 +159,39 @@ ipcMain.on('window:minimize', () => win?.minimize());
 ipcMain.on('window:toggleMaximize', () => (win?.isMaximized() ? win.unmaximize() : win?.maximize()));
 ipcMain.on('window:close', () => win?.close());
 
+/** Packaged builds ship resources next to the app (extraResources); a dev/e2e run reads them from apps/desktop/resources. */
+function trayIconPath(): string {
+  const candidates = [join(process.resourcesPath, 'resources', 'tray.png'), join(__dirname, '../../resources/tray.png')];
+  return candidates.find((p) => existsSync(p)) ?? candidates[1]!;
+}
+
+function showWindow(): void {
+  if (!win || win.isDestroyed()) { createWindow(); return; }
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+}
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
+  app.on('second-instance', () => showWindow());
   app.whenReady().then(() => {
     logger.info({ code: 'APP_START', version: app.getVersion() });
     const pruned = pruneLogs(LOG_DIR, Date.now(), (msg) => logger.warn({ code: 'LOG_PRUNE', msg }));
     if (pruned.length) logger.info({ code: 'LOG_PRUNE', deleted: pruned.length });
     createWindow();
+    applyLoginItem(app, settings.get(), logger);
+    tray = createTray({
+      Tray, Menu, nativeImage, iconPath: trayIconPath(), log: logger,
+      profiles: () => store.list().map((p) => ({ id: p.id, name: p.name })),
+      activeId: () => ipc.currentEngineProfile(),
+      show: showWindow,
+      activate: (id) => { try { ipc.activate(id); } catch (e) { logger.error({ code: 'E_TRAY_ACTIVATE', msg: (e as Error).message }); } },
+      health: () => { showWindow(); win?.webContents.send('app:navigate', 'health'); },
+      quit: () => app.quit(),
+    });
+    if (settings.get().updates) setTimeout(() => void updater.check(), 10_000);   // opt-in only
     engine.start();
     engine.send({ type: 'setSettings', settings: settings.get() });
     engine.send({ type: 'uiFocused', focused: win?.isFocused() ?? true });
@@ -161,6 +205,7 @@ if (!app.requestSingleInstanceLock()) {
   // While DualForge is closed the DualSense must be visible to games again: cloak off first (best effort, 2 s), then really quit.
   let quitCleanup: 'idle' | 'running' | 'done' = 'idle';
   app.on('before-quit', (e) => {
+    quitting = true;
     if (quitCleanup === 'idle' && settings.get().hidHide && hidhide.findCli()) {
       e.preventDefault();
       quitCleanup = 'running';
@@ -169,7 +214,7 @@ if (!app.requestSingleInstanceLock()) {
       return;
     }
     if (quitCleanup === 'running') { e.preventDefault(); return; }
-    health.stop(); watcher.stop(); ipc.flush(); engine.stop();
+    tray?.destroy(); health.stop(); watcher.stop(); ipc.flush(); engine.stop();
   });
   app.on('window-all-closed', () => app.quit());
 }

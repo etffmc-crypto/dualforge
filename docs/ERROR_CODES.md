@@ -223,6 +223,23 @@ No connected DualSense "HID-compliant game controller" was found through PnP, so
 ### E_HIDHIDE_CLI
 A `HidHideCLI.exe` call failed or timed out (`msg` names the command). Cause: the driver service is stopped, or the CLI needs administrator rights. Fix: restart the PC or run DualForge as administrator, then retry.
 
+## Startup, tray and updates
+
+### E_TRAY_ICON
+The tray icon file (`resources/tray.png`) could not be loaded, so no tray was created. Close-to-tray is then ignored so the window cannot be lost. Fix: reinstall DualForge.
+
+### E_TRAY_ACTIVATE
+Switching profile from the tray menu failed (see `msg`). Fix: switch from the app window instead.
+
+### E_UPDATE_DISABLED
+"Check now" was used while Settings > Check for updates is off. Nothing was contacted. Fix: turn the setting on.
+
+### E_UPDATE_DEV
+The update check is not available: this is a development build (no `app-update.yml`). Not an error in installed builds.
+
+### E_UPDATE_CHECK
+The update check failed (offline, GitHub unreachable, bad release metadata; see `msg` in the log). Fix: try again later.
+
 ## Diagnostics bundle
 
 ### E_BUNDLE_WRITE
@@ -267,6 +284,12 @@ Info: a driver installer was downloaded (`driver`, `url`, `sha256`, `file`) and 
 
 ### DRIVER_LAUNCHED
 Info: a verified driver installer was handed to Windows (`driver`, `sha256`).
+
+### LOGIN_ITEM_SKIPPED
+Info: the start-with-Windows registry entry was not written because this is a development run.
+
+### UPDATE_CHECK
+Info: an opt-in update check finished (`available`, `version`).
 
 ### HEALTH_REPAIR
 Info: a repair completed (`id`, plus a result such as `deleted`).

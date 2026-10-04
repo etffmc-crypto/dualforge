@@ -13,6 +13,8 @@ export const SettingsSchema = z.object({
   hidHide: z.boolean().default(false),
   startWithWindows: z.boolean().default(false),
   startMinimized: z.boolean().default(false),
+  /** Close button hides the window to the tray instead of quitting (Quit from the tray menu really quits). */
+  closeToTray: z.boolean().default(true),
   theme: z.enum(['dark', 'light']).default('dark'),
   updates: z.boolean().default(false),
 });
