@@ -123,6 +123,15 @@ describe('Overview cards', () => {
     expect(renderCounts.lights - lights0).toBe(1);
   });
 
+  it('the live pad says Replay when the input is a replayed recording', () => {
+    const s = snap();
+    useStore.setState({ snapshot: { ...s, source: 'replay' } });
+    render(<Overview />);
+    expect(screen.getByText('Connected · Replay · Profile 1')).toBeTruthy();
+    act(() => useStore.setState({ snapshot: s }));
+    expect(screen.getByText('Connected · USB · Profile 1')).toBeTruthy();
+  });
+
   it('renders nothing until the profile loads', () => {
     useStore.setState({ profile: null });
     const { container } = render(<Overview />);

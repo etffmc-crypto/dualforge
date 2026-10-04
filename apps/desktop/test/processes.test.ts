@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createProcessLister, parseTasklist } from '../src/main/processes.js';
+import { join } from 'node:path';
+import { TASKLIST, createProcessLister, parseTasklist } from '../src/main/processes.js';
 
 const CSV = [
   '"System Idle Process","0","Services","0","8 K"',
@@ -30,6 +31,9 @@ describe('createProcessLister', () => {
     const exec = vi.fn(async () => CSV);
     const list = createProcessLister(exec, ['dualforge.exe']);
     expect(await list()).toEqual(['cs2.exe', 'discord.exe', 'eldenring.exe']);
-    expect(exec).toHaveBeenCalledWith('tasklist', ['/fo', 'csv', '/nh']);
+    // by full path from the Windows directory, never a `tasklist` found on PATH or in the working directory
+    const sysRoot = process.env.SystemRoot ?? 'C:\\Windows';
+    expect(exec).toHaveBeenCalledWith(join(sysRoot, 'System32', 'tasklist.exe'), ['/fo', 'csv', '/nh']);
+    expect(TASKLIST).toMatch(/[\\/]System32[\\/]tasklist\.exe$/i);
   });
 });

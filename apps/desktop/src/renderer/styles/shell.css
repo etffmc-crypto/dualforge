@@ -93,8 +93,6 @@
   margin: 0 0 14px; font-size: 15px; font-weight: 500; line-height: 1.2;
   padding-left: 11px; border-left: 3px solid var(--accent);
 }
-.coming-soon { max-width: 440px; }
-.coming-soon p { margin: 0; font-size: 13px; }
 
 /* ---------- footer ---------- */
 .footer {

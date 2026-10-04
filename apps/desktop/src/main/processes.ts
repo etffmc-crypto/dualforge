@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import { join } from 'node:path';
 import { MAX_EXE_LENGTH } from '@dualforge/shared';
 
 /**
@@ -35,6 +36,9 @@ export function parseTasklist(csv: string, alsoIgnore: readonly string[] = []): 
   return [...names].sort();
 }
 
+/** Full path, so a `tasklist` planted on PATH or in the working directory is never run instead. */
+export const TASKLIST = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tasklist.exe');
+
 export type ExecText = (file: string, args: string[]) => Promise<string>;
 
 const execText: ExecText = (file, args) => new Promise((resolve, reject) => {
@@ -43,5 +47,5 @@ const execText: ExecText = (file, args) => new Promise((resolve, reject) => {
 
 /** Lists running programs for the auto-switch "Pick running game" dialog. `alsoIgnore` holds DualForge's own exe. */
 export function createProcessLister(exec: ExecText = execText, alsoIgnore: readonly string[] = []) {
-  return async (): Promise<string[]> => parseTasklist(await exec('tasklist', ['/fo', 'csv', '/nh']), alsoIgnore);
+  return async (): Promise<string[]> => parseTasklist(await exec(TASKLIST, ['/fo', 'csv', '/nh']), alsoIgnore);
 }

@@ -212,7 +212,7 @@ function LivePad() {
         />
       </div>
       <h2 className="home-name ov-name">DUALSENSE {connected && s && <Battery percent={s.battery.percent} charging={s.battery.state === 'charging'} />}</h2>
-      <p className="ov-status">{connected ? `Connected · USB · ${name}` : 'Not connected'}</p>
+      <p className="ov-status">{connected ? `Connected · ${s?.source === 'replay' ? 'Replay' : 'USB'} · ${name}` : 'Not connected'}</p>
     </div>
   );
 }

@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defaultProfile, defaultSettings, type Settings } from '@dualforge/shared';
+import { defaultProfile, defaultSettings, type EngineSnapshot, type Settings } from '@dualforge/shared';
 import { useStore } from '../../src/renderer/store';
-import { Vibrations } from '../../src/renderer/pages/Vibrations';
+import { Vibrations, vibRenderCounts } from '../../src/renderer/pages/Vibrations';
 
 let testRumble: ReturnType<typeof vi.fn>;
 let settingsSet: ReturnType<typeof vi.fn>;
@@ -49,5 +49,21 @@ describe('Vibrations page', () => {
     expect(testRumble).toHaveBeenLastCalledWith({ left: 0.6, right: 0, ms: 500 });
     fireEvent.click(button('Test right motor'));
     expect(testRumble).toHaveBeenLastCalledWith({ left: 0, right: 0.25, ms: 500 });
+  });
+
+  it('a snapshot stream re-renders only the stage, not the sliders', () => {
+    useStore.setState({ settings: { ...defaultSettings(), hasRumble: true } });
+    render(<Vibrations />);
+    const page0 = vibRenderCounts.page, stage0 = vibRenderCounts.stage;
+    for (let i = 0; i < 10; i++) {
+      const s: EngineSnapshot = {
+        t: i, connected: true, source: 'device', vigemReady: true, reportHz: 250, pipelineP99Ms: 0, battery: { percent: 50, state: 'discharging' },
+        raw: { lx: i / 10, ly: 0, rx: 0, ry: 0, l2: 0, r2: 0, buttons: { cross: i % 2 === 0 }, gyro: { x: 0, y: 0, z: 0 }, touch: [] },
+        out: { lx: 0, ly: 0, rx: 0, ry: 0, lt: 0, rt: 0, buttons: {} },
+      };
+      act(() => useStore.setState({ snapshot: s }));
+    }
+    expect(vibRenderCounts.page - page0).toBe(0);
+    expect(vibRenderCounts.stage - stage0).toBe(10);
   });
 });

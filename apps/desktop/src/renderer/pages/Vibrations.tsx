@@ -10,6 +10,9 @@ import '../styles/vibrations.css';
 /** How long a Test press plays its motor. */
 export const TEST_MS = 500;
 
+/** Render counters, read by tests to prove the sliders don't re-render at snapshot rate. */
+export const vibRenderCounts = { page: 0, stage: 0 };
+
 const MOTORS: { side: Side; title: string; hint: string }[] = [
   { side: 'left', title: 'Left Motor', hint: 'The large motor: a heavy, low rumble for impacts and engines.' },
   { side: 'right', title: 'Right Motor', hint: 'The small motor: a light, fast buzz for footsteps and gunfire.' },
@@ -17,12 +20,11 @@ const MOTORS: { side: Side; title: string; hint: string }[] = [
 
 /** Vibrations page: the rumble-motors switch (a per-controller setting) and per-motor strength with a Test pulse. */
 export function Vibrations() {
+  vibRenderCounts.page++;
   const vibration = useStore((s) => s.profile?.vibration ?? null);
   const hasRumble = useStore((s) => s.settings?.hasRumble ?? false);
   const updateProfile = useStore((s) => s.updateProfile);
   const updateSettings = useStore((s) => s.updateSettings);
-  const s = useStore((st) => st.snapshot);
-  const lights = useStore((st) => st.profile?.lights);
   const [playing, setPlaying] = useState<Side | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
@@ -67,21 +69,29 @@ export function Vibrations() {
           ))}
         </>
       }
-      stage={
-        <div className="stage">
-          <div className="vib-motors">
-            {MOTORS.map(({ side }) => (
-              <MotorWaves key={side} side={side} strength={vibration[side]} playing={playing === side} muted={!hasRumble} />
-            ))}
-          </div>
-          <div className="stage-pad">
-            <DualSenseTop
-              pressed={s?.raw.buttons ?? {}} lightbar={lights ?? { r: 0, g: 80, b: 255 }}
-              sticks={s ? { lx: s.raw.lx, ly: s.raw.ly, rx: s.raw.rx, ry: s.raw.ry } : undefined} playerLeds={lights?.playerLeds ?? 0}
-            />
-          </div>
-        </div>
-      }
+      stage={<VibStage vibration={vibration} playing={playing} muted={!hasRumble} />}
     />
+  );
+}
+
+/** The motor waves and the live pad: the only part of the page that follows the snapshot stream. */
+function VibStage({ vibration, playing, muted }: { vibration: Record<Side, number>; playing: Side | null; muted: boolean }) {
+  vibRenderCounts.stage++;
+  const s = useStore((st) => st.snapshot);
+  const lights = useStore((st) => st.profile?.lights);
+  return (
+    <div className="stage">
+      <div className="vib-motors">
+        {MOTORS.map(({ side }) => (
+          <MotorWaves key={side} side={side} strength={vibration[side]} playing={playing === side} muted={muted} />
+        ))}
+      </div>
+      <div className="stage-pad">
+        <DualSenseTop
+          pressed={s?.raw.buttons ?? {}} lightbar={lights ?? { r: 0, g: 80, b: 255 }}
+          sticks={s ? { lx: s.raw.lx, ly: s.raw.ly, rx: s.raw.rx, ry: s.raw.ry } : undefined} playerLeds={lights?.playerLeds ?? 0}
+        />
+      </div>
+    </div>
   );
 }
