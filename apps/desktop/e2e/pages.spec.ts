@@ -49,3 +49,34 @@ test('Triggers page: Left hair trigger Fixed turns a partial L2 pull into a full
   await expect.poll(async () => { const b = await bars(); return b['L2 raw']! > 0.1 && b['L2 raw']! < 0.9 ? b['LT out'] : -1; }, { timeout: 5000 }).toBe(1);
   await app.close();
 });
+
+test('Profiles IPC: rename p2, list, activate, engine profile follows', async () => {
+  const app = await launchApp();
+  const page = await app.firstWindow();
+  await page.evaluate(() => window.dualforge.profiles.rename('p2', 'Racing'));
+  const list = await page.evaluate(() => window.dualforge.profiles.list());
+  expect(list.find((s) => s.id === 'p2')?.name).toBe('Racing');
+  await page.evaluate(() => window.dualforge.profiles.activate('p2'));
+  const p = await page.evaluate(() => window.dualforge.getProfile());
+  expect(p.id).toBe('p2');
+  expect(p.name).toBe('Racing');
+  await app.close();
+});
+
+test('Share code round-trips a profile into slot 3', async () => {
+  const app = await launchApp();
+  const page = await app.firstWindow();
+  const result = await page.evaluate(async () => {
+    const p = await window.dualforge.profiles.get('p1');
+    p.sticks.left.deadzone.anti = 0.25;
+    await window.dualforge.profiles.set(p);
+    const code = await window.dualforge.profiles.shareCode('p1');
+    const imported = await window.dualforge.profiles.importShareCode(code, 'p3');
+    return { code, imported, stored: await window.dualforge.profiles.get('p3') };
+  });
+  expect(result.code.startsWith('DUALFORGE:')).toBe(true);
+  expect(result.stored.id).toBe('p3');
+  expect(result.stored.sticks.left.deadzone.anti).toBe(0.25);
+  expect(result.imported.id).toBe('p3');
+  await app.close();
+});
