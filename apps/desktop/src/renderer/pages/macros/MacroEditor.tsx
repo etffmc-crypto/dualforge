@@ -27,13 +27,19 @@ export function MacroEditor({ macro, isNew, onClose }: MacroEditorProps) {
   const [pickTab, setPickTab] = useState<PickerTab>('controller');
   const [recording, setRecording] = useState(false);
   const [saved, setSaved] = useState(!isNew);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const nameId = useId();
 
   const name = draft.name.trim();
   const problem = !name ? 'Give the macro a name.' : draft.steps.length === 0 ? 'Add at least one step.' : null;
   const save = () => {
     if (problem) return false;
-    updateProfile((d) => upsertMacro(d, { ...draft, name }));
+    // the store validates the whole profile; a rejected draft keeps the dialog open with the reason
+    if (!updateProfile((d) => upsertMacro(d, { ...draft, name }))) {
+      setSaveError(useStore.getState().lastError?.msg ?? 'The macro could not be saved.');
+      return false;
+    }
+    setSaveError(null);
     setSaved(true);
     return true;
   };
@@ -76,6 +82,7 @@ export function MacroEditor({ macro, isNew, onClose }: MacroEditorProps) {
       </p>
       <div className="modal-actions">
         {problem && <span className="me-problem" role="status">{problem}</span>}
+        {!problem && saveError && <span className="me-problem" role="alert">Not saved: {saveError}</span>}
         <button type="button" className="panel-btn" onClick={onClose}>Cancel</button>
         <button type="button" className="panel-btn primary" disabled={!!problem} onClick={() => { if (save()) onClose(); }}>Save</button>
       </div>

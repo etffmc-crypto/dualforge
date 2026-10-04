@@ -33,8 +33,11 @@ interface State {
   /** Resets the running profile to defaults, discarding any edit still waiting for the debounce. */
   resetProfile(): Promise<void>;
   subscribe(): () => void;
-  /** Clone → mutate → validate; applies locally at once and sends to the engine after DEBOUNCE_MS. */
-  updateProfile(mutate: (draft: Profile) => void): void;
+  /**
+   * Clone → mutate → validate; applies locally at once and sends to the engine after DEBOUNCE_MS.
+   * Returns false (and sets lastError E_PROFILE_INVALID) when the result fails the schema; nothing is applied then.
+   */
+  updateProfile(mutate: (draft: Profile) => void): boolean;
   /** Sends the current profile now, cancelling any pending debounce. */
   flushProfile(): void;
 }
@@ -111,17 +114,18 @@ export const useStore = create<State>((set, get) => {
     },
     updateProfile: (mutate) => {
       const cur = get().profile;
-      if (!cur) return;
+      if (!cur) return false;
       const draft = structuredClone(cur);
       mutate(draft);
       const parsed = ProfileSchema.safeParse(draft);
       if (!parsed.success) {
         set({ lastError: { code: 'E_PROFILE_INVALID', msg: parsed.error.issues.map((i) => i.message).join('; ') } });
-        return;
+        return false;
       }
       set({ profile: parsed.data });
       if (pending) clearTimeout(pending);
       pending = setTimeout(send, DEBOUNCE_MS);
+      return true;
     },
     flushProfile: () => {
       if (pending) clearTimeout(pending);

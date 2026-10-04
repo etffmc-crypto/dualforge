@@ -537,3 +537,44 @@ describe('engine loop plan 3b: runMacro', () => {
     await loop.stop(); vi.useRealTimers();
   });
 });
+
+describe('engine loop plan 3b: runMacro and the focus gate', () => {
+  async function rig(focused: boolean) {
+    const injector = fakeInjector();
+    const sink = fakeSink();
+    let report!: (b: Uint8Array, t: number) => void;
+    const src: InputSource = { kind: 'device', start(r, st) { report = r; st(true); }, async write() {}, async stop() {} };
+    let now = 0;
+    const loop = createEngineLoop({ source: src, sink, emit: () => {}, now: () => now, injector, allowInject: true });
+    const p = defaultProfile('p', 'p');
+    p.macros = [{ id: 'm', name: 'Key then B', loop: false, steps: [
+      { target: { type: 'key', code: 'VK_SPACE' }, holdMs: 40, delayMs: 0 },
+      { target: { type: 'xbutton', button: 'B' }, holdMs: 40, delayMs: 0 },
+    ] }];
+    loop.setProfile(p);
+    await loop.start();
+    loop.setUiFocused(focused);
+    const at = (t: number) => { now = t; report(usbReport(false), t); return sink.frames.at(-1)!; };
+    return { loop, at, injector };
+  }
+  it('while DualForge is focused a play-test drives the virtual pad but injects no key', async () => {
+    vi.useFakeTimers();
+    const { loop, at, injector } = await rig(true);
+    at(1000);
+    loop.runMacro('m');
+    at(1010);                              // key step active
+    expect(at(1060).buttons.B).toBe(true); // xbutton step reaches the sink
+    at(1200);
+    expect(injector.calls).toEqual([]);
+    await loop.stop(); vi.useRealTimers();
+  });
+  it('control: unfocused, the same key step is injected', async () => {
+    vi.useFakeTimers();
+    const { loop, at, injector } = await rig(false);
+    at(1000);
+    loop.runMacro('m');
+    at(1010); at(1060); at(1200);
+    expect(injector.calls).toEqual(['key VK_SPACE down', 'key VK_SPACE up']);
+    await loop.stop(); vi.useRealTimers();
+  });
+});

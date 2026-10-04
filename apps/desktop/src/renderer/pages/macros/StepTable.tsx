@@ -1,3 +1,4 @@
+import { DraftNumber } from '../../components/controls/DraftNumber';
 import { targetText } from '../buttons/targets';
 import { MAX_MS, type MacroStep } from './ops';
 
@@ -13,8 +14,6 @@ const Arrow = ({ up }: { up?: boolean }) => (
 const Bin = () => (
   <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
 );
-
-const clamp = (v: string) => Math.min(MAX_MS, Math.max(0, Math.round(Number(v) || 0)));
 
 /** Editable step list: output picker, hold / delay in ms, move up / down, delete. */
 export function StepTable({ steps, onChange, onPickTarget }: StepTableProps) {
@@ -41,11 +40,11 @@ export function StepTable({ steps, onChange, onPickTarget }: StepTableProps) {
                 <button type="button" className={`step-target t-${s.target.type}`} aria-label={`Step ${n} output: ${text}`} onClick={() => onPickTarget(i)}>{text}</button>
               </span>
               <span role="cell" className="ms-cell">
-                <input type="number" min={0} max={MAX_MS} step={10} aria-label={`Step ${n} hold (ms)`} value={s.holdMs} onChange={(e) => set(i, { holdMs: clamp(e.currentTarget.value) })} />
+                <DraftNumber min={0} max={MAX_MS} step={10} label={`Step ${n} hold (ms)`} value={s.holdMs} onCommit={(holdMs) => set(i, { holdMs })} />
                 <span aria-hidden="true">ms</span>
               </span>
               <span role="cell" className="ms-cell">
-                <input type="number" min={0} max={MAX_MS} step={10} aria-label={`Step ${n} delay (ms)`} value={s.delayMs} onChange={(e) => set(i, { delayMs: clamp(e.currentTarget.value) })} />
+                <DraftNumber min={0} max={MAX_MS} step={10} label={`Step ${n} delay (ms)`} value={s.delayMs} onCommit={(delayMs) => set(i, { delayMs })} />
                 <span aria-hidden="true">ms</span>
               </span>
               <span role="cell" className="step-actions">

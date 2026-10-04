@@ -174,3 +174,33 @@ test('Macros page: a macro built in the editor is saved, listed and can be assig
   await expect.poll(async () => (await page.evaluate(() => window.dualforge.getProfile())).mappings.r3?.targets[0]?.type, { timeout: 2000 }).toBe('macro');
   await app.close();
 });
+
+test('Macro Play test drives the virtual pad: a 600 ms B step shows up in the engine output', async () => {
+  const app = await launchApp();
+  const page = await app.firstWindow();
+  // reports must flow for the pipeline to tick; the fixture never presses circle, so B is the macro's alone
+  await page.evaluate((f) => window.dualforge.replay(f), resolve(import.meta.dirname, '../../../packages/engine/test/fixtures/stick-sweep.hidlog'));
+  await page.getByRole('tab', { name: 'Macros' }).click();
+  await page.getByRole('button', { name: 'New macro' }).click();
+  const ed = page.getByRole('dialog', { name: 'New macro' });
+  await ed.getByRole('textbox', { name: 'Macro name' }).fill('Tap B');
+  await ed.getByRole('button', { name: 'Step 1 output: A' }).click();
+  await page.getByRole('dialog', { name: 'Step 1 output' }).getByRole('button', { name: 'B', exact: true }).click();
+  await ed.getByRole('spinbutton', { name: 'Step 1 hold (ms)' }).fill('600');
+  await ed.getByRole('spinbutton', { name: 'Step 1 hold (ms)' }).press('Enter');
+
+  type Probe = { sawB: number[]; clickAt: number };
+  await page.evaluate(() => {
+    const w = window as unknown as Probe;
+    w.sawB = [];
+    window.dualforge.onEngineEvent((e) => { if (e.type === 'snapshot' && e.snapshot.out.buttons.B) w.sawB.push(performance.now()); });
+  });
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => (window as unknown as Probe).sawB.length)).toBe(0);
+  await page.evaluate(() => { (window as unknown as Probe).clickAt = performance.now(); });
+  await ed.getByRole('button', { name: 'Play test' }).click();
+  await expect.poll(() => page.evaluate(() => (window as unknown as Probe).sawB.length), { timeout: 1500 }).toBeGreaterThan(0);
+  const lag = await page.evaluate(() => { const w = window as unknown as Probe; return w.sawB[0]! - w.clickAt; });
+  expect(lag).toBeLessThan(500);
+  await app.close();
+});

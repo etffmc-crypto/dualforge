@@ -1,4 +1,5 @@
 import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { DraftNumber } from './DraftNumber';
 
 export type CurvePoints = [number, number][];
 
@@ -15,24 +16,6 @@ export interface CurveEditorProps {
 const PAD = 12;
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const tidy = (v: number) => Math.round(v * 1e6) / 1e6;
-
-/** 0–100 integer field that keeps a local draft while typing; commits on blur/Enter, ignores empty or non-numeric drafts. */
-function DraftNumber({ value, label, onCommit }: { value: number; label: string; onCommit(v: number): void }) {
-  const [draft, setDraft] = useState<string | null>(null);
-  const commit = () => {
-    if (draft === null) return;
-    const n = Number(draft);
-    if (draft.trim() !== '' && Number.isFinite(n)) onCommit(clamp(Math.round(n), 0, 100));
-    setDraft(null);
-  };
-  return (
-    <input
-      type="number" min={0} max={100} step={1} aria-label={label} value={draft ?? String(value)}
-      onChange={(e) => setDraft(e.currentTarget.value)} onBlur={commit}
-      onKeyDown={(e) => { if (e.key === 'Enter') commit(); else if (e.key === 'Escape') setDraft(null); }}
-    />
-  );
-}
 
 /** Draggable multi-point response curve with a dashed linear reference and per-point numeric inputs. */
 export function CurveEditor({ points, onChange, size = 280, yMax = 1, pointCount = 8 }: CurveEditorProps) {
@@ -108,11 +91,11 @@ export function CurveEditor({ points, onChange, size = 280, yMax = 1, pointCount
       <div className="ce-inputs" style={{ gridTemplateColumns: `auto repeat(${pts.length}, 1fr)` }}>
         <span className="ce-axis">In</span>
         {pts.map(([x], i) => (
-          <DraftNumber key={`x${i}`} value={Math.round(x * 100)} label={`Point ${i + 1} input`} onCommit={(v) => setPoint(i, v / 100, pts[i]![1])} />
+          <DraftNumber key={`x${i}`} min={0} max={100} step={1} value={Math.round(x * 100)} label={`Point ${i + 1} input`} onCommit={(v) => setPoint(i, v / 100, pts[i]![1])} />
         ))}
         <span className="ce-axis">Out</span>
         {pts.map(([, y], i) => (
-          <DraftNumber key={`y${i}`} value={Math.round(y * yScale)} label={`Point ${i + 1} output`} onCommit={(v) => setPoint(i, pts[i]![0], v / yScale)} />
+          <DraftNumber key={`y${i}`} min={0} max={100} step={1} value={Math.round(y * yScale)} label={`Point ${i + 1} output`} onCommit={(v) => setPoint(i, pts[i]![0], v / yScale)} />
         ))}
       </div>
     </div>

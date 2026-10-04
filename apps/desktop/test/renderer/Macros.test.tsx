@@ -40,6 +40,8 @@ afterEach(() => { cleanup(); vi.runOnlyPendingTimers(); vi.useRealTimers(); vi.u
 const macros = () => useStore.getState().profile!.macros;
 const row = (name: string) => screen.getByRole('article', { name });
 const dialog = (name: string) => within(screen.getByRole('dialog', { name }));
+/** hold / delay fields keep a local draft and commit on blur */
+const setMs = (field: HTMLElement, value: string) => { fireEvent.change(field, { target: { value } }); fireEvent.blur(field); };
 
 describe('Macros page', () => {
   it('lists each macro with its steps, loop badge and the buttons that run it', () => {
@@ -63,9 +65,9 @@ describe('Macros page', () => {
     fireEvent.click(dialog('Step 1 output').getByRole('tab', { name: 'Keyboard' }));
     fireEvent.click(dialog('Step 1 output').getByRole('button', { name: 'Space' }));
     expect(screen.queryByRole('dialog', { name: 'Step 1 output' })).toBeNull();
-    fireEvent.change(ed().getByRole('spinbutton', { name: 'Step 1 hold (ms)' }), { target: { value: '120' } });
+    setMs(ed().getByRole('spinbutton', { name: 'Step 1 hold (ms)' }), '120');
     fireEvent.click(ed().getByRole('button', { name: 'Add step' }));
-    fireEvent.change(ed().getByRole('spinbutton', { name: 'Step 2 delay (ms)' }), { target: { value: '15' } });
+    setMs(ed().getByRole('spinbutton', { name: 'Step 2 delay (ms)' }), '15');
     fireEvent.click(ed().getByRole('button', { name: 'Move step 2 up' }));
     expect(macros()).toHaveLength(2); // nothing saved yet
     fireEvent.click(ed().getByRole('button', { name: 'Save' }));
@@ -115,13 +117,47 @@ describe('Macros page', () => {
   it('Play test saves the macro and asks the engine to run it; looping macros cannot be play-tested', () => {
     render(<Macros />);
     fireEvent.click(within(row('Reload')).getByRole('button', { name: 'Edit Reload' }));
-    fireEvent.change(dialog('Edit macro').getByRole('spinbutton', { name: 'Step 1 hold (ms)' }), { target: { value: '90' } });
+    setMs(dialog('Edit macro').getByRole('spinbutton', { name: 'Step 1 hold (ms)' }), '90');
     fireEvent.click(dialog('Edit macro').getByRole('button', { name: 'Play test' }));
     expect(macros()[0]!.steps[0]!.holdMs).toBe(90);
     expect(runMacro).toHaveBeenCalledWith('m1');
     expect(dialog('Edit macro').getByText(/not injected while DualForge is focused/)).toBeTruthy();
     fireEvent.click(dialog('Edit macro').getByRole('switch', { name: 'Loop' }));
     expect((dialog('Edit macro').getByRole('button', { name: 'Play test' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('a draft the profile schema rejects keeps the editor open and says why; Play test does not run it', () => {
+    render(<Macros />);
+    fireEvent.click(within(row('Reload')).getByRole('button', { name: 'Edit Reload' }));
+    // maxLength stops typing past 40, but a programmatic value is not limited: the store's schema is the real guard
+    fireEvent.change(dialog('Edit macro').getByRole('textbox', { name: 'Macro name' }), { target: { value: 'x'.repeat(41) } });
+    fireEvent.click(dialog('Edit macro').getByRole('button', { name: 'Save' }));
+    expect(screen.getByRole('dialog', { name: 'Edit macro' })).toBeTruthy();
+    expect(dialog('Edit macro').getByRole('alert').textContent).toMatch(/^Not saved: .*40/);
+    expect(macros()[0]!.name).toBe('Reload');
+    fireEvent.click(dialog('Edit macro').getByRole('button', { name: 'Play test' }));
+    expect(runMacro).not.toHaveBeenCalled();
+    fireEvent.change(dialog('Edit macro').getByRole('textbox', { name: 'Macro name' }), { target: { value: 'Short' } });
+    fireEvent.click(dialog('Edit macro').getByRole('button', { name: 'Save' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(macros()[0]!.name).toBe('Short');
+  });
+
+  it('hold / delay fields commit on blur or Enter, revert on Escape, and clamp to 0–10000', () => {
+    render(<Macros />);
+    fireEvent.click(within(row('Reload')).getByRole('button', { name: 'Edit Reload' }));
+    const hold = () => dialog('Edit macro').getByRole('spinbutton', { name: 'Step 1 hold (ms)' }) as HTMLInputElement;
+    fireEvent.change(hold(), { target: { value: '' } });   // mid-edit: nothing is clamped or committed
+    expect(hold().value).toBe('');
+    fireEvent.change(hold(), { target: { value: '25' } });
+    fireEvent.keyDown(hold(), { key: 'Escape' });
+    expect(hold().value).toBe('80');
+    fireEvent.change(hold(), { target: { value: '99999' } });
+    fireEvent.keyDown(hold(), { key: 'Enter' });
+    expect(hold().value).toBe('10000');
+    fireEvent.change(hold(), { target: { value: '' } });
+    fireEvent.blur(hold());
+    expect(hold().value).toBe('10000');
   });
 
   it('shows an invitation when there are no macros', () => {
@@ -159,6 +195,43 @@ describe('RecordDialog', () => {
     act(() => { vi.advanceTimersByTime(60_000); });
     expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull();
     expect((screen.getByRole('button', { name: 'Use 0 steps' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+describe('RecordDialog limits', () => {
+  it('finishes when the 64th press completes', () => {
+    useStore.setState({ snapshot: snap(0) });
+    const onUse = vi.fn();
+    render(<RecordDialog open onClose={() => {}} onUse={onUse} />);
+    let t = 0;
+    const press = () => {
+      act(() => useStore.setState({ snapshot: snap(t += 10, { cross: true }) }));
+      act(() => useStore.setState({ snapshot: snap(t += 10, {}) }));
+    };
+    for (let i = 0; i < 63; i++) press();
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeTruthy();
+    expect(screen.getByText('63 presses')).toBeTruthy();
+    press();
+    expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Use 64 steps' }));
+    expect(onUse.mock.calls[0]![0]).toHaveLength(64);
+  });
+
+  it('the 60 s wall timer finishes while snapshots keep arriving', () => {
+    useStore.setState({ snapshot: snap(0) });
+    render(<RecordDialog open onClose={() => {}} onUse={() => {}} />);
+    // engine time crawls (1 ms per snapshot), so only the wall timer can end the take
+    let t = 0;
+    for (let s = 0; s < 59; s++) {
+      act(() => { vi.advanceTimersByTime(500); useStore.setState({ snapshot: snap(++t, { cross: s % 2 === 0 }) }); });
+      act(() => { vi.advanceTimersByTime(500); useStore.setState({ snapshot: snap(++t, {}) }); });
+    }
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeTruthy();
+    act(() => { vi.advanceTimersByTime(500); useStore.setState({ snapshot: snap(++t, { cross: true }) }); });
+    act(() => { vi.advanceTimersByTime(500); });
+    expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull();
+    // the press still held when the timer fired is closed at the last snapshot time
+    expect(screen.getByRole('button', { name: 'Use 31 steps' })).toBeTruthy();
   });
 });
 
