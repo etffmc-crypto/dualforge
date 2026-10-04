@@ -18,9 +18,9 @@ First installable release.
 
 - NSIS per-user installer (unsigned: SmartScreen shows "More info", then "Run anyway").
 - New Health page: checks the controller, ViGEmBus, HidHide, the native addon, startup and updates, with driver install (ViGEmBus required, HidHide optional) and a diagnostics bundle export.
-- HidHide support so games see only the virtual pad (no double input).
+- HidHide support so games see only the virtual pad (no double input). HidHide is admin-gated on most systems: the first enable shows a UAC prompt. The pad is found by hardware ID (works with any Windows language), toggles are serialized, and quitting always un-hides a pad this session hid.
 - Tray icon, start with Windows, start minimized and close to tray.
-- Update check on start (nothing is downloaded or installed without you).
+- Optional update check (off by default; never downloads or installs). Shown in Settings only in builds that publish to a real release owner.
 
 ### Reliability
 
