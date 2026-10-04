@@ -32,7 +32,7 @@ export function createInjector(log: InjectLog, load: () => SendInputAddon = load
     available: addon !== null,
     key(code, down) {
       if (!addon) return;
-      const vk = VK[code];
+      const vk = Object.hasOwn(VK, code) ? VK[code] : undefined;
       if (vk === undefined) {
         if (!badKeys.has(code)) { badKeys.add(code); log('E_INJECT_KEY', `unknown key ${code}`); }
         return;

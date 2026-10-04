@@ -49,7 +49,7 @@ export function processReport(raw: RawState, cp: CompiledProfile, s: PipelineSta
 
   const x = emptyXInput();
   x.lx = l.x; x.ly = l.y; x.rx = r.x; x.ry = r.y; x.lt = lt; x.rt = rt;
-  const frame = applyMappings(raw, cp.profile, s.mapping, nowMs, x);
+  const frame = applyMappings(raw, cp.profile, s.mapping, nowMs, x, cp.analogTargets);
   if (g.active && cp.profile.gyro.output === 'mouse') { frame.mouseMove.dx = g.dx; frame.mouseMove.dy = g.dy; }
   for (const id of frame.macroStarts) startMacro(s.macros, id, nowMs, cp.macros);
   const mo = s.macroOut;

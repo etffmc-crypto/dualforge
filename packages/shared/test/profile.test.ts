@@ -84,3 +84,35 @@ describe('plan 3A schema additions', () => {
     expect(p.mappings.r2?.targets[0]).toEqual({ type: 'xtrigger', trigger: 'rt' });
   });
 });
+
+describe('final-review schema hardening', () => {
+  const macro = (id: string, target: object = { type: 'key', code: 'VK_A' }) => ({ id, name: id, steps: [{ target, holdMs: 10, delayMs: 0 }], loop: false });
+  it('rejects key codes not in the VK table (e.g. prototype names)', () => {
+    const p = defaultProfile('p', 'p');
+    p.mappings.cross = { targets: [{ type: 'key', code: 'constructor' }], turboHz: 0, continuous: false };
+    expect(ProfileSchema.safeParse(p).success).toBe(false);
+    p.mappings.cross = { targets: [{ type: 'key', code: 'VK_SPACE' }], turboHz: 0, continuous: false };
+    expect(ProfileSchema.safeParse(p).success).toBe(true);
+  });
+  it('rejects duplicate macro ids', () => {
+    const p = defaultProfile('p', 'p');
+    p.macros = [macro('a') as never, macro('a') as never];
+    expect(ProfileSchema.safeParse(p).success).toBe(false);
+  });
+  it('rejects a macro step that targets a macro', () => {
+    const p = defaultProfile('p', 'p');
+    p.macros = [macro('a', { type: 'macro', macroId: 'a' }) as never];
+    expect(ProfileSchema.safeParse(p).success).toBe(false);
+  });
+  it('requires activateButton for hold/toggle gyro activation', () => {
+    const p = defaultProfile('p', 'p');
+    p.gyro = { ...p.gyro, activate: 'hold', activateButton: null };
+    expect(ProfileSchema.safeParse(p).success).toBe(false);
+    p.gyro = { ...p.gyro, activate: 'toggle', activateButton: null };
+    expect(ProfileSchema.safeParse(p).success).toBe(false);
+    p.gyro = { ...p.gyro, activate: 'hold', activateButton: 'l1' };
+    expect(ProfileSchema.safeParse(p).success).toBe(true);
+    p.gyro = { ...p.gyro, activate: 'always', activateButton: null };
+    expect(ProfileSchema.safeParse(p).success).toBe(true);
+  });
+});

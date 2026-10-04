@@ -17,6 +17,21 @@ export function stopMacro(s: MacroState, id: string): void {
   if (i >= 0) s.running.splice(i, 1);
 }
 
+/**
+ * Called when the profile changes: running macros whose definition disappeared are stopped; ones whose definition changed
+ * (structurally) are stopped, or restarted from step 0 if they loop; unchanged ones keep running.
+ */
+export function reconcileMacros(s: MacroState, prev: Map<string, Macro>, next: Map<string, Macro>, nowMs: number): void {
+  for (let i = s.running.length - 1; i >= 0; i--) {
+    const r = s.running[i]!;
+    const n = next.get(r.id), p = prev.get(r.id);
+    if (!n) { s.running.splice(i, 1); continue; }
+    if (n === p || (p && JSON.stringify(n) === JSON.stringify(p))) continue;
+    if (n.loop) { r.step = 0; r.phase = 'hold'; r.untilMs = nowMs + n.steps[0]!.holdMs; }
+    else s.running.splice(i, 1);
+  }
+}
+
 const cycleMs = (m: Macro): number => { let t = 0; for (const st of m.steps) t += st.holdMs + st.delayMs; return t; };
 
 /**
@@ -30,7 +45,7 @@ export function tickMacros(
   for (let i = s.running.length - 1; i >= 0; i--) {
     const r = s.running[i]!;
     const m = macros.get(r.id);
-    let alive = !!m;
+    let alive = !!m && r.step < m.steps.length;   // a stale step index (profile edited mid-run) drops the macro
     while (alive && m && nowMs >= r.untilMs) {
       const step = m.steps[r.step]!;
       if (r.phase === 'hold') {

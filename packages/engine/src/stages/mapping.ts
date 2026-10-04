@@ -30,7 +30,7 @@ export const createMappingState = (): MappingState => ({
  * Wanted keys/mouse buttons are collected in `s.wantKeys` / `s.wantMouse`; the pipeline runs macros and then diffTransitions
  * so macro-driven keys also produce events (frame.keys/mouse are empty until then).
  */
-export function applyMappings(raw: RawState, profile: Profile, s: MappingState, nowMs: number, xinput: XInputState): OutputFrame {
+export function applyMappings(raw: RawState, profile: Profile, s: MappingState, nowMs: number, xinput: XInputState, skip?: ReadonlySet<Target>): OutputFrame {
   const frame: OutputFrame = { xinput, keys: [], mouse: [], mouseMove: { dx: 0, dy: 0 }, macroStarts: [] };
   s.wantKeys.clear();
   s.wantMouse.clear();
@@ -53,7 +53,7 @@ export function applyMappings(raw: RawState, profile: Profile, s: MappingState, 
     }
     if (!active) continue;
 
-    for (const t of m.targets) activate(t, xinput, s.wantKeys, s.wantMouse);
+    for (const t of m.targets) if (!skip?.has(t)) activate(t, xinput, s.wantKeys, s.wantMouse);
   }
 
   return frame;

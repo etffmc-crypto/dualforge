@@ -99,3 +99,26 @@ describe('processReport', () => {
     expect(processReport(raw, compileProfile(p), s, 10).mouseMove.dx).toBe(10);
   });
 });
+
+describe('analog trigger passthrough with default xtrigger mapping', () => {
+  const l2Pull = (b: Uint8Array) => { b[5] = 102; b[9] = 0x04; };   // raw.l2 = 0.4, L2 button bit set
+  it('digital=false: analog LT survives the default l2 -> xtrigger mapping', () => {
+    const p = defaultProfile('p', 'p'); p.triggers.left.digital = false;
+    const o = processReport(parseDualSenseUsb(report(l2Pull)), compileProfile(p), createPipelineState(), 0);
+    expect(o.xinput.lt).toBeCloseTo(0.4, 1);
+    expect(o.xinput.lt).toBeLessThan(1);
+  });
+  it('digital=true: the button snaps LT to full', () => {
+    const p = defaultProfile('p', 'p');
+    const o = processReport(parseDualSenseUsb(report(l2Pull)), compileProfile(p), createPipelineState(), 0);
+    expect(o.xinput.lt).toBe(1);
+  });
+  it('digital=false only skips the xtrigger target; other targets on l2 still apply', () => {
+    const p = defaultProfile('p', 'p'); p.triggers.left.digital = false;
+    p.mappings.l2 = { targets: [{ type: 'xtrigger', trigger: 'lt' }, { type: 'xbutton', button: 'A' }, { type: 'xtrigger', trigger: 'rt' }], turboHz: 0, continuous: false };
+    const o = processReport(parseDualSenseUsb(report(l2Pull)), compileProfile(p), createPipelineState(), 0);
+    expect(o.xinput.lt).toBeCloseTo(0.4, 1);
+    expect(o.xinput.buttons.A).toBe(true);
+    expect(o.xinput.rt).toBe(1);
+  });
+});

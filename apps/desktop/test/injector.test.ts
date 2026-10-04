@@ -43,3 +43,13 @@ describe('VK table', () => {
     expect(VK.VK_A).toBe(0x41); expect(VK.VK_F12).toBe(0x7b); expect(VK.VK_NUMPAD0).toBe(0x60);
   });
 });
+
+describe('injector key lookup', () => {
+  it('treats prototype property names as unknown keys', () => {
+    const a = fakeAddon(), log = vi.fn();
+    const inj = createInjector(log, () => a);
+    inj.key('constructor', true);
+    expect(a.sendKey).not.toHaveBeenCalled();
+    expect(log.mock.calls[0]![0]).toBe('E_INJECT_KEY');
+  });
+});

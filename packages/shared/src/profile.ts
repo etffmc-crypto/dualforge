@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { DS_BUTTONS, type DsButton } from './dualsense.js';
 import { X_BUTTONS } from './xinput.js';
+import { VK_NAMES } from './vk.js';
 
 /** The four fixed profile slots. */
 export const PROFILE_IDS = ['p1', 'p2', 'p3', 'p4'] as const;
@@ -65,7 +66,7 @@ export type TriggerConfigInput = z.input<typeof TriggerConfigSchema>;
 export const TargetSchema = z.union([
   z.object({ type: z.literal('none') }),
   z.object({ type: z.literal('xbutton'), button: z.enum(X_BUTTONS) }),
-  z.object({ type: z.literal('key'), code: z.string().min(1) }),     // Windows VK name, e.g. "VK_SPACE"
+  z.object({ type: z.literal('key'), code: z.enum(VK_NAMES) }),     // Windows VK name, e.g. "VK_SPACE"
   z.object({ type: z.literal('mouse'), button: z.enum(['left', 'right', 'middle']) }),
   z.object({ type: z.literal('macro'), macroId: z.string().min(1) }),
   z.object({ type: z.literal('xtrigger'), trigger: z.enum(['lt', 'rt']) }),   // full pull
@@ -80,7 +81,7 @@ export const MacroStepSchema = z.object({
 export const MacroSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1).max(40),
-  steps: z.array(MacroStepSchema).min(1).max(64),
+  steps: z.array(MacroStepSchema.refine((st) => st.target.type !== 'macro', { message: 'macro steps cannot start macros' })).min(1).max(64),
   loop: z.boolean().default(false),
 });
 export type Macro = z.infer<typeof MacroSchema>;
@@ -96,7 +97,7 @@ export const GyroConfigSchema = z.object({
   invertY: z.boolean().default(false),
   curve: z.enum(CURVE_PRESETS).default('linear'),
   bias: z.object({ x: z.number(), y: z.number(), z: z.number() }).default({ x: 0, y: 0, z: 0 }),
-});
+}).refine((g) => g.activate === 'always' || g.activateButton !== null, { message: 'hold/toggle gyro activation needs an activate button' });
 export type GyroConfig = z.infer<typeof GyroConfigSchema>;
 export const MappingSchema = z.object({
   targets: z.array(TargetSchema).min(1).max(3),
@@ -123,7 +124,8 @@ export const ProfileSchema = z.object({
   mappings: z.record(z.enum(DS_BUTTONS), MappingSchema),
   gyro: GyroConfigSchema.default({}),
   macros: z.array(MacroSchema).max(32).default([]),
-}).refine(
+}).refine((p) => new Set(p.macros.map((m) => m.id)).size === p.macros.length, { message: 'duplicate macro id' })
+  .refine(
   (p) => {
     const ids = new Set(p.macros.map((m) => m.id));
     return Object.values(p.mappings).every((m) => m.targets.every((t) => t.type !== 'macro' || ids.has(t.macroId)));

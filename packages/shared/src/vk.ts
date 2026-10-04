@@ -18,5 +18,5 @@ for (let i = 0; i < 10; i++) entries.push([`VK_${i}`, 0x30 + i], [`VK_NUMPAD${i}
 for (let i = 1; i <= 12; i++) entries.push([`VK_F${i}`, 0x6f + i]);
 
 export const VK: Record<string, number> = Object.fromEntries(entries);
-/** All key names, sorted, for UI pickers. */
-export const VK_NAMES: string[] = Object.keys(VK).sort();
+/** All key names, sorted, for UI pickers and schema validation (non-empty tuple so z.enum accepts it). */
+export const VK_NAMES = Object.keys(VK).sort() as unknown as readonly [string, ...string[]];
