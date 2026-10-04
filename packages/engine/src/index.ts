@@ -12,3 +12,5 @@ export * from './stages/gyro.js';
 export * from './compile.js';
 export * from './pipeline.js';
 export * from './replay/hidlog.js';
+export * from './lights.js';
+export * from './share-code.js';
