@@ -1,6 +1,8 @@
 # Runs the check:full steps one by one and writes maintenance/reports/last-check.json.
 # Each step has a timeout; on timeout the process tree is killed. Exit code: 0 all ok, 1 a step failed, 2 no node.
-# Run from anywhere: powershell -File maintenance/run-checks.ps1
+# Run from anywhere: powershell -File maintenance/run-checks.ps1 [-SkipUi]
+# -SkipUi skips test:ui (it launches the app and uses the pad); the step is recorded with skipped: true.
+param([switch]$SkipUi)
 $ErrorActionPreference = 'Continue'
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
@@ -12,19 +14,21 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
   exit 2
 }
 
-# Only stop Electron processes that belong to this repo (dev electron or the unpacked release build).
-function Stop-RepoElectron {
-  $prefixes = @(
-    (Join-Path $root 'node_modules\electron\'),
-    (Join-Path $root 'apps\desktop\release\')
-  )
-  Get-Process -ErrorAction SilentlyContinue | Where-Object {
-    $p = $null
-    try { $p = $_.Path } catch {}
-    if (-not $p) { return $false }
-    foreach ($pre in $prefixes) { if ($p.StartsWith($pre, [System.StringComparison]::OrdinalIgnoreCase)) { return $true } }
-    return $false
-  } | ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
+# Dev Electron processes of this repo. The installed/unpacked DualForge the user may be playing with is never matched.
+function Get-RepoElectronPids {
+  $prefix = Join-Path $root 'node_modules\electron\'
+  @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
+      $p = $null
+      try { $p = $_.Path } catch {}
+      $p -and $p.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)
+    } | ForEach-Object { $_.Id })
+}
+
+# Kill only the repo Electron processes that were not running before the step started.
+function Stop-NewRepoElectron([int[]]$before) {
+  foreach ($procId in (Get-RepoElectronPids)) {
+    if ($before -notcontains $procId) { Stop-Process -Id $procId -Force -ErrorAction SilentlyContinue }
+  }
 }
 
 $steps = @(
@@ -39,12 +43,18 @@ $steps = @(
 $results = @()
 $allOk = $true
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ('dualforge-check-' + [guid]::NewGuid().ToString('N') + '.log')
+$before = $null
 
-Stop-RepoElectron
 try {
   foreach ($s in $steps) {
     $name = $s.name
+    if ($SkipUi -and $name -eq 'test:ui') {
+      Write-Host "=== npm run $name (skipped) ==="
+      $results += [ordered]@{ name = $name; ok = $true; skipped = $true; ms = 0; tail = 'skipped (-SkipUi)' }
+      continue
+    }
     Write-Host "=== npm run $name ==="
+    $before = @(Get-RepoElectronPids)
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     $proc = Start-Process -FilePath 'cmd.exe' -ArgumentList "/c npm run $name > `"$tmp`" 2>&1" -WorkingDirectory $root -NoNewWindow -PassThru
     $null = $proc.Handle # cache the handle so ExitCode is readable
@@ -53,7 +63,8 @@ try {
     $timedOut = -not $finished
     if ($timedOut) { & taskkill /T /F /PID $proc.Id 2>&1 | Out-Null }
     $sw.Stop()
-    if ($name -eq 'test:ui' -or $timedOut) { Stop-RepoElectron }
+    Stop-NewRepoElectron $before
+    $before = $null
     $ok = (-not $timedOut) -and ($proc.ExitCode -eq 0)
     if ($timedOut) {
       $tail = 'timeout'
@@ -64,10 +75,11 @@ try {
     }
     if (-not $ok) { $allOk = $false }
     Write-Host ("    {0} in {1} ms" -f ($(if ($ok) { 'ok' } elseif ($timedOut) { 'TIMEOUT' } else { 'FAILED' })), $sw.ElapsedMilliseconds)
-    $results += [ordered]@{ name = $name; ok = $ok; ms = [int]$sw.ElapsedMilliseconds; tail = $tail }
+    $results += [ordered]@{ name = $name; ok = $ok; skipped = $false; ms = [int]$sw.ElapsedMilliseconds; tail = $tail }
   }
 } finally {
-  Stop-RepoElectron
+  # Interrupted mid-step: clean up only what that step started.
+  if ($null -ne $before) { Stop-NewRepoElectron $before }
   Remove-Item $tmp -ErrorAction SilentlyContinue
 }
 
