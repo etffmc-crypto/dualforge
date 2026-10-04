@@ -364,7 +364,7 @@ test('Home: the first connected controller routes to Overview once; Home stays r
   await app.close();
 });
 
-test('Gamepad navigation: the replayed cross (virtual A) clicks the focused tab', async () => {
+test('Gamepad navigation: the replayed raw cross clicks the focused tab', async () => {
   // replayed input drives navigation only with this opt-in; every other test launches without it
   const app = await launchApp({ DUALFORGE_NAV_REPLAY: '1' });
   const page = await app.firstWindow();

@@ -41,7 +41,7 @@ export function Lights() {
       label="Light settings"
       panel={
         <>
-          <SubTabs<Tab> tabs={TABS} value={tab} onChange={(t) => setTab(t)} pills={['LT', 'RT']} />
+          <SubTabs<Tab> tabs={TABS} value={tab} onChange={(t) => setTab(t)} pills={['L2', 'R2']} />
           {tab === 'lightbar' && <LightbarTab lights={lights} edit={edit} />}
           {tab === 'leds' && <PlayerLedsTab lights={lights} edit={edit} />}
           {tab === 'mic' && <MicTab lights={lights} edit={edit} />}

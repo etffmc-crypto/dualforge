@@ -20,14 +20,14 @@ export function TabStrip() {
   const setPage = useStore((s) => s.setPage);
   return (
     <nav className="tabstrip" role="tablist" aria-label="Sections">
-      <span className="pill" aria-hidden="true">LB</span>
+      <span className="pill" aria-hidden="true">L1</span>
       {TABS.map(({ id, label, Icon }) => (
         <button data-nav key={id} role="tab" aria-selected={page === id} className={`tab${page === id ? ' active' : ''}`} onClick={() => setPage(id)}>
           <Icon size={24} />
           <span className="tab-label">{label}</span>
         </button>
       ))}
-      <span className="pill" aria-hidden="true">RB</span>
+      <span className="pill" aria-hidden="true">R1</span>
     </nav>
   );
 }

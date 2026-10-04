@@ -8,11 +8,12 @@ import { useGamepadNav } from '../../src/renderer/hooks/useGamepadNav';
 
 function Nav() { useGamepadNav(); return null; }
 
-function snap(lt = 0, rt = 0): EngineSnapshot {
+/** A snapshot with the raw L2 / R2 pulled to `l2` / `r2` (digital on this pad: the button bit follows the pull). */
+function snap(l2 = 0, r2 = 0): EngineSnapshot {
   return {
     t: 0, connected: true, source: 'device', vigemReady: true, reportHz: 250, pipelineP99Ms: 0, battery: { percent: 80, state: 'discharging' },
-    raw: { lx: 0, ly: 0, rx: 0, ry: 0, l2: 0, r2: 0, buttons: {}, gyro: { x: 0, y: 0, z: 0 }, touch: [] },
-    out: { lx: 0, ly: 0, rx: 0, ry: 0, lt, rt, buttons: {} },
+    raw: { lx: 0, ly: 0, rx: 0, ry: 0, l2, r2, buttons: { l2: l2 > 0.5, r2: r2 > 0.5 }, gyro: { x: 0, y: 0, z: 0 }, touch: [] },
+    out: { lx: 0, ly: 0, rx: 0, ry: 0, lt: 0, rt: 0, buttons: {} },
   };
 }
 
@@ -65,7 +66,7 @@ describe('Lights page', () => {
     expect(lights().micLed).toBe(1);
   });
 
-  it('RT / LT on the pad step through the sub-tabs', () => {
+  it('R2 / L2 on the pad step through the sub-tabs', () => {
     vi.spyOn(document, 'hasFocus').mockReturnValue(true);
     render(<><Nav /><Lights /></>);
     act(() => { useStore.setState({ snapshot: snap(0, 0) }); });   // baseline

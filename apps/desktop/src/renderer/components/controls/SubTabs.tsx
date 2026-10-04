@@ -7,7 +7,7 @@ export interface SubTabsProps<T extends string> {
 
 /**
  * Text tabs inside a settings panel, flanked by shoulder-button pills; active tab gets a 2px accent underline.
- * `data-subtabs` lets gamepad navigation step them (LT/RT on a page, LB/RB inside a dialog).
+ * `data-subtabs` lets gamepad navigation step them (L2/R2 on a page, L1/R1 inside a dialog).
  */
 export function SubTabs<T extends string>({ tabs, value, onChange, pills }: SubTabsProps<T>) {
   return (

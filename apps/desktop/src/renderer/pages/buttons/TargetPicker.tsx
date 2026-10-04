@@ -54,7 +54,7 @@ export function TargetPicker({ tab, onTab, selected, full, onPick, subject, macr
   const common = { sel, full, onPick };
   return (
     <div className="picker">
-      <SubTabs tabs={tabs} value={tab} onChange={onTab} pills={['LB', 'RB']} />
+      <SubTabs tabs={tabs} value={tab} onChange={onTab} pills={['L1', 'R1']} />
       <p className="picker-head">{HEADINGS[tab]} <span className="picker-badge">{subject}</span></p>
       <div className="picker-body" role="tabpanel" aria-label={tabs.find((t) => t.value === tab)?.label}>
         {tab === 'controller' && (

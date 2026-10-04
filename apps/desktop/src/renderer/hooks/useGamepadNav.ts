@@ -1,23 +1,24 @@
 import { useEffect } from 'react';
-import type { EngineSnapshot } from '@dualforge/shared';
+import type { DsButton, EngineSnapshot } from '@dualforge/shared';
 import { navSuspended, useStore } from '../store';
 import { TABS } from '../components/TabStrip';
 import { closeTopModal, topModalPanel } from '../components/Modal';
 
 /** A held D-pad direction moves focus once at once, then every NAV_REPEAT_MS. */
 export const NAV_REPEAT_MS = 150;
-/** LT / RT count as pressed past this pull. */
+/** L2 / R2 count as pressed past this pull (analog pads; this one reports them as digital buttons too). */
 const PRESSED = 0.5;
 
 export type NavDir = 'up' | 'down' | 'left' | 'right';
-const DPAD: Record<NavDir, 'DPAD_UP' | 'DPAD_DOWN' | 'DPAD_LEFT' | 'DPAD_RIGHT'> ={ up: 'DPAD_UP', down: 'DPAD_DOWN', left: 'DPAD_LEFT', right: 'DPAD_RIGHT' };
+const DPAD: Record<NavDir, 'dpadUp' | 'dpadDown' | 'dpadLeft' | 'dpadRight'> = { up: 'dpadUp', down: 'dpadDown', left: 'dpadLeft', right: 'dpadRight' };
 const DIRS = Object.keys(DPAD) as NavDir[];
 
 /** Attribute the fallback focus ring hangs on (styled like :focus-visible) for programmatic focus. */
 export const NAV_FOCUS_ATTR = 'data-nav-focus';
 
 function usable(el: HTMLElement): boolean {
-  if ((el as HTMLButtonElement).disabled || el.closest('[inert], [aria-hidden="true"]')) return false;
+  // :disabled also covers controls inside a <fieldset disabled>, which have no `disabled` of their own
+  if (el.matches(':disabled') || el.closest('[inert], [aria-hidden="true"]')) return false;
   const r = el.getBoundingClientRect();
   return r.width > 0 || r.height > 0;   // display:none (and unmounted layout) has no box
 }
@@ -55,10 +56,11 @@ export function nearestInDirection(from: HTMLElement, items: HTMLElement[], dir:
   return best;
 }
 
-/** Focuses `el` with a visible ring even though no key was pressed. */
+/** Focuses `el` with a visible ring even though no key was pressed (the ring only if focus really landed there). */
 export function navFocus(el: HTMLElement): void {
   for (const old of document.querySelectorAll(`[${NAV_FOCUS_ATTR}]`)) old.removeAttribute(NAV_FOCUS_ATTR);
   el.focus({ focusVisible: true } as FocusOptions);
+  if (document.activeElement !== el) return;
   el.setAttribute(NAV_FOCUS_ATTR, '');
   el.addEventListener('blur', () => el.removeAttribute(NAV_FOCUS_ATTR), { once: true });
   el.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
@@ -105,24 +107,28 @@ function stepSubTabs(root: ParentNode, d: 1 | -1): void {
   if (next && i !== tabs.indexOf(next)) next.click();
 }
 
-/** The pad inputs navigation reads, one bit each: the pressed state of a snapshot is a number, not a fresh Set. */
-const BUTTON_KEYS = ['A', 'B', 'LB', 'RB', 'DPAD_UP', 'DPAD_DOWN', 'DPAD_LEFT', 'DPAD_RIGHT'] as const;
-type NavKey = (typeof BUTTON_KEYS)[number] | 'LT' | 'RT';
-const BIT: Record<NavKey, number> = { A: 1, B: 2, LB: 4, RB: 8, DPAD_UP: 16, DPAD_DOWN: 32, DPAD_LEFT: 64, DPAD_RIGHT: 128, LT: 256, RT: 512 };
+/**
+ * The raw DualSense buttons navigation reads, one bit each (the pressed state of a snapshot is a number, not a fresh
+ * Set). Raw, not the virtual pad: a profile's remaps, turbo or macros never change what the UI sees.
+ */
+const NAV_KEYS = ['cross', 'circle', 'l1', 'r1', 'l2', 'r2', 'dpadUp', 'dpadDown', 'dpadLeft', 'dpadRight'] as const satisfies readonly DsButton[];
+type NavKey = (typeof NAV_KEYS)[number];
+const BIT = Object.fromEntries(NAV_KEYS.map((k, i) => [k, 1 << i])) as Record<NavKey, number>;
 
 function pressedMask(s: EngineSnapshot): number {
   let m = 0;
-  for (const k of BUTTON_KEYS) if (s.out.buttons[k]) m |= BIT[k];
-  if (s.out.lt > PRESSED) m |= BIT.LT;
-  if (s.out.rt > PRESSED) m |= BIT.RT;
+  for (const k of NAV_KEYS) if (s.raw.buttons[k]) m |= BIT[k];
+  if (s.raw.l2 > PRESSED) m |= BIT.l2;
+  if (s.raw.r2 > PRESSED) m |= BIT.r2;
   return m;
 }
 
 /**
- * Global pad navigation (mounted once, in Shell), driven by the virtual-pad state in each snapshot and only while the
- * window has focus and nothing has suspended it: LB/RB cycle the header pages (the dialog's sub-tabs while one is open),
- * LT/RT step the page's sub-tabs, the D-pad moves focus between `data-nav` controls (repeating while held), A clicks the
- * focused control, B closes the top dialog or goes back to Overview. Everything but the D-pad acts on the rising edge.
+ * Global pad navigation (mounted once, in Shell), driven by the raw controller state in each snapshot and only while
+ * the window has focus and nothing has suspended it: L1/R1 cycle the header pages (the dialog's sub-tabs while one is
+ * open), L2/R2 step the page's sub-tabs, the D-pad moves focus between `data-nav` controls (repeating while held), cross
+ * clicks the focused control, circle closes the top dialog or goes back to Overview. Everything but the D-pad acts on the
+ * rising edge.
  *
  * The first usable snapshot (at start, and again after the window regains focus, a suspension ends or replayed input
  * stops being ignored) is a baseline only: buttons already held then are not presses. Replayed input (`source:
@@ -157,30 +163,30 @@ export function useGamepadNav(): void {
       const dir = DIRS.find((d) => rising(DPAD[d]));
       if (dir) { stopRepeat(); held = dir; moveFocus(dir); repeat(dir); }
 
-      if (rising('A')) {
+      if (rising('cross')) {
         const el = focusedNav();
         if (el && usable(el) && !(el instanceof HTMLInputElement && el.type === 'range')) el.click();
       }
-      if (rising('B')) {
+      if (rising('circle')) {
         if (!closeTopModal()) useStore.getState().setPage('overview');
         return;
       }
 
       const modal = topModalPanel();
       if (modal) {
-        if (rising('LB')) stepSubTabs(modal, -1);
-        else if (rising('RB')) stepSubTabs(modal, 1);
+        if (rising('l1')) stepSubTabs(modal, -1);
+        else if (rising('r1')) stepSubTabs(modal, 1);
         return;
       }
-      if (rising('LB') || rising('RB')) {
+      if (rising('l1') || rising('r1')) {
         const { page, setPage } = useStore.getState();
         const i = TABS.findIndex((t) => t.id === page);
         const n = TABS.length;
-        const next = rising('RB') ? (i + 1) % n : (i <= 0 ? n - 1 : i - 1);
+        const next = rising('r1') ? (i + 1) % n : (i <= 0 ? n - 1 : i - 1);
         setPage(TABS[next]!.id);
       }
-      if (rising('LT')) stepSubTabs(document, -1);
-      else if (rising('RT')) stepSubTabs(document, 1);
+      if (rising('l2')) stepSubTabs(document, -1);
+      else if (rising('r2')) stepSubTabs(document, 1);
     };
 
     const off = useStore.subscribe((st, before) => { if (st.snapshot !== before.snapshot) onSnap(st.snapshot); });

@@ -10,15 +10,18 @@ import { Sticks } from '../../src/renderer/pages/Sticks';
 
 function Nav() { useGamepadNav(); return null; }
 
-/** One snapshot of the virtual pad with `held` XInput buttons down (plus LT / RT pulls). */
-function snap(held: string[] = [], lt = 0, rt = 0, source: 'device' | 'replay' = 'device'): EngineSnapshot {
+/**
+ * One snapshot with `held` raw DualSense buttons down (plus analog L2 / R2 pulls). The virtual pad (`out`) is left
+ * neutral, or set from `out` — navigation must read only the raw controller.
+ */
+function snap(held: string[] = [], l2 = 0, r2 = 0, source: 'device' | 'replay' = 'device', out: string[] = []): EngineSnapshot {
   return {
     t: 0, connected: true, source, vigemReady: true, reportHz: 250, pipelineP99Ms: 0, battery: { percent: 80, state: 'discharging' },
-    raw: { lx: 0, ly: 0, rx: 0, ry: 0, l2: 0, r2: 0, buttons: {}, gyro: { x: 0, y: 0, z: 0 }, touch: [] },
-    out: { lx: 0, ly: 0, rx: 0, ry: 0, lt, rt, buttons: Object.fromEntries(held.map((b) => [b, true])) },
+    raw: { lx: 0, ly: 0, rx: 0, ry: 0, l2, r2, buttons: Object.fromEntries(held.map((b) => [b, true])), gyro: { x: 0, y: 0, z: 0 }, touch: [] },
+    out: { lx: 0, ly: 0, rx: 0, ry: 0, lt: 0, rt: 0, buttons: Object.fromEntries(out.map((b) => [b, true])) },
   };
 }
-const feed = (held: string[] = [], lt = 0, rt = 0) => act(() => { useStore.setState({ snapshot: snap(held, lt, rt) }); });
+const feed = (held: string[] = [], l2 = 0, r2 = 0) => act(() => { useStore.setState({ snapshot: snap(held, l2, r2) }); });
 const feedReplay = (held: string[] = []) => act(() => { useStore.setState({ snapshot: snap(held, 0, 0, 'replay') }); });
 /** press-and-release, as a pad tap shows up across two snapshots */
 const tap = (b: string) => { feed([b]); feed([]); };
@@ -63,19 +66,19 @@ afterEach(() => { cleanup(); vi.runOnlyPendingTimers(); vi.useRealTimers(); vi.u
 const page = () => useStore.getState().page;
 
 describe('gamepad navigation', () => {
-  it('LB / RB cycle the header pages on the rising edge, wrapping at the ends', () => {
+  it('L1 / R1 cycle the header pages on the rising edge, wrapping at the ends', () => {
     mount();
-    feed(['RB']);
+    feed(['r1']);
     expect(page()).toBe('sticks');
-    feed(['RB']);   // still held: no repeat
-    feed(['RB']);
+    feed(['r1']);   // still held: no repeat
+    feed(['r1']);
     expect(page()).toBe('sticks');
     feed([]);
-    tap('LB'); tap('LB'); tap('LB');
+    tap('l1'); tap('l1'); tap('l1');
     expect(page()).toBe('home');
-    tap('LB');
+    tap('l1');
     expect(page()).toBe('inputTest');
-    tap('RB');
+    tap('r1');
     expect(page()).toBe('home');
   });
 
@@ -83,12 +86,12 @@ describe('gamepad navigation', () => {
     const onTop = vi.fn();
     render(<><Nav /><Stacked onTop={onTop} /></>);
     screen.getByRole('button', { name: 'Top' }).focus();
-    feed(['A', 'RB']);   // first snapshot ever, A and RB already down
-    feed(['A', 'RB']);
+    feed(['cross', 'r1']);   // first snapshot ever, A and RB already down
+    feed(['cross', 'r1']);
     expect(onTop).not.toHaveBeenCalled();
     expect(page()).toBe('buttons');
     feed([]);
-    feed(['A']);
+    feed(['cross']);
     expect(onTop).toHaveBeenCalledTimes(1);
   });
 
@@ -97,29 +100,34 @@ describe('gamepad navigation', () => {
     vi.mocked(document.hasFocus).mockReturnValue(false);
     feed([]);
     vi.mocked(document.hasFocus).mockReturnValue(true);
-    feed(['RB']);   // was pressed while unfocused: baseline, not a press
+    feed(['r1']);   // was pressed while unfocused: baseline, not a press
     expect(page()).toBe('buttons');
-    feed([]); feed(['RB']);
+    feed([]); feed(['r1']);
     expect(page()).toBe('sticks');
   });
 
   it('replayed input is ignored unless the navReplay flag is set', () => {
     mount();
-    feedReplay([]); feedReplay(['RB']); feedReplay([]);
+    feedReplay([]); feedReplay(['r1']); feedReplay([]);
     expect(page()).toBe('buttons');
     cleanup();
 
     vi.stubGlobal('dualforge', { profiles: { set: vi.fn(async () => true) }, flags: { navReplay: true } });
     render(<Nav />);
-    feedReplay([]); feedReplay(['RB']);
+    feedReplay([]); feedReplay(['r1']);
     expect(page()).toBe('sticks');
   });
 
-  it('LT / RT switch the Sticks sub-tab', () => {
+  it('L2 / R2 switch the Sticks sub-tab: as digital buttons, or as analog pulls past half', () => {
     mount(<Sticks />);
-    feed([], 0, 0.9);
+    feed(['r2']);
     expect(useStore.getState().subTab.sticks).toBe('right');
     expect(screen.getByRole('tab', { name: 'Right' }).getAttribute('aria-selected')).toBe('true');
+    feed(['r2', 'l2']);
+    expect(useStore.getState().subTab.sticks).toBe('left');
+    feed([]);
+    feed([], 0, 0.9);
+    expect(useStore.getState().subTab.sticks).toBe('right');
     feed([], 0.9, 0.9);
     expect(useStore.getState().subTab.sticks).toBe('left');
   });
@@ -127,22 +135,22 @@ describe('gamepad navigation', () => {
   it('D-pad down moves focus to the control below, up moves it back, and the ring is shown', () => {
     mount(<Stacked />);
     screen.getByRole('button', { name: 'Top' }).focus();
-    tap('DPAD_DOWN');
+    tap('dpadDown');
     const bottom = screen.getByRole('button', { name: 'Bottom' });
     expect(document.activeElement).toBe(bottom);
     expect(bottom.hasAttribute('data-nav-focus')).toBe(true);
-    tap('DPAD_UP');
+    tap('dpadUp');
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Top' }));
     expect(bottom.hasAttribute('data-nav-focus')).toBe(false);
   });
 
-  it('A clicks the focused control', () => {
+  it('cross clicks the focused control', () => {
     const onBottom = vi.fn();
     mount(<Stacked onBottom={onBottom} />);
     screen.getByRole('button', { name: 'Bottom' }).focus();
-    tap('A');
+    tap('cross');
     expect(onBottom).toHaveBeenCalledTimes(1);
-    feed(['A']); feed(['A']);   // held A clicks once
+    feed(['cross']); feed(['cross']);   // held A clicks once
     expect(onBottom).toHaveBeenCalledTimes(2);
   });
 
@@ -152,31 +160,31 @@ describe('gamepad navigation', () => {
     const slider = screen.getByRole('slider', { name: 'Level' });
     place(slider, 0, 0);
     slider.focus();
-    tap('DPAD_RIGHT');
+    tap('dpadRight');
     expect(onChange).toHaveBeenLastCalledWith(0.6);
     expect(document.activeElement).toBe(slider);
-    tap('DPAD_LEFT'); tap('DPAD_LEFT');
+    tap('dpadLeft'); tap('dpadLeft');
     expect(onChange).toHaveBeenLastCalledWith(0.4);
   });
 
-  it('B closes the open dialog first, then goes back to Overview', () => {
+  it('circle closes the open dialog first, then goes back to Overview', () => {
     mount(<WithModal />);
     expect(screen.getByRole('dialog', { name: 'Pick' })).toBeTruthy();
-    tap('B');
+    tap('circle');
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(page()).toBe('buttons');
-    tap('B');
+    tap('circle');
     expect(page()).toBe('overview');
   });
 
-  it('inside a dialog the D-pad only reaches its controls and LB / RB do not switch pages', () => {
+  it('inside a dialog the D-pad only reaches its controls and L1 / R1 do not switch pages', () => {
     mount(<><Stacked /><WithModal /></>);
     place(screen.getByRole('button', { name: 'Inside' }), 0, 200);
-    tap('DPAD_DOWN');
+    tap('dpadDown');
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Inside' }));
-    tap('DPAD_UP');
+    tap('dpadUp');
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Inside' }));
-    tap('RB');
+    tap('r1');
     expect(page()).toBe('buttons');
   });
 
@@ -186,20 +194,20 @@ describe('gamepad navigation', () => {
     screen.getByRole('button', { name: 'Top' }).focus();
     let release = () => {};
     act(() => { release = useStore.getState().suspendNav(); });
-    tap('RB'); tap('A'); tap('DPAD_DOWN'); tap('B');
+    tap('r1'); tap('cross'); tap('dpadDown'); tap('circle');
     expect(page()).toBe('buttons');
     expect(onTop).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Top' }));
 
     act(() => release());
     vi.mocked(document.hasFocus).mockReturnValue(false);
-    tap('RB'); tap('A');
+    tap('r1'); tap('cross');
     expect(page()).toBe('buttons');
     expect(onTop).not.toHaveBeenCalled();
 
     vi.mocked(document.hasFocus).mockReturnValue(true);
     feed([]);   // baseline after regaining focus
-    tap('RB');
+    tap('r1');
     expect(page()).toBe('sticks');
   });
 
@@ -217,10 +225,10 @@ describe('gamepad navigation', () => {
   it('a held D-pad moves at once, then every 150 ms until released', () => {
     mount(<Stacked />);
     screen.getByRole('button', { name: 'Top' }).focus();
-    feed(['DPAD_DOWN']);
+    feed(['dpadDown']);
     expect(document.activeElement?.textContent).toBe('Bottom');
     act(() => { vi.advanceTimersByTime(NAV_REPEAT_MS - 1); });
-    feed(['DPAD_DOWN']);   // still held: snapshots alone do not move it
+    feed(['dpadDown']);   // still held: snapshots alone do not move it
     expect(document.activeElement?.textContent).toBe('Bottom');
     act(() => { vi.advanceTimersByTime(1); });
     expect(document.activeElement?.textContent).toBe('Third');
@@ -228,5 +236,53 @@ describe('gamepad navigation', () => {
     screen.getByRole('button', { name: 'Top' }).focus();
     act(() => { vi.advanceTimersByTime(NAV_REPEAT_MS * 3); });
     expect(document.activeElement?.textContent).toBe('Top');
+  });
+  it('reads the raw controller, not the virtual pad: remapping or turbo on cross does not change navigation', () => {
+    let remapped = false;
+    act(() => {
+      remapped = useStore.getState().updateProfile((p) => { p.mappings.cross = { targets: [{ type: 'key', code: 'VK_SPACE' }], turboHz: 20, continuous: false }; });
+    });
+    expect(remapped).toBe(true);
+    const onBottom = vi.fn();
+    mount(<Stacked onBottom={onBottom} />);
+    screen.getByRole('button', { name: 'Bottom' }).focus();
+    // cross held across many snapshots while turbo toggles the virtual A / B on and off: one press, one click
+    const outs = [['A'], [], ['A'], ['B'], [], ['A', 'B']];
+    for (const out of outs) act(() => { useStore.setState({ snapshot: snap(['cross'], 0, 0, 'device', out) }); });
+    expect(onBottom).toHaveBeenCalledTimes(1);
+    expect(page()).toBe('buttons');   // the virtual B never navigated back
+    // and the virtual pad alone (raw idle) does nothing
+    for (const out of outs) act(() => { useStore.setState({ snapshot: snap([], 0, 0, 'device', out) }); });
+    act(() => { useStore.setState({ snapshot: snap([], 0, 0, 'device', ['RB']) }); });
+    expect(onBottom).toHaveBeenCalledTimes(1);
+    expect(page()).toBe('buttons');
+  });
+
+  it('skips controls inside a disabled fieldset and reaches the next enabled one', () => {
+    mount(
+      <div>
+        <button data-nav type="button" ref={(el) => { if (el) place(el, 0, 0); }}>Top</button>
+        <fieldset disabled>
+          <button data-nav type="button" ref={(el) => { if (el) place(el, 0, 50); }}>Locked 1</button>
+          <button data-nav type="button" ref={(el) => { if (el) place(el, 0, 100); }}>Locked 2</button>
+        </fieldset>
+        <button data-nav type="button" ref={(el) => { if (el) place(el, 0, 150); }}>After</button>
+      </div>,
+    );
+    screen.getByRole('button', { name: 'Top' }).focus();
+    tap('dpadDown');
+    const after = screen.getByRole('button', { name: 'After' });
+    expect(document.activeElement).toBe(after);
+    expect(after.hasAttribute('data-nav-focus')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Locked 1' }).hasAttribute('data-nav-focus')).toBe(false);
+  });
+
+  it('shows the focus ring only when focus actually landed', () => {
+    mount(<Stacked />);
+    const bottom = screen.getByRole('button', { name: 'Bottom' });
+    bottom.focus = () => {};   // a control that refuses focus
+    screen.getByRole('button', { name: 'Top' }).focus();
+    tap('dpadDown');
+    expect(bottom.hasAttribute('data-nav-focus')).toBe(false);
   });
 });

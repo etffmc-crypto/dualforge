@@ -29,5 +29,5 @@ const SIDES: { value: Side; label: string }[] = [{ value: 'left', label: 'Left' 
 export function SideTabs({ page }: { page: SubTabPage }) {
   const side = useStore((s) => s.subTab[page]);
   const setSubTab = useStore((s) => s.setSubTab);
-  return <SubTabs tabs={SIDES} value={side} onChange={(v) => setSubTab(page, v)} pills={['LT', 'RT']} />;
+  return <SubTabs tabs={SIDES} value={side} onChange={(v) => setSubTab(page, v)} pills={['L2', 'R2']} />;
 }
