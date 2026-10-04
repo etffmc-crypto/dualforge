@@ -29,11 +29,12 @@ export interface IpcDeps {
 /** Every handler validates its input with zod in the main process; renderer data is never trusted. */
 export function registerIpc(d: IpcDeps) {
   let engineProfileId: string = d.settings.get().activeProfile;
+  let engineSource: 'manual' | 'auto' = 'manual';
 
   /** Loads a profile into the engine without persisting it as the user's active profile (used by auto-switch). */
-  function applyProfile(id: string): Profile {
+  function applyProfile(id: string, source: 'manual' | 'auto' = 'manual'): Profile {
     const p = d.store.get(id);
-    engineProfileId = id;
+    engineProfileId = id; engineSource = source;
     d.engine.send({ type: 'setProfile', profile: p });
     d.notifyActive(id);
     return p;
@@ -93,6 +94,7 @@ export function registerIpc(d: IpcDeps) {
     if (slot === engineProfileId) d.engine.send({ type: 'setProfile', profile: p });
     return p;
   });
+  h('profiles:current', () => ({ id: engineProfileId, source: engineSource }));
   h('profiles:activate', (id) => activate(IdSchema.parse(id)));
   h('settings:get', () => d.settings.get());
   h('settings:set', (patch) => {
@@ -104,8 +106,8 @@ export function registerIpc(d: IpcDeps) {
     if (parsed.data.activeProfile !== undefined) applyProfile(next.activeProfile);
     return next;
   });
-  // Plan 1 channels, kept for the existing renderer: they act on the active profile.
-  h('profile:get', () => d.store.get(d.settings.get().activeProfile));
+  // Plan 1 channels, kept for the existing renderer: they act on the profile the engine is running (so UI edits go live even during an auto-switch).
+  h('profile:get', () => d.store.get(engineProfileId));
   h('profile:set', saveProfile);
 
   return { applyProfile, activate, flush: () => d.store.flush(), currentEngineProfile: () => engineProfileId };

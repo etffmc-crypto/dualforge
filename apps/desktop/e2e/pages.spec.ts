@@ -60,6 +60,7 @@ test('Profiles IPC: rename p2, list, activate, engine profile follows', async ()
   const p = await page.evaluate(() => window.dualforge.getProfile());
   expect(p.id).toBe('p2');
   expect(p.name).toBe('Racing');
+  expect(await page.evaluate(() => window.dualforge.profiles.current())).toEqual({ id: 'p2', source: 'manual' });
   await app.close();
 });
 

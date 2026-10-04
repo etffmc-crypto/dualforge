@@ -21,6 +21,8 @@ const api = {
     shareCode: (id: string): Promise<string> => ipcRenderer.invoke('profiles:shareCode', id),
     importShareCode: (code: string, toSlot: string): Promise<Profile> => ipcRenderer.invoke('profiles:importShareCode', code, toSlot),
     activate: (id: string): Promise<Profile> => ipcRenderer.invoke('profiles:activate', id),
+    /** The profile the engine is actually running, and whether it was chosen manually or by per-game auto-switch. */
+    current: (): Promise<{ id: string; source: 'manual' | 'auto' }> => ipcRenderer.invoke('profiles:current'),
     /** Fires when the engine switches profile (manual activation or per-game auto-switch). */
     onActive(cb: (id: string) => void): () => void {
       const h = (_: unknown, id: string) => cb(id);

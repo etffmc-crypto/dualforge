@@ -82,6 +82,21 @@ describe('profile / settings IPC', () => {
     expect(log.error.mock.calls.some((c) => (c[0] as { code: string }).code === 'E_PROFILE_WRITE')).toBe(true);
     vi.useRealTimers();
   });
+  it('profiles:current reports the engine profile and how it was selected; legacy profile:get/set follow it', () => {
+    const { call, sent, api } = rig();
+    expect(call('profiles:current')).toEqual({ id: 'p1', source: 'manual' });
+    call('profiles:activate', 'p2');
+    expect(call('profiles:current')).toEqual({ id: 'p2', source: 'manual' });
+    api.applyProfile('p3', 'auto');                                   // auto-switch: settings.activeProfile stays p2
+    expect(call('profiles:current')).toEqual({ id: 'p3', source: 'auto' });
+    expect((call('settings:get') as { activeProfile: string }).activeProfile).toBe('p2');
+    const cur = call('profile:get') as { id: string };
+    expect(cur.id).toBe('p3');
+    sent.length = 0;
+    call('profile:set', { ...(cur as object), name: 'Edited live' });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ type: 'setProfile', profile: { id: 'p3', name: 'Edited live' } });
+  });
   it('profiles:duplicate into the running slot pushes setProfile', () => {
     const { call, sent, api } = rig();
     call('profiles:set', defaultProfile('p1', 'Src'));

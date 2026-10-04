@@ -24,7 +24,7 @@ const ipc = registerIpc({
 // The main process loads the addon too, only to read the foreground process name for auto-switching (E_INJECT_LOAD is logged once).
 const injector = createInjector((code, msg) => logger.error({ code, msg }));
 const watcher = createGameWatcher({
-  foreground: () => injector.foreground(), settings: () => settings.get(), onSwitch: (id) => ipc.applyProfile(id), log: (code, msg) => logger.error({ code, msg }),
+  foreground: () => injector.foreground(), settings: () => settings.get(), onSwitch: (id) => ipc.applyProfile(id, 'auto'), log: (code, msg) => logger.error({ code, msg }),
   available: injector.available,
 });
 

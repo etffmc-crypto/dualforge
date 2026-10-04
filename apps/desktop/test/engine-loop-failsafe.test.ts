@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { defaultProfile, type XInputState } from '@dualforge/shared';
+import type * as Engine from '@dualforge/engine';
 import { createEngineLoop, type InputSource, type PadSink } from '../src/main/engine-loop.js';
 
 const hook = vi.hoisted(() => ({ throwOnce: false }));
 vi.mock('@dualforge/engine', async (orig) => {
-  const actual = await orig<typeof import('@dualforge/engine')>();
+  const actual = await orig<typeof Engine>();
   return { ...actual, processReport: (...a: Parameters<typeof actual.processReport>) => {
     if (hook.throwOnce) { hook.throwOnce = false; throw new Error('boom'); }
     return actual.processReport(...a);

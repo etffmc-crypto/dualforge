@@ -420,7 +420,7 @@ describe('engine loop plan 3a: injector gate, rumble setting, lights cadence', (
 });
 
 describe('engine loop final review: replay never injects, macros survive profile edits', () => {
-  async function rig(kind: 'device' | 'replay', allowInject?: boolean) {
+  async function rig(kind: 'device' | 'replay', allowInject = true) {
     const injector = fakeInjector();
     let report!: (b: Uint8Array, t: number) => void;
     const src: InputSource = { kind, start(r, st) { report = r; st(true); }, async write() {}, async stop() {} };
