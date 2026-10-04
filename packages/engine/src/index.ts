@@ -3,6 +3,7 @@ export * from './codec/build-output.js';
 export * from './stages/stick-shape.js';
 export * from './stages/stick-curve.js';
 export * from './stages/stick-filter.js';
+export * from './stages/calibration.js';
 export * from './stages/triggers.js';
 export * from './stages/mapping.js';
 export * from './compile.js';

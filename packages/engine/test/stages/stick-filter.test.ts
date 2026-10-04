@@ -31,4 +31,15 @@ describe('applyStickFilter', () => {
     expect(applyStickFilter(1, 0, basic(true, 20), a, 1).x)
       .toBeGreaterThan(applyStickFilter(1, 0, basic(true, 80), b, 1).x);
   });
+  it('advanced mode uses curve strength by speed: slow moves heavily smoothed, fast moves pass', () => {
+    const cfg = { enabled: true, mode: 'advanced' as const, strength: 0, curve: [[0, 100], [0.1, 100], [0.25, 0], [0.5, 0], [1, 0]] as [number, number][] };
+    const s2 = createFilterState();
+    applyStickFilter(0, 0, cfg, s2, 100);
+    const vSlow2 = applyStickFilter(0.01, 0, cfg, s2, 100).x; // speedNorm 0.01 -> strength 100 -> heavy smoothing
+    const s3 = createFilterState();
+    applyStickFilter(0, 0, cfg, s3, 100);
+    const vFast = applyStickFilter(1, 0, cfg, s3, 100).x; // speedNorm 1 -> strength 0 -> pass-through
+    expect(vSlow2).toBeLessThan(0.01);
+    expect(vFast).toBe(1);
+  });
 });
