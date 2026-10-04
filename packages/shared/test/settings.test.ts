@@ -1,0 +1,17 @@
+import { describe, expect, it } from 'vitest';
+import { SettingsSchema, defaultSettings, EngineCommandSchema } from '../src/index.js';
+
+describe('settings', () => {
+  it('defaults', () => {
+    expect(defaultSettings()).toMatchObject({
+      schemaVersion: 1, activeProfile: 'p1', hasRumble: false, theme: 'dark', autoSwitch: [],
+    });
+  });
+  it('rejects bad theme', () => {
+    expect(SettingsSchema.safeParse({ schemaVersion: 1, theme: 'x' }).success).toBe(false);
+  });
+  it('ipc accepts uiFocused and setSettings', () => {
+    expect(EngineCommandSchema.safeParse({ type: 'uiFocused', focused: true }).success).toBe(true);
+    expect(EngineCommandSchema.safeParse({ type: 'setSettings', settings: defaultSettings() }).success).toBe(true);
+  });
+});

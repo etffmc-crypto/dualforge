@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ProfileSchema } from './profile.js';
+import { SettingsSchema } from './settings.js';
 
 export const EngineSnapshotSchema = z.object({
   t: z.number(),                         // ms since engine start
@@ -19,6 +20,8 @@ export const EngineCommandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('setProfile'), profile: ProfileSchema }),
   z.object({ type: z.literal('replay'), path: z.string() }),  // use a .hidlog instead of a device
   z.object({ type: z.literal('useDevice') }),
+  z.object({ type: z.literal('uiFocused'), focused: z.boolean() }),
+  z.object({ type: z.literal('setSettings'), settings: SettingsSchema }),
   z.object({ type: z.literal('shutdown') }),
 ]);
 export type EngineCommand = z.infer<typeof EngineCommandSchema>;
@@ -29,3 +32,6 @@ export const EngineEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('error'), code: z.string(), msg: z.string() }),
 ]);
 export type EngineEvent = z.infer<typeof EngineEventSchema>;
+
+export const ProfileSummarySchema = z.object({ id: z.string().min(1), name: z.string().min(1), slot: z.number().int().min(1).max(4) });
+export type ProfileSummary = z.infer<typeof ProfileSummarySchema>;

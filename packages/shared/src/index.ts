@@ -3,3 +3,4 @@ export * from './dualsense.js';
 export * from './xinput.js';
 export * from './profile.js';
 export * from './ipc.js';
+export * from './settings.js';

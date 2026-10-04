@@ -53,6 +53,7 @@ export const TriggerConfigSchema = z.object({
   ]),
   curve: z.enum(CURVE_PRESETS),
   effect: TriggerEffectSchema.default({ mode: 'off' }),
+  digital: z.boolean().default(true),   // digital (click) trigger hardware: analog value ignored, button drives output
 }).refine((t) => t.deadzone.initial < t.deadzone.max, { message: 'trigger initial must be < max' });
 export type TriggerConfig = z.infer<typeof TriggerConfigSchema>;
 export type TriggerConfigInput = z.input<typeof TriggerConfigSchema>;
@@ -63,9 +64,36 @@ export const TargetSchema = z.union([
   z.object({ type: z.literal('key'), code: z.string().min(1) }),     // Windows VK name, e.g. "VK_SPACE"
   z.object({ type: z.literal('mouse'), button: z.enum(['left', 'right', 'middle']) }),
   z.object({ type: z.literal('macro'), macroId: z.string().min(1) }),
+  z.object({ type: z.literal('xtrigger'), trigger: z.enum(['lt', 'rt']) }),   // full pull
 ]);
 export type Target = z.infer<typeof TargetSchema>;
 
+export const MacroStepSchema = z.object({
+  target: TargetSchema,
+  holdMs: z.number().int().min(0).max(10000),
+  delayMs: z.number().int().min(0).max(10000),
+});
+export const MacroSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1).max(40),
+  steps: z.array(MacroStepSchema).min(1).max(64),
+  loop: z.boolean().default(false),
+});
+export type Macro = z.infer<typeof MacroSchema>;
+
+export const GyroConfigSchema = z.object({
+  output: z.enum(['off', 'rightStick', 'mouse']).default('off'),
+  activate: z.enum(['always', 'hold', 'toggle']).default('always'),
+  activateButton: z.enum(DS_BUTTONS).nullable().default(null),
+  deadzoneDps: z.number().min(0).max(50).default(2),
+  sensitivityX: z.number().min(0.05).max(20).default(1),
+  sensitivityY: z.number().min(0.05).max(20).default(1),
+  invertX: z.boolean().default(false),
+  invertY: z.boolean().default(false),
+  curve: z.enum(CURVE_PRESETS).default('linear'),
+  bias: z.object({ x: z.number(), y: z.number(), z: z.number() }).default({ x: 0, y: 0, z: 0 }),
+});
+export type GyroConfig = z.infer<typeof GyroConfigSchema>;
 export const MappingSchema = z.object({
   targets: z.array(TargetSchema).min(1).max(3),
   turboHz: z.number().min(0).max(30),   // 0 = off
@@ -84,9 +112,20 @@ export const ProfileSchema = z.object({
     r: z.number().int().min(0).max(255), g: z.number().int().min(0).max(255), b: z.number().int().min(0).max(255),
     brightness: z.number().int().min(0).max(2), // 0 high, 1 medium, 2 low (DualSense semantics)
     playerLeds: z.number().int().min(0).max(31),
+    mode: z.enum(['off', 'static', 'breathing', 'rainbow', 'battery']).default('static'),
+    speed: z.number().min(0).max(100).default(40),
+    micLed: z.number().int().min(0).max(2).default(0),
   }),
   mappings: z.record(z.enum(DS_BUTTONS), MappingSchema),
-});
+  gyro: GyroConfigSchema.default({}),
+  macros: z.array(MacroSchema).max(32).default([]),
+}).refine(
+  (p) => {
+    const ids = new Set(p.macros.map((m) => m.id));
+    return Object.values(p.mappings).every((m) => m.targets.every((t) => t.type !== 'macro' || ids.has(t.macroId)));
+  },
+  { message: 'mapping references an unknown macro id' },
+);
 export type Profile = z.infer<typeof ProfileSchema>;
 
 function defaultStick(): StickConfig {
@@ -99,13 +138,13 @@ function defaultStick(): StickConfig {
   };
 }
 function defaultTrigger(): TriggerConfig {
-  return { deadzone: { initial: 0.02, max: 0.98 }, hairTrigger: { mode: 'off' }, curve: 'linear', effect: { mode: 'off' } };
+  return { deadzone: { initial: 0.02, max: 0.98 }, hairTrigger: { mode: 'off' }, curve: 'linear', effect: { mode: 'off' }, digital: true };
 }
 const DEFAULT_TARGET: Record<DsButton, Target> = {
   cross: { type: 'xbutton', button: 'A' }, circle: { type: 'xbutton', button: 'B' },
   square: { type: 'xbutton', button: 'X' }, triangle: { type: 'xbutton', button: 'Y' },
   l1: { type: 'xbutton', button: 'LB' }, r1: { type: 'xbutton', button: 'RB' },
-  l2: { type: 'none' }, r2: { type: 'none' },            // analog triggers pass through
+  l2: { type: 'xtrigger', trigger: 'lt' }, r2: { type: 'xtrigger', trigger: 'rt' },
   l3: { type: 'xbutton', button: 'LS' }, r3: { type: 'xbutton', button: 'RS' },
   create: { type: 'xbutton', button: 'BACK' }, options: { type: 'xbutton', button: 'START' },
   ps: { type: 'xbutton', button: 'GUIDE' }, touchpad: { type: 'none' }, mic: { type: 'none' },
@@ -119,9 +158,11 @@ export function defaultProfile(id: string, name: string): Profile {
     sticks: { left: defaultStick(), right: defaultStick() },
     triggers: { left: defaultTrigger(), right: defaultTrigger() },
     vibration: { left: 100, right: 100 },
-    lights: { r: 0, g: 80, b: 255, brightness: 0, playerLeds: 0b00100 },
+    lights: { r: 0, g: 80, b: 255, brightness: 0, playerLeds: 0b00100, mode: 'static', speed: 40, micLed: 0 },
     mappings: Object.fromEntries(
       DS_BUTTONS.map((b) => [b, { targets: [DEFAULT_TARGET[b]], turboHz: 0, continuous: false }]),
     ) as Record<DsButton, Mapping>,
+    gyro: GyroConfigSchema.parse({}),
+    macros: [],
   };
 }

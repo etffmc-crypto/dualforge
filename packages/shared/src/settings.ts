@@ -1,0 +1,18 @@
+import { z } from 'zod';
+
+export const SettingsSchema = z.object({
+  schemaVersion: z.literal(1),
+  activeProfile: z.string().default('p1'),
+  autoSwitch: z.array(z.object({ exe: z.string().min(1), profileId: z.string().min(1) })).default([]),
+  hasRumble: z.boolean().default(false),
+  hidHide: z.boolean().default(false),
+  startWithWindows: z.boolean().default(false),
+  startMinimized: z.boolean().default(false),
+  theme: z.enum(['dark', 'light']).default('dark'),
+  updates: z.boolean().default(false),
+});
+export type Settings = z.infer<typeof SettingsSchema>;
+
+export function defaultSettings(): Settings {
+  return SettingsSchema.parse({ schemaVersion: 1 });
+}

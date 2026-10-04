@@ -56,3 +56,31 @@ describe('profile schema', () => {
     expect(ProfileSchema.safeParse(p).success).toBe(false);
   });
 });
+
+describe('plan 3A schema additions', () => {
+  it('old profile without gyro/macros/digital/lights ext parses with defaults', () => {
+    const p = defaultProfile('p', 'p') as unknown as { gyro?: unknown; macros?: unknown; triggers: { left: { digital?: boolean } }; lights: Record<string, unknown> };
+    delete p.gyro; delete p.macros; delete p.triggers.left.digital;
+    delete p.lights.mode; delete p.lights.speed; delete p.lights.micLed;
+    const r = ProfileSchema.safeParse(p);
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.gyro.output).toBe('off');
+      expect(r.data.macros).toEqual([]);
+      expect(r.data.triggers.left.digital).toBe(true);
+      expect(r.data.lights.mode).toBe('static');
+    }
+  });
+  it('rejects a macro target referencing a missing macro id', () => {
+    const p = defaultProfile('p', 'p');
+    p.mappings.cross = { targets: [{ type: 'macro', macroId: 'nope' }], turboHz: 0, continuous: false };
+    expect(ProfileSchema.safeParse(p).success).toBe(false);
+    p.macros = [{ id: 'nope', name: 'm', steps: [{ target: { type: 'key', code: 'VK_A' }, holdMs: 10, delayMs: 0 }], loop: false }];
+    expect(ProfileSchema.safeParse(p).success).toBe(true);
+  });
+  it('default l2/r2 map to xtrigger', () => {
+    const p = defaultProfile('p', 'p');
+    expect(p.mappings.l2?.targets[0]).toEqual({ type: 'xtrigger', trigger: 'lt' });
+    expect(p.mappings.r2?.targets[0]).toEqual({ type: 'xtrigger', trigger: 'rt' });
+  });
+});
