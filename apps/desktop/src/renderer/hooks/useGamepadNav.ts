@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import type { EngineSnapshot } from '@dualforge/shared';
-import { useStore } from '../store';
+import { navSuspended, useStore } from '../store';
 import { TABS } from '../components/TabStrip';
 import { closeTopModal, topModalPanel } from '../components/Modal';
 
@@ -10,7 +10,7 @@ export const NAV_REPEAT_MS = 150;
 const PRESSED = 0.5;
 
 export type NavDir = 'up' | 'down' | 'left' | 'right';
-const DPAD: Record<NavDir, string> = { up: 'DPAD_UP', down: 'DPAD_DOWN', left: 'DPAD_LEFT', right: 'DPAD_RIGHT' };
+const DPAD: Record<NavDir, 'DPAD_UP' | 'DPAD_DOWN' | 'DPAD_LEFT' | 'DPAD_RIGHT'> ={ up: 'DPAD_UP', down: 'DPAD_DOWN', left: 'DPAD_LEFT', right: 'DPAD_RIGHT' };
 const DIRS = Object.keys(DPAD) as NavDir[];
 
 /** Attribute the fallback focus ring hangs on (styled like :focus-visible) for programmatic focus. */
@@ -105,13 +105,17 @@ function stepSubTabs(root: ParentNode, d: 1 | -1): void {
   if (next && i !== tabs.indexOf(next)) next.click();
 }
 
-function pressedSet(s: EngineSnapshot | null): Set<string> {
-  const on = new Set<string>();
-  if (!s) return on;
-  for (const [k, v] of Object.entries(s.out.buttons)) if (v) on.add(k);
-  if (s.out.lt > PRESSED) on.add('LT');
-  if (s.out.rt > PRESSED) on.add('RT');
-  return on;
+/** The pad inputs navigation reads, one bit each: the pressed state of a snapshot is a number, not a fresh Set. */
+const BUTTON_KEYS = ['A', 'B', 'LB', 'RB', 'DPAD_UP', 'DPAD_DOWN', 'DPAD_LEFT', 'DPAD_RIGHT'] as const;
+type NavKey = (typeof BUTTON_KEYS)[number] | 'LT' | 'RT';
+const BIT: Record<NavKey, number> = { A: 1, B: 2, LB: 4, RB: 8, DPAD_UP: 16, DPAD_DOWN: 32, DPAD_LEFT: 64, DPAD_RIGHT: 128, LT: 256, RT: 512 };
+
+function pressedMask(s: EngineSnapshot): number {
+  let m = 0;
+  for (const k of BUTTON_KEYS) if (s.out.buttons[k]) m |= BIT[k];
+  if (s.out.lt > PRESSED) m |= BIT.LT;
+  if (s.out.rt > PRESSED) m |= BIT.RT;
+  return m;
 }
 
 /**
@@ -119,35 +123,43 @@ function pressedSet(s: EngineSnapshot | null): Set<string> {
  * window has focus and nothing has suspended it: LB/RB cycle the header pages (the dialog's sub-tabs while one is open),
  * LT/RT step the page's sub-tabs, the D-pad moves focus between `data-nav` controls (repeating while held), A clicks the
  * focused control, B closes the top dialog or goes back to Overview. Everything but the D-pad acts on the rising edge.
+ *
+ * The first usable snapshot (at start, and again after the window regains focus, a suspension ends or replayed input
+ * stops being ignored) is a baseline only: buttons already held then are not presses. Replayed input (`source:
+ * 'replay'`) is ignored unless the app was launched with DUALFORGE_NAV_REPLAY=1 (`window.dualforge.flags.navReplay`).
  */
 export function useGamepadNav(): void {
   useEffect(() => {
-    let prev = new Set<string>();
+    const allowReplay = window.dualforge?.flags?.navReplay === true;
+    let prev = 0;
+    let armed = false;   // false until a baseline snapshot has been taken
     let held: NavDir | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const stopRepeat = () => { held = null; if (timer) clearTimeout(timer); timer = null; };
+    const listening = () => document.hasFocus() && !navSuspended();
     const repeat = (dir: NavDir) => {
       timer = setTimeout(() => {
         if (held !== dir) return;
-        if (!document.hasFocus() || useStore.getState().uiNavSuspended) { stopRepeat(); return; }
+        if (!listening()) { stopRepeat(); return; }
         moveFocus(dir); repeat(dir);
       }, NAV_REPEAT_MS);
     };
 
     const onSnap = (s: EngineSnapshot | null) => {
-      const now = pressedSet(s);
+      if (!s || (s.source === 'replay' && !allowReplay) || !listening()) { armed = false; stopRepeat(); return; }
+      const now = pressedMask(s);
       const was = prev;
       prev = now;
-      if (!document.hasFocus() || useStore.getState().uiNavSuspended) { stopRepeat(); return; }
-      const rising = (k: string) => now.has(k) && !was.has(k);
+      if (!armed) { armed = true; return; }
+      const rising = (k: NavKey) => (now & BIT[k]) !== 0 && (was & BIT[k]) === 0;
 
-      if (held && !now.has(DPAD[held])) stopRepeat();
+      if (held && (now & BIT[DPAD[held]]) === 0) stopRepeat();
       const dir = DIRS.find((d) => rising(DPAD[d]));
       if (dir) { stopRepeat(); held = dir; moveFocus(dir); repeat(dir); }
 
       if (rising('A')) {
         const el = focusedNav();
-        if (el && !(el instanceof HTMLInputElement && el.type === 'range')) el.click();
+        if (el && usable(el) && !(el instanceof HTMLInputElement && el.type === 'range')) el.click();
       }
       if (rising('B')) {
         if (!closeTopModal()) useStore.getState().setPage('overview');

@@ -83,6 +83,7 @@ describe('Sticks page', () => {
       raw: { lx: 0, ly: 0, rx: 0, ry: 0, l2: lt, r2: rt, buttons: {}, gyro: { x: 0, y: 0, z: 0 }, touch: [] },
       out: { lx: 0, ly: 0, rx: 0, ry: 0, lt, rt, buttons: {} },
     });
+    act(() => useStore.setState({ snapshot: snap(0, 0) }));   // baseline: navigation acts from the next snapshot on
     act(() => useStore.setState({ snapshot: snap(0, 0.9) }));
     expect(useStore.getState().subTab.sticks).toBe('right');
     act(() => useStore.setState({ snapshot: snap(0.9, 0.9) }));

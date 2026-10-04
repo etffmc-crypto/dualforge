@@ -354,6 +354,7 @@ test('Home: the first connected controller routes to Overview once; Home stays r
   const app = await launchApp();
   const page = await app.firstWindow();
   const tab = (name: string) => page.getByRole('tablist', { name: 'Sections' }).getByRole('tab', { name, exact: true });
+  expect(await page.evaluate(() => window.dualforge.flags.navReplay)).toBe(false);   // replay cannot drive navigation here
   await page.evaluate((f) => window.dualforge.replay(f), FIXTURE);
   await expect(tab('Overview')).toHaveAttribute('aria-selected', 'true', { timeout: 5000 });
   await tab('Home').click();
@@ -364,8 +365,10 @@ test('Home: the first connected controller routes to Overview once; Home stays r
 });
 
 test('Gamepad navigation: the replayed cross (virtual A) clicks the focused tab', async () => {
-  const app = await launchApp();
+  // replayed input drives navigation only with this opt-in; every other test launches without it
+  const app = await launchApp({ DUALFORGE_NAV_REPLAY: '1' });
   const page = await app.firstWindow();
+  expect(await page.evaluate(() => window.dualforge.flags.navReplay)).toBe(true);
   // navigation only listens while the window has focus (it never reacts to a game's input)
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.focus());
   const tab = (name: string) => page.getByRole('tablist', { name: 'Sections' }).getByRole('tab', { name, exact: true });

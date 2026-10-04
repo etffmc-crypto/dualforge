@@ -2,6 +2,11 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { EngineEvent, Profile, ProfileSummary, Settings } from '@dualforge/shared';
 
 const api = {
+  /** Fixed at launch from main's environment (the sandboxed preload sees it); no IPC. */
+  flags: {
+    /** DUALFORGE_NAV_REPLAY=1: replayed input may drive gamepad navigation (tests only; off by default). */
+    navReplay: process.env.DUALFORGE_NAV_REPLAY === '1',
+  },
   onEngineEvent(cb: (e: EngineEvent) => void): () => void {
     const h = (_: unknown, e: EngineEvent) => cb(e);
     ipcRenderer.on('engine:event', h);

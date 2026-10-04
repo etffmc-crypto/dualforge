@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProfileSchema, defaultProfile, type EngineSnapshot, type Profile } from '@dualforge/shared';
-import { useStore } from '../../src/renderer/store';
+import { navSuspended, useStore } from '../../src/renderer/store';
 import { Macros } from '../../src/renderer/pages/Macros';
 import { RecordDialog } from '../../src/renderer/pages/macros/RecordDialog';
 import { pressesToSteps, removeMacro } from '../../src/renderer/pages/macros/ops';
@@ -33,7 +33,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   runMacro = vi.fn(async () => {});
   vi.stubGlobal('dualforge', { profiles: { set: vi.fn(async () => true) }, engine: { runMacro } });
-  useStore.setState({ profile: stubProfile(), snapshot: snap(0), lastError: null, page: 'macros', uiNavSuspended: false });
+  useStore.setState({ profile: stubProfile(), snapshot: snap(0), lastError: null, page: 'macros', navHolds: 0 });
 });
 afterEach(() => { cleanup(); vi.runOnlyPendingTimers(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
@@ -122,9 +122,9 @@ describe('Macros page', () => {
     expect(macros()[0]!.steps[0]!.holdMs).toBe(90);
     expect(runMacro).toHaveBeenCalledWith('m1');
     // the run's own A / B / D-pad output must not navigate (B would close this dialog) until it has played
-    expect(useStore.getState().uiNavSuspended).toBe(true);
+    expect(navSuspended()).toBe(true);
     act(() => { vi.advanceTimersByTime(1000); });
-    expect(useStore.getState().uiNavSuspended).toBe(false);
+    expect(navSuspended()).toBe(false);
     expect(dialog('Edit macro').getByText(/not injected while DualForge is focused/)).toBeTruthy();
     fireEvent.click(dialog('Edit macro').getByRole('switch', { name: 'Loop' }));
     expect((dialog('Edit macro').getByRole('button', { name: 'Play test' }) as HTMLButtonElement).disabled).toBe(true);
@@ -175,9 +175,22 @@ describe('Macros page', () => {
 describe('RecordDialog', () => {
   it('suspends gamepad navigation while open, so recorded presses do not navigate', () => {
     const { rerender } = render(<RecordDialog open onClose={() => {}} onUse={() => {}} />);
-    expect(useStore.getState().uiNavSuspended).toBe(true);
+    expect(navSuspended()).toBe(true);
     rerender(<RecordDialog open={false} onClose={() => {}} onUse={() => {}} />);
-    expect(useStore.getState().uiNavSuspended).toBe(false);
+    expect(navSuspended()).toBe(false);
+  });
+
+  it('closing the recorder does not cancel a Play test hold, and the editor releases its hold when it closes', () => {
+    render(<Macros />);
+    fireEvent.click(within(row('Reload')).getByRole('button', { name: 'Edit Reload' }));
+    fireEvent.click(dialog('Edit macro').getByRole('button', { name: 'Play test' }));
+    const rec = render(<RecordDialog open onClose={() => {}} onUse={() => {}} />);
+    expect(useStore.getState().navHolds).toBe(2);
+    rec.unmount();
+    expect(navSuspended()).toBe(true);   // the play test still holds it
+    fireEvent.click(dialog('Edit macro').getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog', { name: 'Edit macro' })).toBeNull();
+    expect(navSuspended()).toBe(false);   // released on close, before its timer
   });
 
   it('turns a scripted snapshot stream into steps with mapped targets and timings', () => {

@@ -68,6 +68,7 @@ describe('Lights page', () => {
   it('RT / LT on the pad step through the sub-tabs', () => {
     vi.spyOn(document, 'hasFocus').mockReturnValue(true);
     render(<><Nav /><Lights /></>);
+    act(() => { useStore.setState({ snapshot: snap(0, 0) }); });   // baseline
     act(() => { useStore.setState({ snapshot: snap(0, 1) }); });
     expect(screen.getByRole('tab', { name: 'Player LEDs' }).getAttribute('aria-selected')).toBe('true');
     act(() => { useStore.setState({ snapshot: snap(0, 0) }); });

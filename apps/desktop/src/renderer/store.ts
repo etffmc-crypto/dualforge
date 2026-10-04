@@ -21,9 +21,13 @@ interface State {
   profiles: ProfileSummary[];
   settings: Settings | null;
   subTab: Record<SubTabPage, Side>;
-  /** True while pad presses mean something else (the macro recorder): gamepad navigation ignores the pad then. */
-  uiNavSuspended: boolean;
-  setUiNavSuspended(v: boolean): void;
+  /**
+   * Outstanding gamepad-navigation holds (macro recorder, macro play test): while any is held the pad means something
+   * else and navigation ignores it. Use `suspendNav()` / `navSuspended()` rather than this count.
+   */
+  navHolds: number;
+  /** Takes a hold; the returned release is idempotent, so each owner releases exactly its own. */
+  suspendNav(): () => void;
   setPage(p: Page): void;
   setSubTab(page: SubTabPage, side: Side): void;
   loadProfile(): Promise<void>;
@@ -53,6 +57,9 @@ interface State {
 }
 
 let pending: ReturnType<typeof setTimeout> | null = null;
+
+/** True while any gamepad-navigation hold is outstanding. */
+export const navSuspended = (): boolean => useStore.getState().navHolds > 0;
 const fail = (code: string) => (err: unknown) => useStore.setState({ lastError: { code, msg: String(err) } });
 
 export const useStore = create<State>((set, get) => {
@@ -69,8 +76,16 @@ export const useStore = create<State>((set, get) => {
     snapshot: null, lastError: null, page: 'home', autoRouted: false,
     profile: null, activeProfileId: null, profiles: [], settings: null,
     subTab: { sticks: 'left', triggers: 'left' },
-    uiNavSuspended: false,
-    setUiNavSuspended: (uiNavSuspended) => set({ uiNavSuspended }),
+    navHolds: 0,
+    suspendNav: () => {
+      set((s) => ({ navHolds: s.navHolds + 1 }));
+      let held = true;
+      return () => {
+        if (!held) return;
+        held = false;
+        set((s) => ({ navHolds: Math.max(0, s.navHolds - 1) }));
+      };
+    },
     setPage: (page) => set({ page }),
     setSubTab: (page, side) => set((s) => ({ subTab: { ...s.subTab, [page]: side } })),
     loadProfile: async () => {

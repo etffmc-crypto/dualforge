@@ -47,17 +47,21 @@ export function MacroEditor({ macro, isNew, onClose }: MacroEditorProps) {
     return true;
   };
   // while a test run plays, its A / B / D-pad steps must not also drive gamepad navigation (B would close this dialog)
-  const navHold = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => {
-    if (navHold.current) { clearTimeout(navHold.current); useStore.getState().setUiNavSuspended(false); }
-  }, []);
+  // the hold ends on its timer or when the editor closes (Save / Cancel / unmount), whichever comes first
+  const navHold = useRef<{ timer: ReturnType<typeof setTimeout>; release(): void } | null>(null);
+  const endNavHold = () => {
+    if (!navHold.current) return;
+    clearTimeout(navHold.current.timer);
+    navHold.current.release();
+    navHold.current = null;
+  };
+  useEffect(() => endNavHold, []);
   const playTest = () => {
     if (!save()) return;
     flushProfile();   // the engine must have this version before it runs it
-    const { setUiNavSuspended } = useStore.getState();
-    setUiNavSuspended(true);
-    if (navHold.current) clearTimeout(navHold.current);
-    navHold.current = setTimeout(() => { navHold.current = null; setUiNavSuspended(false); }, cycleMs(draft) + PLAY_NAV_GRACE_MS);
+    endNavHold();     // a re-run replaces the previous hold
+    const release = useStore.getState().suspendNav();
+    navHold.current = { release, timer: setTimeout(endNavHold, cycleMs(draft) + PLAY_NAV_GRACE_MS) };
     window.dualforge.engine.runMacro(draft.id).catch((err: unknown) => useStore.setState({ lastError: { code: 'E_MACRO_TEST', msg: String(err) } }));
   };
   const openPicker = (i: number) => { setPickTab(tabFor(draft.steps[i]!.target)); setPicking(i); };

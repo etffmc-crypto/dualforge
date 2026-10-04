@@ -25,8 +25,7 @@ export function RecordDialog({ open, onClose, onUse }: RecordDialogProps) {
   // the presses being recorded must not also drive gamepad navigation
   useEffect(() => {
     if (!open) return;
-    useStore.getState().setUiNavSuspended(true);
-    return () => useStore.getState().setUiNavSuspended(false);
+    return useStore.getState().suspendNav();   // releases only this dialog's hold
   }, [open]);
 
   useEffect(() => {
