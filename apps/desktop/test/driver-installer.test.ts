@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -164,6 +172,25 @@ describe('driver installer', () => {
     expect(r.inst.status().hidhide.state).toBe('done');
     const args = (r.exec.mock.calls[0] as unknown as [string, string[]])[1];
     expect(args.join(' ')).toContain("Get-AuthenticodeSignature -FilePath '");
+  });
+
+  it('prunes run-* folders older than 24 h when an install starts, and keeps newer ones', async () => {
+    const old = join(dir, 'run-old');
+    const fresh = join(dir, 'run-fresh');
+    const other = join(dir, 'keep-me');
+    for (const p of [old, fresh, other]) {
+      mkdirSync(p);
+      writeFileSync(join(p, 'x.exe'), 'x');
+    }
+    const past = new Date(Date.now() - 25 * 3600 * 1000);
+    utimesSync(old, past, past);
+    utimesSync(other, past, past);
+    const r = rig();
+    await r.inst.install('hidhide');
+    const left = readdirSync(dir);
+    expect(left).not.toContain('run-old');
+    expect(left).toEqual(expect.arrayContaining(['run-fresh', 'keep-me']));
+    expect(left).toHaveLength(3); // plus this install's own run folder
   });
 
   it('sends the User-Agent header to GitHub', async () => {

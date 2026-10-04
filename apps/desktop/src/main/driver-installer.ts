@@ -1,4 +1,4 @@
-import { createWriteStream, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { createWriteStream, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { basename, join } from 'node:path';
@@ -25,6 +25,8 @@ export const ALLOWED_HOSTS = new Set([
   'release-assets.githubusercontent.com',
 ]);
 export const MAX_REDIRECTS = 3;
+/** Older `run-*` download folders are removed when an install starts. */
+export const RUN_MAX_AGE_MS = 24 * 3600 * 1000;
 const ASSET_PATH = /^\/nefarius\/(ViGEmBus|HidHide)\/releases\/download\//;
 
 function checkHop(raw: string, first: boolean): URL {
@@ -102,6 +104,7 @@ export interface InstallerDeps {
   dir: string;
   emit: (s: DriverStatus) => void;
   log: { info(o: object): void; warn(o: object): void; error(o: object): void };
+  now?: () => number;
 }
 
 class InstallError extends Error {
@@ -247,10 +250,31 @@ export function createDriverInstaller(d: InstallerDeps) {
     }
   }
 
+  /** Removes `run-*` folders older than 24 h (installers kept after a launch); best effort. */
+  function pruneRuns(): void {
+    const cutoff = (d.now ?? Date.now)() - RUN_MAX_AGE_MS;
+    let names: string[];
+    try {
+      names = readdirSync(d.dir);
+    } catch {
+      return; // no download folder yet
+    }
+    for (const name of names) {
+      if (!name.startsWith('run-')) continue;
+      const p = join(d.dir, name);
+      try {
+        if (statSync(p).mtimeMs < cutoff) rmSync(p, { recursive: true, force: true });
+      } catch (e) {
+        d.log.warn({ code: 'DRIVER_PRUNE', msg: (e as Error).message });
+      }
+    }
+  }
+
   /** Downloads, hashes, verifies the signer, then launches the installer (UAC). Only ever called from a user click. */
   async function install(driver: DriverId): Promise<DriverStatus> {
     if (busy.has(driver)) return status[driver];
     busy.add(driver);
+    pruneRuns();
     let file: string | null = null;
     let runDir: string | null = null;
     let url: string | undefined;
