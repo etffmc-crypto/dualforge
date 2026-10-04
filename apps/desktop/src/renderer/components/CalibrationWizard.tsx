@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { EngineSnapshot } from '@dualforge/shared';
-import { computeCenter, computeRadius } from '@dualforge/engine/calibration';
+import { assessRest, computeRadiusFromReach } from '@dualforge/engine/calibration';
 import { applyStickShaping } from '@dualforge/engine/shape';
 import { StickLive } from './controls/StickLive';
 import { useStore, type Side } from '../store';
@@ -42,6 +42,7 @@ export function CalibrationWizard({ side, onClose }: { side: Side; onClose(): vo
   const [step, setStep] = useState(0);
   const [center, setCenter] = useState<Pt | null>(null);
   const [radius, setRadius] = useState<number | null>(null);
+  const [restFail, setRestFail] = useState<'off-center' | 'moving' | null>(null);
   const [count, setCount] = useState(0);
   const [reach, setReach] = useState<number[]>(() => Array<number>(BINS).fill(0));
   const samples = useRef<Pt[]>([]);
@@ -63,12 +64,12 @@ export function CalibrationWizard({ side, onClose }: { side: Side; onClose(): vo
     if (!snapshot || snapshot === seen.current) return;
     seen.current = snapshot;
     const p = pick(snapshot, side);
-    if (step === 0 && !center) {
+    if (step === 0 && !center && !restFail) {
       samples.current.push(p);
       setCount(samples.current.length);
       if (samples.current.length >= CENTER_FRAMES || performance.now() - started.current >= CENTER_MS) {
-        const c = computeCenter(samples.current);
-        setCenter({ x: c.cx, y: c.cy });
+        const a = assessRest(samples.current);
+        if (a.ok) setCenter({ x: a.cx, y: a.cy }); else setRestFail(a.reason!);
       }
     } else if (step === 1 && center) {
       samples.current.push(p);
@@ -78,12 +79,12 @@ export function CalibrationWizard({ side, onClose }: { side: Side; onClose(): vo
       const r = Math.hypot(dx, dy);
       setReach((prev) => (r > prev[bin]! ? prev.map((v, i) => (i === bin ? Math.min(1.2, r) : v)) : prev));
     }
-  }, [snapshot, side, step, center]);
+  }, [snapshot, side, step, center, restFail]);
 
-  const restartCenter = () => { samples.current = []; started.current = performance.now(); seen.current = snapshot; setCount(0); setCenter(null); };
+  const restartCenter = () => { samples.current = []; started.current = performance.now(); seen.current = snapshot; setCount(0); setCenter(null); setRestFail(null); };
   const next = () => {
     if (step === 0) { samples.current = []; seen.current = snapshot; setCount(0); setStep(1); }
-    else if (step === 1 && center) { setRadius(computeRadius(samples.current, { cx: center.x, cy: center.y })); setStep(2); }
+    else if (step === 1 && center) { setRadius(computeRadiusFromReach(reach)); setStep(2); }
   };
   const apply = () => {
     if (!center || radius === null) return;
@@ -118,7 +119,9 @@ export function CalibrationWizard({ side, onClose }: { side: Side; onClose(): vo
             <div className="cal-meter"><div style={{ width: `${Math.min(100, (count / CENTER_FRAMES) * 100)}%` }} /></div>
             {center
               ? <p className="cal-result">Rest position <span className="mono" data-testid="cal-center">X {fmt(center.x)} · Y {fmt(center.y)}</span></p>
-              : <p className="cal-result muted">{snapshot ? 'Measuring…' : 'Waiting for the controller…'}</p>}
+              : restFail
+                ? <p className="cal-result" role="alert" data-testid="cal-rest-error">{restFail === 'moving' ? "Stick isn't at rest � release it and try again" : 'Stick is off-center � release it fully'}</p>
+                : <p className="cal-result muted">{snapshot ? 'Measuring…' : 'Waiting for the controller…'}</p>}
           </div>
         )}
         {step === 1 && center && (
@@ -143,7 +146,7 @@ export function CalibrationWizard({ side, onClose }: { side: Side; onClose(): vo
 
         <div className="modal-actions">
           <button type="button" className="panel-btn" onClick={onClose}>Cancel</button>
-          {step === 0 && center && <button type="button" className="panel-btn" onClick={restartCenter}>Measure again</button>}
+          {step === 0 && (center || restFail) && <button type="button" className="panel-btn" onClick={restartCenter}>Measure again</button>}
           {step < 2
             ? <button type="button" className="panel-btn primary" disabled={!canNext} onClick={next}>Next</button>
             : <button type="button" className="panel-btn primary" onClick={apply}>Apply</button>}

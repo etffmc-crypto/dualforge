@@ -62,6 +62,39 @@ describe('CalibrationWizard', () => {
     expect(next().disabled).toBe(true);
   });
 
+  it('rejects a centre measured while the stick is held off-center', () => {
+    render(<CalibrationWizard side="left" onClose={() => {}} />);
+    for (let i = 0; i < 130; i++) feed(0.3, 0);
+    expect(screen.getByTestId('cal-rest-error').textContent).toMatch(/off-center/);
+    expect(next().disabled).toBe(true);
+    expect(screen.queryByTestId('cal-center')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Measure again' }));
+    for (let i = 0; i < 130; i++) feed(0, 0);
+    expect(screen.getByTestId('cal-center')).toBeTruthy();
+    expect(next().disabled).toBe(false);
+  });
+
+  it('rejects a centre measured while the stick is moving', () => {
+    render(<CalibrationWizard side="left" onClose={() => {}} />);
+    for (let i = 0; i < 130; i++) feed(i % 2 ? 0.12 : 0, 0);
+    expect(screen.getByTestId('cal-rest-error').textContent).toMatch(/at rest/);
+    expect(next().disabled).toBe(true);
+  });
+
+  it('proposes the median edge reach as radius, not the diagonal overshoot', () => {
+    render(<CalibrationWizard side="left" onClose={() => {}} />);
+    for (let i = 0; i < 120; i++) feed(0, 0);
+    fireEvent.click(next());
+    // octagonal gate: 0.95 on the cardinals, 1.2 on the diagonals
+    for (let i = 0; i < 360; i++) {
+      const a = (i / 360) * 2 * Math.PI, k = Math.abs(Math.sin(2 * a)); const r = 0.95 + 0.25 * k ** 16;
+      feed(r * Math.cos(a), r * Math.sin(a));
+    }
+    fireEvent.click(next());
+    const r = Number(screen.getByTestId('cal-radius').textContent);
+    expect(r).toBeGreaterThan(0.94); expect(r).toBeLessThan(1.05);
+  });
+
   it('Escape and Cancel close without touching the profile', () => {
     const onClose = vi.fn();
     const before = useStore.getState().profile;
