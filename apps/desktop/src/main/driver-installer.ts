@@ -30,7 +30,8 @@ function checkHop(raw: string, first: boolean): URL {
 
 export type DriverState = 'idle' | 'downloading' | 'verifying' | 'launching' | 'done' | 'failed';
 export interface DriverStatus { driver: DriverId; state: DriverState; pct?: number; code?: string; sha256?: string; url?: string }
-export interface ReleaseAsset { name: string; url: string }
+/** `size` is GitHub's asset byte count, null when the release metadata has none. */
+export interface ReleaseAsset { name: string; url: string; size: number | null }
 
 /** Windows PowerShell 5.1 serialises the SignatureStatus enum as a number; newer hosts use the name. */
 const STATUS_NAMES = ['Valid', 'UnknownError', 'NotSigned', 'HashMismatch', 'NotTrusted', 'NotSupportedFileFormat', 'Incompatible'];
@@ -77,14 +78,15 @@ export function createDriverInstaller(d: InstallerDeps) {
       res = await d.fetch(`https://api.github.com/repos/${repo}/releases/latest`, { headers: { 'User-Agent': 'DualForge', Accept: 'application/vnd.github+json' } });
     } catch (e) { throw new InstallError('E_DRIVER_FETCH', (e as Error).message); }
     if (!res.ok) throw new InstallError('E_DRIVER_FETCH', `GitHub answered ${res.status}`);
-    const body = (await res.json().catch(() => null)) as { assets?: { name?: unknown; browser_download_url?: unknown }[] } | null;
+    const body = (await res.json().catch(() => null)) as { assets?: { name?: unknown; browser_download_url?: unknown; size?: unknown }[] } | null;
     for (const a of body?.assets ?? []) {
       if (typeof a.name !== 'string' || typeof a.browser_download_url !== 'string' || !a.name.toLowerCase().endsWith('.exe')) continue;
       let host = '';
       try { const u = new URL(a.browser_download_url); host = u.protocol === 'https:' ? u.hostname : ''; } catch { /* bad url */ }
       if (host !== 'github.com' || !ASSET_PATH.test(new URL(a.browser_download_url).pathname)) continue;
       if (!SAFE_ASSET.test(a.name)) throw new InstallError('E_DRIVER_NO_ASSET', 'release asset has an unsafe file name');
-      return { name: a.name, url: a.browser_download_url };
+      const size = typeof a.size === 'number' && Number.isSafeInteger(a.size) && a.size > 0 ? a.size : null;
+      return { name: a.name, url: a.browser_download_url, size };
     }
     throw new InstallError('E_DRIVER_NO_ASSET', `no .exe asset in the latest ${repo} release`);
   }
@@ -173,8 +175,18 @@ export function createDriverInstaller(d: InstallerDeps) {
     } finally { busy.delete(driver); }
   }
 
+  /** What the consent card shows before anything is downloaded: the latest installer's name, URL and size. */
+  async function release(driver: DriverId): Promise<ReleaseAsset> {
+    try { return await fetchLatestRelease(DRIVER_REPOS[driver]); }
+    catch (e) {
+      const code = e instanceof InstallError ? e.code : 'E_DRIVER_FETCH';
+      d.log.warn({ code, msg: (e as Error).message, driver });
+      throw new Error(code);
+    }
+  }
+
   return {
-    install, fetchLatestRelease, download, sha256, verifySignature,
+    install, release, fetchLatestRelease, download, sha256, verifySignature,
     status: (): Record<DriverId, DriverStatus> => ({ vigem: status.vigem, hidhide: status.hidhide }),
   };
 }
@@ -189,4 +201,10 @@ export function registerDriverIpc(d: { ipc: { handle(channel: string, fn: Handle
     return d.installer.install(p.data.driver);
   });
   d.ipc.handle('driver:status:get', () => d.installer.status());
+  // release metadata only (api.github.com, nothing downloaded); asked when the consent card opens after a user click
+  d.ipc.handle('drivers:release', (_e, raw) => {
+    const p = DriverInstallSchema.safeParse(raw);
+    if (!p.success) { d.log.error({ code: 'E_DRIVER_REQUEST', msg: 'drivers:release rejected' }); throw new Error('E_DRIVER_REQUEST'); }
+    return d.installer.release(p.data.driver);
+  });
 }

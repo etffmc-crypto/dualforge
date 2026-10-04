@@ -13,7 +13,7 @@ export function LogViewer({ onOpenLogs }: { onOpenLogs(): void }) {
   const [file, setFile] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<LogLevel>('all');
-  const panel = useRef<HTMLOListElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
 
   const load = useCallback(() => {
     setError('');
@@ -39,15 +39,18 @@ export function LogViewer({ onOpenLogs }: { onOpenLogs(): void }) {
         </div>
       </div>
       {error && <p className="hc-err hl-msg" role="alert">{error}</p>}
-      <ol className="hl-lines" role="log" aria-label="Log lines" ref={panel} tabIndex={0}>
-        {shown.map((r) => (
-          <li key={r.key} className={`hl-line ${levelClass(r.level)}`}>
-            <span className="hl-time">{r.time}</span>
-            <span className="hl-level">{r.label}</span>
-            <span className="hl-text">{r.code && <b className="hl-code">{r.code}</b>}{r.code && ' '}{r.text}</span>
-          </li>
-        ))}
-      </ol>
+      {/* a region, not role=log: a refresh of 200 lines must not be read out (aria-live off) */}
+      <div className="hl-lines" role="region" aria-label="Recent log lines" aria-live="off" ref={panel} tabIndex={0}>
+        <ol className="hl-list">
+          {shown.map((r) => (
+            <li key={r.key} className={`hl-line ${levelClass(r.level)}`}>
+              <span className="hl-time">{r.time}</span>
+              <span className="hl-level">{r.label}</span>
+              <span className="hl-text">{r.code && <b className="hl-code">{r.code}</b>}{r.code && ' '}{r.text}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
       {rows && shown.length === 0 && (
         <p className="hl-msg">{rows.length === 0 ? (file ? 'Today’s log is empty.' : 'No log has been written yet.') : 'No lines at this level in the last 200.'}</p>
       )}

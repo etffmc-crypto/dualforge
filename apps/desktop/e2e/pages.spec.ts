@@ -366,7 +366,7 @@ test('Health page: the attached DualSense is OK, HidHide (not installed) warns, 
   await expect(hid.getByRole('img', { name: 'Warning' })).toBeVisible();
   await expect(hid.getByRole('button', { name: 'Install HidHide' })).toBeEnabled();   // offered, never clicked here
   await expect(page.getByTestId('health-lamp')).toHaveClass(/warn|error/);
-  await expect(page.getByRole('log', { name: 'Log lines' }).getByRole('listitem').first()).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Recent log lines' }).getByRole('listitem').first()).toBeVisible();
   await app.close();
 });
 

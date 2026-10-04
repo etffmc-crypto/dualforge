@@ -89,6 +89,8 @@ const api = {
     /** The consent click: downloads the official installer, checks its signature, then launches it (Windows asks for permission). */
     install: (driver: 'vigem' | 'hidhide'): Promise<DriverStatus> => ipcRenderer.invoke('driver:install', { driver }),
     status: (): Promise<Record<'vigem' | 'hidhide', DriverStatus>> => ipcRenderer.invoke('driver:status:get'),
+    /** Latest release's installer (name, URL, byte size or null) for the consent card; metadata only, nothing is downloaded. */
+    release: (driver: 'vigem' | 'hidhide'): Promise<{ name: string; url: string; size: number | null }> => ipcRenderer.invoke('drivers:release', { driver }),
     onStatus(cb: (s: DriverStatus) => void): () => void {
       const h = (_: unknown, s: DriverStatus) => cb(s);
       ipcRenderer.on('driver:status', h);

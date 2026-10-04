@@ -1,4 +1,5 @@
-import { DRIVERS, type DriverId } from './summary';
+import { useEffect, useState } from 'react';
+import { DRIVERS, formatInstallerSize, type DriverId } from './summary';
 
 export type DriverStatus = Awaited<ReturnType<Window['dualforge']['drivers']['install']>>;
 
@@ -8,13 +9,23 @@ export const BUSY_STATES = new Set<DriverStatus['state']>(['downloading', 'verif
 export function ConsentCard({ driver, onCancel, onInstall }: { driver: DriverId; onCancel(): void; onInstall(): void }) {
   const d = DRIVERS[driver];
   const titleId = `consent-${driver}`;
+  // release metadata only (name, size); a failed lookup just means "size unknown" — Install still works
+  const [size, setSize] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    window.dualforge.drivers.release(driver).then(
+      (r) => { if (live) setSize(formatInstallerSize(r.size)); },
+      () => { if (live) setSize(formatInstallerSize(null)); },
+    );
+    return () => { live = false; };
+  }, [driver]);
   return (
     <div className="hc-consent" role="group" aria-labelledby={titleId}>
       <p className="hc-consent-title" id={titleId}>Install {d.name}?</p>
       <dl className="hc-facts">
         <dt>What</dt><dd>{d.name}, {d.what}</dd>
         <dt>Source</dt><dd className="mono">github.com/{d.repo}/releases</dd>
-        <dt>Size</dt><dd>~3–6 MB, you will see a Windows UAC prompt</dd>
+        <dt>Size</dt><dd data-testid="installer-size">{size ?? 'checking…'}, you will see a Windows UAC prompt</dd>
       </dl>
       <p className="hc-fine">DualForge checks the installer is signed by Nefarius Software Solutions before it starts it.</p>
       <div className="hc-actions">

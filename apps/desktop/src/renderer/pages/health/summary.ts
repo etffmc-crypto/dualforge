@@ -31,7 +31,13 @@ export const DRIVERS: Record<DriverId, { name: string; repo: string; what: strin
   hidhide: { name: 'HidHide', repo: 'nefarius/HidHide', what: 'the driver that hides the DualSense from games' },
 };
 
-export type LogLevel = 'all' | 'warn' | 'error';
+/** Installer size for the consent card: "4.2 MB" (one decimal, MiB like Explorer); null/invalid → "size unknown". */
+export function formatInstallerSize(bytes: number | null | undefined): string {
+  if (typeof bytes !== 'number' || !Number.isFinite(bytes) || bytes <= 0) return 'size unknown';
+  return `${Math.max(0.1, bytes / 1048576).toFixed(1)} MB`;
+}
+
+export type LogLevel ='all' | 'warn' | 'error';
 export interface LogRow { key: number; level: number | null; time: string; label: string; code: string; text: string }
 
 const LEVEL_NAMES: Record<number, string> = { 10: 'TRACE', 20: 'DEBUG', 30: 'INFO', 40: 'WARN', 50: 'ERROR', 60: 'FATAL' };

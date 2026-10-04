@@ -199,8 +199,45 @@ describe('driver installer', () => {
   });
 });
 
+describe('release lookup (consent card size)', () => {
+  const asset = (extra: object) => [{ name: 'HidHide_1.5.exe', browser_download_url: 'https://github.com/nefarius/HidHide/releases/download/v1/HidHide_1.5.exe', ...extra }];
+
+  it('returns name, url and the GitHub asset size; only the metadata API is fetched', async () => {
+    const calls: string[] = [];
+    const r = rig({ fetchImpl: (async (u: string) => { calls.push(String(u)); return releaseJson(asset({ size: 4_404_224 })); }) as unknown as typeof fetch });
+    expect(await r.inst.release('hidhide')).toEqual({ name: 'HidHide_1.5.exe', url: expect.stringContaining('/HidHide_1.5.exe'), size: 4_404_224 });
+    expect(calls).toEqual([`https://api.github.com/repos/${DRIVER_REPOS.hidhide}/releases/latest`]);
+    expect(readdirSync(dir)).toEqual([]);   // nothing downloaded or written
+  });
+
+  it('size is null when missing or nonsense', async () => {
+    for (const size of [undefined, 'big', -1, 0, 1.5]) {
+      const r = rig({ fetchImpl: (async () => releaseJson(asset({ size }))) as unknown as typeof fetch });
+      expect((await r.inst.release('hidhide')).size).toBeNull();
+    }
+  });
+
+  it('a failed lookup rejects with its code and is logged', async () => {
+    const r = rig({ fetchImpl: (async () => { throw new Error('offline'); }) as unknown as typeof fetch });
+    await expect(r.inst.release('vigem')).rejects.toThrow('E_DRIVER_FETCH');
+    expect(r.log.warn).toHaveBeenCalledWith(expect.objectContaining({ code: 'E_DRIVER_FETCH', driver: 'vigem' }));
+    const n = rig({ fetchImpl: (async () => releaseJson([])) as unknown as typeof fetch });
+    await expect(n.inst.release('vigem')).rejects.toThrow('E_DRIVER_NO_ASSET');
+  });
+});
+
 describe('driver IPC', () => {
-  it('validates the request with zod; only install and status are exposed', async () => {
+  it('drivers:release is zod-validated and returns the lookup', async () => {
+    const handlers = new Map<string, (e: unknown, ...a: unknown[]) => unknown>();
+    const release = vi.fn(async () => ({ name: 'x.exe', url: 'https://github.com/x', size: 1 }));
+    registerDriverIpc({ ipc: { handle: (c, f) => { handlers.set(c, f); } }, installer: { install: vi.fn(), status: vi.fn(), release } as never, log: { error: vi.fn() } });
+    for (const bad of [{ driver: 'evil' }, { driver: 'vigem', url: 'x' }, null]) expect(() => handlers.get('drivers:release')!({}, bad)).toThrow('E_DRIVER_REQUEST');
+    expect(release).not.toHaveBeenCalled();
+    expect(await handlers.get('drivers:release')!({}, { driver: 'hidhide' })).toEqual({ name: 'x.exe', url: 'https://github.com/x', size: 1 });
+    expect(release).toHaveBeenCalledWith('hidhide');
+  });
+
+  it('validates the request with zod; install and status', async () => {
     const handlers = new Map<string, (e: unknown, ...a: unknown[]) => unknown>();
     const install = vi.fn(async (d: string) => ({ driver: d, state: 'done' }));
     const log = { error: vi.fn() };

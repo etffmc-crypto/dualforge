@@ -78,8 +78,9 @@
 .hl-tools .seg { width: 260px; }
 .hl-tools .seg-btn { height: 30px; font-size: 12px; }
 .hl-tools .panel-btn { align-self: auto; }
+.hl-list { list-style: none; margin: 0; padding: 0; }
 .hl-lines {
-  list-style: none; margin: 0; padding: 10px 0; height: 320px; overflow: auto;
+  margin: 0; padding: 10px 0; height: 320px; overflow: auto;
   background: var(--well); font-family: var(--mono); font-size: 12px; line-height: 1.6; user-select: text;
 }
 .hl-lines:focus-visible { outline-offset: -2px; }

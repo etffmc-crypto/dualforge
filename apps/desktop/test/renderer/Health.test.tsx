@@ -7,7 +7,7 @@ import { Health } from '../../src/renderer/pages/Health';
 import { Header } from '../../src/renderer/components/Header';
 import { Home } from '../../src/renderer/pages/Home';
 import { useAppFeeds } from '../../src/renderer/components/Shell';
-import { healthSummary, parseLogLine } from '../../src/renderer/pages/health/summary';
+import { formatInstallerSize, healthSummary, parseLogLine } from '../../src/renderer/pages/health/summary';
 
 type Status = { driver: 'vigem' | 'hidhide'; state: string; pct?: number; code?: string; sha256?: string; url?: string };
 
@@ -37,6 +37,7 @@ const api = {
     install: vi.fn((_d: 'vigem' | 'hidhide') => new Promise<Status>(() => undefined)),
     status: vi.fn(async () => ({ vigem: { driver: 'vigem', state: 'idle' }, hidhide: { driver: 'hidhide', state: 'idle' } })),
     onStatus: vi.fn((cb: (s: Status) => void) => { statusCb = cb; return () => { statusCb = null; }; }),
+    release: vi.fn(async (_d: 'vigem' | 'hidhide') => ({ name: 'HidHide_1.5.exe', url: 'https://github.com/nefarius/HidHide/releases/download/v1/HidHide_1.5.exe', size: 4_404_224 as number | null })),
   },
   logs: {
     tail: vi.fn(async (_n: number) => ({
@@ -114,7 +115,8 @@ describe('Health page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Install HidHide' }));
     const consent = screen.getByRole('group', { name: 'Install HidHide?' });
     expect(consent.textContent).toContain('github.com/nefarius/HidHide/releases');
-    expect(consent.textContent).toMatch(/3–6 MB/);
+    await waitFor(() => expect(within(consent).getByTestId('installer-size').textContent).toMatch(/^4\.2 MB, /));
+    expect(api.drivers.release).toHaveBeenCalledWith('hidhide');
     expect(consent.textContent).toMatch(/UAC/);
     expect(api.drivers.install).not.toHaveBeenCalled();
     fireEvent.click(within(consent).getByRole('button', { name: 'Cancel' }));
@@ -126,6 +128,17 @@ describe('Health page', () => {
     expect(api.drivers.install).toHaveBeenCalledWith('hidhide');
     expect(api.drivers.install).toHaveBeenCalledTimes(1);
     expect(api.health.repair).not.toHaveBeenCalled();
+  });
+
+  it('the consent card says "size unknown" when the release lookup fails, and Install still works', async () => {
+    api.drivers.release.mockRejectedValueOnce(new Error('E_DRIVER_FETCH'));
+    render(<Health />);
+    await waitFor(() => expect(card('HidHide not installed')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Install HidHide' }));
+    expect(screen.getByTestId('installer-size').textContent).toMatch(/^checking…/);
+    await waitFor(() => expect(screen.getByTestId('installer-size').textContent).toBe('size unknown, you will see a Windows UAC prompt'));
+    fireEvent.click(screen.getByRole('button', { name: 'Install' }));
+    expect(api.drivers.install).toHaveBeenCalledWith('hidhide');
   });
 
   it('driver status drives the progress row, holds pad navigation, and re-checks 10 s after done', async () => {
@@ -189,7 +202,9 @@ describe('Health page', () => {
 
   it('the log viewer shows the tail and filters by level', async () => {
     render(<Health />);
-    const log = await screen.findByRole('log', { name: 'Log lines' });
+    const log = await screen.findByRole('region', { name: 'Recent log lines' });
+    expect(log.getAttribute('aria-live')).toBe('off');   // a refresh is not announced
+    expect(screen.queryByRole('log')).toBeNull();
     await waitFor(() => expect(within(log).getAllByRole('listitem')).toHaveLength(4));
     expect(api.logs.tail).toHaveBeenCalledWith(200);
     const group = screen.getByRole('radiogroup', { name: 'Log level' });
@@ -240,6 +255,13 @@ describe('health summary helpers', () => {
     expect(healthSummary([RESULTS[0]!]).headline).toBe('All good');
     expect(healthSummary([RESULTS[0]!, RESULTS[1]!])).toMatchObject({ worst: 'warn', headline: '1 warning' });
     expect(healthSummary([...RESULTS, { id: 'e', status: 'error', title: '', detail: '' }])).toMatchObject({ worst: 'error', headline: '1 problem, 3 warnings' });
+  });
+
+  it('formats the installer size, falling back to "size unknown"', () => {
+    expect(formatInstallerSize(4_404_224)).toBe('4.2 MB');
+    expect(formatInstallerSize(3 * 1048576)).toBe('3.0 MB');
+    expect(formatInstallerSize(12_000)).toBe('0.1 MB');   // never "0.0 MB"
+    for (const bad of [null, undefined, 0, -5, Number.NaN, Infinity]) expect(formatInstallerSize(bad)).toBe('size unknown');
   });
 
   it('parses pino lines and keeps unparseable ones raw', () => {
