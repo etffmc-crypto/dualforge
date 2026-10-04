@@ -6,6 +6,7 @@ test('app launches, pages render, replay drives widgets', async () => {
   const app = await launchApp();
   const page = await app.firstWindow();
   await expect(page.getByText('DUALFORGE', { exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: 'Home' }).click(); // a connected pad lands on Overview
   await expect(page.getByText(/Select controller|Connected/)).toBeVisible();
   await page.getByRole('tab', { name: 'Input Test' }).click();
   await expect(page.getByText('Virtual Xbox output')).toBeVisible();
@@ -20,7 +21,7 @@ test('face-lift tokens applied', async () => {
   const header = page.locator('header.header');
   expect(await header.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgb(23, 19, 24)');
   expect(await header.evaluate((e) => getComputedStyle(e).height)).toBe('100px');
-  const active = page.locator('[role="tab"][aria-selected="true"]');
+  const active = page.getByRole('tablist', { name: 'Sections' }).locator('[role="tab"][aria-selected="true"]');
   await expect(active).toHaveCount(1);
   expect(await page.locator('body').evaluate((e) => getComputedStyle(e).fontFamily)).toMatch(/Poppins/);
   await expect(page.locator('.footer .badge-a')).toHaveText('A');

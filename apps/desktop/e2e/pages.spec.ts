@@ -81,3 +81,32 @@ test('Share code round-trips a profile into slot 3', async () => {
   expect(result.imported.id).toBe('p3');
   await app.close();
 });
+
+test('Header profile tabs: rename Profile 2 inline, reload, the name persists', async () => {
+  const app = await launchApp();
+  const page = await app.firstWindow();
+  const slots = page.getByRole('tablist', { name: 'Profiles' });
+  await expect(slots.getByRole('tab')).toHaveCount(4);
+  await slots.getByRole('tab', { name: 'Profile 2' }).click({ button: 'right' });
+  const input = page.getByRole('textbox', { name: 'Rename Profile 2' });
+  await input.fill('Racing');
+  await input.press('Enter');
+  await expect(slots.getByRole('tab', { name: 'Racing' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('tablist', { name: 'Profiles' }).getByRole('tab', { name: 'Racing' })).toBeVisible();
+  expect((await page.evaluate(() => window.dualforge.profiles.list())).find((s) => s.id === 'p2')?.name).toBe('Racing');
+  await app.close();
+});
+
+test('Settings page: Light theme re-themes the app and is saved', async () => {
+  const app = await launchApp();
+  const page = await app.firstWindow();
+  await page.getByRole('button', { name: 'Open Settings' }).click();
+  await page.getByRole('radiogroup', { name: 'Theme' }).getByRole('radio', { name: 'Light' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+  expect(await page.locator('header.header').evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgb(255, 255, 255)');
+  expect((await page.evaluate(() => window.dualforge.settings.get())).theme).toBe('light');
+  await page.getByRole('switch', { name: 'This controller has rumble motors' }).click();
+  await expect.poll(async () => (await page.evaluate(() => window.dualforge.settings.get())).hasRumble).toBe(true);
+  await app.close();
+});

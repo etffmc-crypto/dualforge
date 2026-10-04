@@ -34,6 +34,10 @@ const api = {
     get: (): Promise<Settings> => ipcRenderer.invoke('settings:get'),
     set: (patch: Partial<Settings>): Promise<Settings> => ipcRenderer.invoke('settings:set', patch),
   },
+  system: {
+    /** Opens the folder holding profiles, settings and logs in Explorer. */
+    openDataDir: (): Promise<string> => ipcRenderer.invoke('system:openDataDir'),
+  },
   replay: (path: string): Promise<void> => ipcRenderer.invoke('engine:replay', path),
   useDevice: (): Promise<void> => ipcRenderer.invoke('engine:useDevice'),
   window: {

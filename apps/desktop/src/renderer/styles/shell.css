@@ -4,7 +4,7 @@
   display: grid; grid-template-columns: auto 1fr auto; align-items: center; column-gap: 16px; padding: 24px 20px 0 16px;
   background: var(--header-bg); border-bottom: 1px solid var(--hairline); -webkit-app-region: drag;
 }
-.header button, .header [title] { -webkit-app-region: no-drag; }
+.header button, .header input, .header [title] { -webkit-app-region: no-drag; }
 
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand-badge {
@@ -32,8 +32,8 @@
   transition: background-color 120ms ease, color 120ms ease;
 }
 .tab-label { font-size: 13px; line-height: 1.2; white-space: nowrap; }
-.tab:hover { color: #fff; background: rgba(255, 255, 255, 0.03); }
-.tab.active { background: rgba(255, 255, 255, 0.06); color: #fff; }
+.tab:hover { color: var(--text-strong); background: var(--hover-faint); }
+.tab.active { background: var(--seg); color: var(--text-strong); }
 .tab.active::after {
   content: ''; position: absolute; left: 50%; bottom: 0; width: 40px; height: 3px; margin-left: -20px;
   border-radius: 2px 2px 0 0; background: var(--focus);
@@ -44,21 +44,51 @@
 .header-actions { display: flex; justify-content: flex-end; gap: 12px; }
 .icon-btn {
   width: 32px; height: 32px; border-radius: 8px; border: 0; padding: 0; display: grid; place-items: center;
-  background: rgba(255, 255, 255, 0.06); color: var(--text-soft); cursor: pointer; transition: background-color 120ms ease;
+  background: var(--seg); color: var(--text-soft); cursor: pointer; transition: background-color 120ms ease;
 }
-.icon-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
+.icon-btn:hover:not(:disabled) { background: var(--hover); }
 .icon-btn:disabled { opacity: 0.4; cursor: default; }
+.icon-btn.active { background: var(--accent); color: #fff; }
+
+/* ---------- profile slots (top rail, centred above the section tabs) ---------- */
+.ptabs {
+  position: absolute; top: 5px; left: 50%; transform: translateX(-50%); z-index: 1;
+  display: flex; gap: 2px; padding: 2px; border-radius: 9px; background: var(--seg);
+}
+.ptab { position: relative; display: flex; align-items: center; border-radius: 7px; }
+.ptab-btn {
+  display: flex; align-items: center; gap: 7px; height: 22px; max-width: 150px; padding: 0 10px; border: 0; border-radius: 7px;
+  background: transparent; color: var(--muted); font-size: 12px; line-height: 1; cursor: pointer; transition: color 120ms ease, background-color 120ms ease;
+}
+.ptab-btn:hover { color: var(--text-strong); background: var(--hover-faint); }
+.ptab-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* a player-LED style lamp: lit on the profile the engine is running */
+.ptab-dot { width: 6px; height: 6px; flex: none; border-radius: 50%; box-shadow: inset 0 0 0 1.5px currentColor; opacity: 0.6; }
+.ptab.active { background: var(--card); box-shadow: 0 0 0 1px var(--card-border); }
+.ptab.active .ptab-btn { color: var(--text-strong); padding-right: 4px; }
+.ptab.active .ptab-dot { background: var(--accent); box-shadow: 0 0 6px var(--accent); opacity: 1; }
+.ptab-edit {
+  width: 22px; height: 22px; padding: 0; margin-right: 2px; border: 0; border-radius: 6px; display: grid; place-items: center;
+  background: transparent; color: var(--muted); cursor: pointer; opacity: 0; transition: opacity 120ms ease;
+}
+.ptab.active:hover .ptab-edit, .ptab-edit:focus-visible { opacity: 1; }
+.ptab-edit:hover { color: var(--text-strong); background: var(--hover); }
+.ptab-input {
+  width: 128px; height: 22px; padding: 0 8px; border: 1px solid var(--focus); border-radius: 7px; outline: none;
+  background: var(--card); color: var(--text); font: inherit; font-size: 12px;
+}
+.ptab-input:focus-visible { outline: none; } /* the orange border is the focus ring */
 .win-controls { position: absolute; top: 0; right: 0; display: flex; }
 .win-btn {
   width: 46px; height: 32px; border: 0; background: transparent; color: var(--text-window); display: grid; place-items: center; cursor: pointer;
 }
-.win-btn:hover { background: rgba(255, 255, 255, 0.08); }
+.win-btn:hover { background: var(--hover); }
 .win-btn.close:hover { background: #c42b1c; color: #fff; }
 .win-btn:focus-visible { outline-offset: -2px; }
 
 /* ---------- body + cards ---------- */
 .body { flex: 1; min-height: 0; padding: 16px; overflow: auto; }
-.card { background: var(--card); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 20px; }
+.card { background: var(--card); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 20px; box-shadow: var(--card-shadow); }
 .card-title {
   margin: 0 0 14px; font-size: 15px; font-weight: 500; line-height: 1.2;
   padding-left: 11px; border-left: 3px solid var(--accent);
@@ -82,4 +112,4 @@
 .badge-b { background: var(--badge-b); }
 .version { color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: 0.5px; }
 
-@media (prefers-reduced-motion: reduce) { .tab, .icon-btn { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .tab, .icon-btn, .ptab-btn, .ptab-edit { transition: none; } }

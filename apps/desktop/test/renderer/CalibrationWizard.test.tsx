@@ -6,7 +6,7 @@ import { useStore } from '../../src/renderer/store';
 import { CalibrationWizard } from '../../src/renderer/components/CalibrationWizard';
 import { Sticks } from '../../src/renderer/pages/Sticks';
 
-const setProfile = vi.fn(async () => true);
+const setProfile = vi.fn(async () => true); // profiles.set
 
 function snap(lx: number, ly: number): EngineSnapshot {
   return {
@@ -20,7 +20,7 @@ const next = () => screen.getByRole('button', { name: 'Next' }) as HTMLButtonEle
 
 beforeEach(() => {
   setProfile.mockClear();
-  vi.stubGlobal('dualforge', { setProfile });
+  vi.stubGlobal('dualforge', { profiles: { set: setProfile } });
   useStore.setState({ profile: defaultProfile('p1', 'Profile 1'), snapshot: null, lastError: null, subTab: { sticks: 'left', triggers: 'left' } });
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });

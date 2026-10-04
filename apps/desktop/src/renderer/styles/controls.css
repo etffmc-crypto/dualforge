@@ -38,22 +38,26 @@
   background: var(--seg); color: var(--text-soft); font-size: 13px; white-space: nowrap; cursor: pointer;
   transition: background-color 120ms ease;
 }
-.seg-btn:hover:not(.active) { background: rgba(255, 255, 255, 0.1); }
+.seg-btn:hover:not(.active) { background: var(--hover); }
 .seg-btn.active { background: var(--accent); color: #fff; }
 .seg-btn.active:hover { background: var(--accent-hover); }
 
 /* ---------- toggle ---------- */
 .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .toggle-label { font-size: 14px; }
+.toggle-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.toggle-hint { font-size: 12px; line-height: 1.45; color: var(--muted); }
+.toggle-row.disabled { opacity: 0.45; }
+.toggle:disabled { cursor: not-allowed; }
 .toggle {
   position: relative; flex: none; width: 56px; height: 28px; padding: 0; border-radius: 14px; cursor: pointer;
-  background: var(--toggle-off); border: 2px solid rgba(255, 255, 255, 0.55); transition: background-color 150ms ease, border-color 150ms ease;
+  background: var(--toggle-off); border: 2px solid var(--toggle-ring); transition: background-color 150ms ease, border-color 150ms ease;
 }
 .toggle-knob {
   position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4); transition: transform 150ms ease;
 }
-.toggle.on { background: var(--accent); border-color: rgba(255, 255, 255, 0.85); }
+.toggle.on { background: var(--accent); border-color: var(--toggle-ring-on); }
 .toggle.on .toggle-knob { transform: translateX(28px); }
 
 /* ---------- section label ---------- */
@@ -70,18 +74,18 @@
   position: relative; padding: 6px 8px 8px; border: 0; background: transparent; color: var(--text-secondary);
   font-size: 15px; cursor: pointer;
 }
-.subtab:hover { color: #fff; }
-.subtab.active { color: #fff; }
+.subtab:hover { color: var(--text-strong); }
+.subtab.active { color: var(--text-strong); }
 .subtab.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 1px; background: var(--accent); }
 
 /* ---------- curves ---------- */
 .curve-preview, .ce-svg { display: block; overflow: visible; }
-.cp-frame { fill: none; stroke: rgba(255, 255, 255, 0.85); stroke-width: 1.5; }
-.cp-grid line { stroke: rgba(255, 255, 255, 0.07); stroke-width: 1; }
-.curve { stroke: #fff; stroke-width: 2; stroke-linejoin: round; }
+.cp-frame { fill: none; stroke: var(--plot-frame); stroke-width: 1.5; }
+.cp-grid line { stroke: var(--plot-grid); stroke-width: 1; }
+.curve { stroke: var(--plot-curve); stroke-width: 2; stroke-linejoin: round; }
 .curve-editor { display: flex; flex-direction: column; gap: 12px; align-items: center; }
 .ce-svg { touch-action: none; }
-.ce-ref { stroke: rgba(255, 255, 255, 0.3); stroke-width: 1.5; stroke-dasharray: 5 5; }
+.ce-ref { stroke: var(--plot-ref); stroke-width: 1.5; stroke-dasharray: 5 5; }
 .ce-svg .curve { stroke: var(--accent); stroke-width: 2.5; }
 .ce-handle {
   fill: var(--accent); stroke: var(--handle-ring); stroke-width: 3; cursor: grab;
@@ -94,7 +98,7 @@
 .ce-axis { font-size: 11px; color: var(--muted); padding-right: 4px; }
 .ce-inputs input {
   width: 100%; min-width: 0; height: 26px; padding: 0 2px; border: 1px solid var(--card-border); border-radius: 6px;
-  background: rgba(0, 0, 0, 0.25); color: var(--text); font: inherit; font-size: 12px; text-align: center;
+  background: var(--well); color: var(--text); font: inherit; font-size: 12px; text-align: center;
   -moz-appearance: textfield;
 }
 .ce-inputs input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
@@ -102,8 +106,8 @@
 
 /* ---------- live stick ---------- */
 .stick-live { text-align: center; }
-.sl-gate { fill: rgba(0, 0, 0, 0.2); stroke: rgba(255, 255, 255, 0.18); stroke-width: 1.5; }
-.sl-axis { stroke: rgba(255, 255, 255, 0.08); }
+.sl-gate { fill: var(--well); stroke: var(--gate-stroke); stroke-width: 1.5; }
+.sl-axis { stroke: var(--plot-grid); }
 .sl-dz { fill: none; stroke-width: 1.5; stroke-dasharray: 4 4; }
 .sl-dz.inner { stroke: var(--accent); fill: rgba(226, 64, 63, 0.12); }
 .sl-dz.outer { stroke: rgba(240, 138, 60, 0.7); }

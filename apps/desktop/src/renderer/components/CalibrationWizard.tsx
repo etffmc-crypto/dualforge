@@ -4,7 +4,7 @@ import { assessRest, computeRadiusFromReach } from '@dualforge/engine/calibratio
 import { applyStickShaping } from '@dualforge/engine/shape';
 import { StickLive } from './controls/StickLive';
 import { useStore, type Side } from '../store';
-import '../styles/modal.css';
+import { Modal } from './Modal';
 
 const CENTER_FRAMES = 120;
 const CENTER_MS = 2000;
@@ -48,18 +48,6 @@ export function CalibrationWizard({ side, onClose }: { side: Side; onClose(): vo
   const samples = useRef<Pt[]>([]);
   const started = useRef(performance.now());
   const seen = useRef<EngineSnapshot | null>(snapshot); // only frames that arrive after a step starts count
-  const dialog = useRef<HTMLDivElement>(null);
-  const close = useRef(onClose);
-  close.current = onClose;
-
-  useEffect(() => {
-    const opener = document.activeElement as HTMLElement | null;
-    dialog.current?.focus();
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close.current(); };
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('keydown', onKey); opener?.focus?.(); };
-  }, []);
-
   useEffect(() => {
     if (!snapshot || snapshot === seen.current) return;
     seen.current = snapshot;
@@ -102,56 +90,53 @@ export function CalibrationWizard({ side, onClose }: { side: Side; onClose(): vo
   const name = side === 'left' ? 'left stick' : 'right stick';
 
   return (
-    <div className="modal-backdrop">
-      <div className="modal" role="dialog" aria-modal="true" aria-label={`Calibrate ${name}`} tabIndex={-1} ref={dialog}>
-        <ol className="stepper">
-          {STEPS.map((s, i) => (
-            <li key={s} className={i === step ? 'current' : i < step ? 'done' : ''} aria-current={i === step ? 'step' : undefined}>
-              <span className="stepper-n">{i + 1}</span>{s}
-            </li>
-          ))}
-        </ol>
-        <h2 className="modal-title">Calibrate {name}</h2>
+    <Modal open title={`Calibrate ${name}`} onClose={onClose}>
+      <ol className="stepper">
+        {STEPS.map((s, i) => (
+          <li key={s} className={i === step ? 'current' : i < step ? 'done' : ''} aria-current={i === step ? 'step' : undefined}>
+            <span className="stepper-n">{i + 1}</span>{s}
+          </li>
+        ))}
+      </ol>
 
-        {step === 0 && (
-          <div className="cal-body">
-            <p>Release the stick and keep the controller still.</p>
-            <div className="cal-meter"><div style={{ width: `${Math.min(100, (count / CENTER_FRAMES) * 100)}%` }} /></div>
-            {center
-              ? <p className="cal-result">Rest position <span className="mono" data-testid="cal-center">X {fmt(center.x)} · Y {fmt(center.y)}</span></p>
-              : restFail
-                ? <p className="cal-result" role="alert" data-testid="cal-rest-error">{restFail === 'moving' ? "Stick isn't at rest - release it and try again" : 'Stick is off-center - release it fully'}</p>
-                : <p className="cal-result muted">{snapshot ? 'Measuring…' : 'Waiting for the controller…'}</p>}
-          </div>
-        )}
-        {step === 1 && center && (
-          <div className="cal-body cal-split">
-            <EdgeTrace reach={reach} />
-            <div>
-              <p>Rotate the stick slowly around its full edge, twice.</p>
-              <p className="cal-result muted">{count} samples · {covered}/{BINS} directions</p>
-            </div>
-          </div>
-        )}
-        {step === 2 && center && radius !== null && (
-          <div className="cal-body cal-split">
-            <StickLive raw={raw} out={proposed} deadzone={cfg?.deadzone ?? { center: 0, outer: 0 }} size={160} />
-            <div>
-              <p>Move the stick: the red dot shows the result with the new calibration.</p>
-              <p className="cal-result">Center <span className="mono">X {fmt(center.x)} · Y {fmt(center.y)}</span></p>
-              <p className="cal-result">Radius <span className="mono" data-testid="cal-radius">{radius.toFixed(3)}</span></p>
-            </div>
-          </div>
-        )}
-
-        <div className="modal-actions">
-          <button type="button" className="panel-btn" onClick={onClose}>Cancel</button>
-          {step === 0 && (center || restFail) && <button type="button" className="panel-btn" onClick={restartCenter}>Measure again</button>}
-          {step < 2
-            ? <button type="button" className="panel-btn primary" disabled={!canNext} onClick={next}>Next</button>
-            : <button type="button" className="panel-btn primary" onClick={apply}>Apply</button>}
+      {step === 0 && (
+        <div className="cal-body">
+          <p>Release the stick and keep the controller still.</p>
+          <div className="cal-meter"><div style={{ width: `${Math.min(100, (count / CENTER_FRAMES) * 100)}%` }} /></div>
+          {center
+            ? <p className="cal-result">Rest position <span className="mono" data-testid="cal-center">X {fmt(center.x)} · Y {fmt(center.y)}</span></p>
+            : restFail
+              ? <p className="cal-result" role="alert" data-testid="cal-rest-error">{restFail === 'moving' ? "Stick isn't at rest - release it and try again" : 'Stick is off-center - release it fully'}</p>
+              : <p className="cal-result muted">{snapshot ? 'Measuring…' : 'Waiting for the controller…'}</p>}
         </div>
+      )}
+      {step === 1 && center && (
+        <div className="cal-body cal-split">
+          <EdgeTrace reach={reach} />
+          <div>
+            <p>Rotate the stick slowly around its full edge, twice.</p>
+            <p className="cal-result muted">{count} samples · {covered}/{BINS} directions</p>
+          </div>
+        </div>
+      )}
+      {step === 2 && center && radius !== null && (
+        <div className="cal-body cal-split">
+          <StickLive raw={raw} out={proposed} deadzone={cfg?.deadzone ?? { center: 0, outer: 0 }} size={160} />
+          <div>
+            <p>Move the stick: the red dot shows the result with the new calibration.</p>
+            <p className="cal-result">Center <span className="mono">X {fmt(center.x)} · Y {fmt(center.y)}</span></p>
+            <p className="cal-result">Radius <span className="mono" data-testid="cal-radius">{radius.toFixed(3)}</span></p>
+          </div>
+        </div>
+      )}
+
+      <div className="modal-actions">
+        <button type="button" className="panel-btn" onClick={onClose}>Cancel</button>
+        {step === 0 && (center || restFail) && <button type="button" className="panel-btn" onClick={restartCenter}>Measure again</button>}
+        {step < 2
+          ? <button type="button" className="panel-btn primary" disabled={!canNext} onClick={next}>Next</button>
+          : <button type="button" className="panel-btn primary" onClick={apply}>Apply</button>}
       </div>
-    </div>
+    </Modal>
   );
 }

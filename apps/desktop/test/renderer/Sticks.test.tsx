@@ -10,7 +10,7 @@ const profile = () => useStore.getState().profile!;
 
 beforeEach(() => {
   vi.useFakeTimers();
-  vi.stubGlobal('dualforge', { setProfile: vi.fn(async () => true) });
+  vi.stubGlobal('dualforge', { profiles: { set: vi.fn(async () => true) } });
   useStore.setState({ profile: defaultProfile('p1', 'Profile 1'), snapshot: null, lastError: null, subTab: { sticks: 'left', triggers: 'left' } });
 });
 afterEach(() => {

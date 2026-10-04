@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { join, resolve, extname } from 'node:path';
 import { statSync } from 'node:fs';
 import { z } from 'zod';
@@ -61,6 +61,8 @@ ipcMain.handle('engine:replay', (_e, raw: unknown) => {
     throw new Error('E_REPLAY_PATH');
   }
 });
+// no payload: the renderer can only ever open our own data folder
+ipcMain.handle('system:openDataDir', () => shell.openPath(dataDir));
 ipcMain.handle('engine:useDevice', () => engine.send({ type: 'useDevice' }));
 ipcMain.on('window:minimize', () => win?.minimize());
 ipcMain.on('window:toggleMaximize', () => (win?.isMaximized() ? win.unmaximize() : win?.maximize()));
