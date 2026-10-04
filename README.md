@@ -22,6 +22,17 @@ npm run dev      # start the app in development
 npm run check    # typecheck, lint, unit tests, e2e
 ```
 
+### Native modules
+
+Needs the Visual Studio C++ build tools. `native/sendinput` (keyboard/mouse injection and foreground-process lookup) is built by `npm install`. If npm skips install scripts, or after changing Electron versions, build it explicitly:
+
+```
+cd native/sendinput && npx node-gyp rebuild    # for Node (scripts, ad-hoc checks)
+cd ../.. && npm run rebuild -w @dualforge/desktop   # for Electron: node-hid, vigemclient, @dualforge/sendinput
+```
+
+If the addon is missing the app still runs, but keyboard/mouse mappings and per-game auto-switch are disabled (`E_INJECT_LOAD` is logged).
+
 ## Folder map
 
 - `packages/shared` - types and schemas shared across packages

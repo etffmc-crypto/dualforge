@@ -7,6 +7,8 @@ import { createEngineHost } from './engine-host.js';
 import { createProfileStore } from './profile-store.js';
 import { createSettingsStore } from './settings-store.js';
 import { registerIpc } from './register-ipc.js';
+import { createInjector } from './injector.js';
+import { createGameWatcher } from './game-watcher.js';
 
 let win: BrowserWindow | null = null;
 const engine = createEngineHost({ log: logger, onEvent: (e) => { if (win && !win.isDestroyed()) win.webContents.send('engine:event', e); } });
@@ -17,6 +19,13 @@ const settings = createSettingsStore(dataDir, logger);
 const ipc = registerIpc({
   ipc: ipcMain, dialog, store, settings, engine, log: logger,
   notifyActive: (id) => { if (win && !win.isDestroyed()) win.webContents.send('profiles:active', id); },
+});
+
+// The main process loads the addon too, only to read the foreground process name for auto-switching (E_INJECT_LOAD is logged once).
+const injector = createInjector((code, msg) => logger.error({ code, msg }));
+const watcher = createGameWatcher({
+  foreground: () => injector.foreground(), settings: () => settings.get(), onSwitch: (id) => ipc.applyProfile(id),
+  available: injector.available,
 });
 
 const MAX_REPLAY_BYTES = 16 * 1024 * 1024;
@@ -68,8 +77,9 @@ if (!app.requestSingleInstanceLock()) {
     engine.send({ type: 'setSettings', settings: settings.get() });
     engine.send({ type: 'uiFocused', focused: win?.isFocused() ?? true });
     ipc.applyProfile(settings.get().activeProfile);
+    watcher.start();
   });
-  app.on('before-quit', () => engine.stop());
+  app.on('before-quit', () => { watcher.stop(); engine.stop(); });
   app.on('window-all-closed', () => app.quit());
 }
 process.on('uncaughtException', (err) => logger.error({ code: 'E_UNCAUGHT', msg: err.message, stack: err.stack }));
