@@ -236,4 +236,55 @@ describe('engine loop plan 2: compiled profiles, grace release, trigger effects'
     expect(writes.length).toBe(n + 1);
     loop.stop(); vi.useRealTimers();
   });
+
+  it('emits exactly one E_VIGEM_INIT when ViGEm is missing', async () => {
+    vi.useFakeTimers();
+    const sink = fakeSink();
+    sink.ready = false;
+    sink.connect = async () => { throw new Error('E_VIGEM_INIT missing'); };
+    const events: { type: string; code?: string }[] = [];
+    let status!: (c: boolean) => void;
+    const src: InputSource = { start(_r, st) { status = st; }, write() {}, stop() {} };
+    const loop = createEngineLoop({ source: src, sink, emit: (e) => events.push(e as never), now: () => performance.now() });
+    loop.setProfile(defaultProfile('p', 'p'));
+    await loop.start();
+    status(true); await vi.advanceTimersByTimeAsync(0);
+    status(true); await vi.advanceTimersByTimeAsync(0);
+    expect(events.filter((e) => e.type === 'error' && e.code === 'E_VIGEM_INIT')).toHaveLength(1);
+    loop.stop(); vi.useRealTimers();
+  });
+  it('does not run concurrent connect() calls', async () => {
+    vi.useFakeTimers();
+    const sink = fakeSink();
+    const connect = vi.fn(() => new Promise<void>((res) => { setTimeout(() => { sink.ready = true; res(); }, 50); }));
+    sink.ready = false; sink.connect = connect;
+    let status!: (c: boolean) => void;
+    const src: InputSource = { start(_r, st) { status = st; }, write() {}, stop() {} };
+    const loop = createEngineLoop({ source: src, sink, emit: () => {}, now: () => performance.now() });
+    loop.setProfile(defaultProfile('p', 'p'));
+    const started = loop.start();
+    await vi.advanceTimersByTimeAsync(50); await started;
+    connect.mockClear(); sink.ready = false;
+    status(true); await vi.advanceTimersByTimeAsync(3);
+    status(false); await vi.advanceTimersByTimeAsync(3);
+    status(true); await vi.advanceTimersByTimeAsync(3);
+    await vi.advanceTimersByTimeAsync(60);
+    expect(connect).toHaveBeenCalledTimes(1);
+    loop.stop(); vi.useRealTimers();
+  });
+  it('swapSource arms the grace release for a source that never connects', async () => {
+    vi.useFakeTimers();
+    const sink = fakeSink();
+    const disconnect = vi.fn(); sink.disconnect = disconnect;
+    const first: InputSource = { start(_r, st) { st(true); }, write() {}, stop() {} };
+    const loop = createEngineLoop({ source: first, sink, emit: () => {}, now: () => performance.now() });
+    loop.setProfile(defaultProfile('p', 'p'));
+    await loop.start();
+    loop.swapSource({ start() {}, write() {}, stop() {} });
+    await vi.advanceTimersByTimeAsync(GRACE_MS - 1);
+    expect(disconnect).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    loop.stop(); vi.useRealTimers();
+  });
 });

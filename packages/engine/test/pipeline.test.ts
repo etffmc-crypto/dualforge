@@ -30,11 +30,12 @@ describe('processReport', () => {
     const o = processReport(parseDualSenseUsb(report((b) => { b[9] = 0x01; })), compileProfile(p), createPipelineState(), 0);
     expect(o.xinput.buttons.LB).toBe(true);
   });
-  it('runs mappings after axes so a later axis target can override (order guard)', () => {
-    // With default mappings nothing overrides; assert axes survive mapping stage.
+  // Stage order (sticks -> triggers -> mappings last) becomes observable in Plan 3, when button->axis
+  // targets can override stick output; until then default mappings cannot conflict with axes.
+  it('button and stick output coexist in one frame', () => {
     const p = compileProfile(defaultProfile('p', 'p'));
-    const o = processReport(parseDualSenseUsb(report((b) => { b[1] = 255; b[9] = 0x01; })), p, createPipelineState(), 0);
+    const o = processReport(parseDualSenseUsb(report((b) => { b[1] = 255; b[8] = 0x28; })), p, createPipelineState(), 0);
+    expect(o.xinput.buttons.A).toBe(true);
     expect(o.xinput.lx).toBeCloseTo(1, 2);
-    expect(o.xinput.buttons.LB).toBe(true);
   });
 });

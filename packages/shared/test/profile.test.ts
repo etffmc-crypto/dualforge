@@ -50,4 +50,9 @@ describe('profile schema', () => {
       expect(ProfileSchema.safeParse(p).success).toBe(true);
     }
   });
+  it('rejects non-monotone advanced filter curve x', () => {
+    const p = defaultProfile('p', 'p');
+    p.sticks.left.filter.curve = [[0, 0], [0.5, 0], [0.2, 0], [0.7, 0], [1, 0]];
+    expect(ProfileSchema.safeParse(p).success).toBe(false);
+  });
 });

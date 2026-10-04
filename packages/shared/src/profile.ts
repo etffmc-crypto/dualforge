@@ -20,7 +20,7 @@ export const StickFilterSchema = z.object({
   strength: pct, // 0 = off, 100 = heavy smoothing
   // advanced mode: [speed 0..1, strength 0..100] x 5
   curve: z.array(z.tuple([unit, pct])).length(5).default([[0, 0], [0.1, 0], [0.25, 0], [0.5, 0], [1, 0]]),
-});
+}).refine((f) => f.curve.every((p, i, a) => i === 0 || p[0] >= a[i - 1]![0]), { message: 'filter curve x must be non-decreasing' });
 
 export const TriggerEffectSchema = z.discriminatedUnion('mode', [
   z.object({ mode: z.literal('off') }),

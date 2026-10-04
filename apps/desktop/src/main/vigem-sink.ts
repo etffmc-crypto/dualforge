@@ -7,16 +7,20 @@ import type { PadSink } from './engine-loop.js';
 const require = createRequire(import.meta.url);
 
 export function createViGEmSink(): PadSink {
+  let client: ViGEmClient | null = null;   // reused across reconnects; never rebuilt while one exists
   let pad: X360Controller | null = null;
   let rumbleCb: ((l: number, s: number) => void) | null = null;
   const sink: PadSink = {
     ready: false,
     async connect() {
-      const Ctor = require('vigemclient') as new () => ViGEmClient;
-      const c = new Ctor();
-      const err = c.connect();
-      if (err) throw new Error(`E_VIGEM_INIT ${err.message ?? err}`);
-      const p = c.createX360Controller();
+      if (!client) {
+        const Ctor = require('vigemclient') as new () => ViGEmClient;
+        const c = new Ctor();
+        const err = c.connect();
+        if (err) throw new Error(`E_VIGEM_INIT ${err.message ?? err}`);
+        client = c;
+      }
+      const p = client.createX360Controller();
       pad = p;
       p.updateMode = 'manual';
       const e2 = p.connect();

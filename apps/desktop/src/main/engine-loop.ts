@@ -35,6 +35,7 @@ export function createEngineLoop(d: LoopDeps) {
   const t0 = d.now();
   let lastSnap = 0, lastOutWrite = 0;
   let lastOutBytes: Uint8Array | null = null;   // last written output report (byte-compare, no hex string)
+  let connecting: Promise<void> | null = null;
   let graceTimer: ReturnType<typeof setTimeout> | null = null;
   let reports = 0, hzWindowStart = t0, reportHz = 0;
   const latencies = new Float64Array(LAT_RING);
@@ -76,20 +77,28 @@ export function createEngineLoop(d: LoopDeps) {
     state = createPipelineState();
     lastRaw = null; lastOut = null; reportHz = 0; reports = 0;
   }
+  function armGrace() {
+    if (graceTimer) clearTimeout(graceTimer);
+    graceTimer = setTimeout(() => { graceTimer = null; d.sink.disconnect(); d.emit({ type: 'status', connected, vigemReady: d.sink.ready }); }, GRACE_MS);
+  }
+  // One connect at a time; failures go through the deduped error path (one E_VIGEM_INIT per 30 s).
+  function ensureConnected(): Promise<void> {
+    if (d.sink.ready) return Promise.resolve();
+    if (connecting) return connecting;
+    connecting = d.sink.connect()
+      .catch((e: unknown) => onError('E_VIGEM_INIT', (e as Error).message))
+      .finally(() => { connecting = null; });
+    return connecting;
+  }
   function onStatus(c: boolean) {
     connected = c;
     if (!c) {
       neutralize();
       if (graceTimer) clearTimeout(graceTimer);
-      graceTimer = setTimeout(() => { graceTimer = null; d.sink.disconnect(); d.emit({ type: 'status', connected, vigemReady: d.sink.ready }); }, GRACE_MS);
+      armGrace();
     } else {
       if (graceTimer) { clearTimeout(graceTimer); graceTimer = null; }
-      if (!d.sink.ready) {
-        d.sink.connect().then(
-          () => d.emit({ type: 'status', connected, vigemReady: d.sink.ready }),
-          (e: unknown) => onError('E_VIGEM_INIT', (e as Error).message),
-        );
-      }
+      if (!d.sink.ready) void ensureConnected().then(() => d.emit({ type: 'status', connected, vigemReady: d.sink.ready }));
     }
     d.emit({ type: 'status', connected, vigemReady: d.sink.ready });
     if (!c) { const now = d.now(); lastSnap = now; emitSnapshot(now); }
@@ -123,7 +132,7 @@ export function createEngineLoop(d: LoopDeps) {
     // Pipeline state (filters, hair-trigger hysteresis, turbo) is deliberately preserved so live edits do not jump.
     setProfile(p: Profile) { profile = p; compiled = compileProfile(p); maybeWriteOutput(d.now(), true); },
     async start() {
-      try { await d.sink.connect(); } catch (e) { d.emit({ type: 'error', code: 'E_VIGEM_INIT', msg: (e as Error).message }); }
+      await ensureConnected();
       d.sink.onRumble((large, small) => { rumble = { large, small }; maybeWriteOutput(d.now()); });
       d.source.start(onReport, onStatus, onError);
       idle = setInterval(() => { const now = d.now(); if (now - lastSnap >= SNAPSHOT_MS) { lastSnap = now; emitSnapshot(now); } maybeWriteOutput(now); }, 100);
@@ -137,8 +146,8 @@ export function createEngineLoop(d: LoopDeps) {
     swapSource(src: InputSource) {
       d.source.stop(); d.source = src;
       connected = false; lastOutBytes = null;
-      if (graceTimer) { clearTimeout(graceTimer); graceTimer = null; }
       neutralize();
+      armGrace();   // a never-connecting new source still releases the pad
       d.emit({ type: 'status', connected: false, vigemReady: d.sink.ready });
       const now = d.now(); lastSnap = now; emitSnapshot(now);
       d.source.start(onReport, onStatus, onError);

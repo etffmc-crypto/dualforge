@@ -7,10 +7,10 @@ export const MIN_DT_MS = 0.01;
 const MAX_TAU_MS = 60;
 
 function curveStrength(curve: readonly [number, number][], speed: number): number {
-  const pts = [...curve].sort((a, b) => a[0] - b[0]);
-  let [px, py] = pts[0] ?? [0, 0];
+  // curve x is non-decreasing (enforced by StickFilterSchema); no per-sample copy/sort
+  let [px, py] = curve[0] ?? [0, 0];
   if (speed <= px) return py;
-  for (const [x, y] of pts) {
+  for (const [x, y] of curve) {
     if (speed <= x) return x === px ? y : py + ((speed - px) / (x - px)) * (y - py);
     px = x; py = y;
   }
