@@ -520,6 +520,7 @@ test('Health page: the attached DualSense is OK, HidHide (not installed) warns, 
   await expect(
     page.getByRole('region', { name: 'Recent log lines' }).getByRole('listitem').first(),
   ).toBeVisible();
+  await expect(page.locator('.footer .version')).toHaveText('V0.2.0');
   await app.close();
 });
 

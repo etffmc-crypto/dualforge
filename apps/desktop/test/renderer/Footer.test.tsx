@@ -12,7 +12,7 @@ const chip = () => screen.queryByRole('alert');
 
 beforeEach(() => {
   vi.useFakeTimers();
-  vi.stubGlobal('__APP_VERSION__', '0.1.0');
+  vi.stubGlobal('__APP_VERSION__', '0.2.0');
   useStore.setState({ lastError: null });
 });
 afterEach(() => {
