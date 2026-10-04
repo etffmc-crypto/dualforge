@@ -42,4 +42,21 @@ describe('applyStickFilter', () => {
     expect(vSlow2).toBeLessThan(0.01);
     expect(vFast).toBe(1);
   });
+  const adv = { enabled: true, mode: 'advanced' as const, strength: 0, curve: [[0, 100], [0.1, 100], [0.25, 0], [0.5, 0], [1, 0]] as [number, number][] };
+  it('advanced mode: 1 LSB jitter (a flip every 5 reports) at 1 ms stays heavily smoothed', () => {
+    const s = createFilterState();
+    let out = 0, worst = 0;
+    for (let i = 0; i < 200; i++) {
+      out = applyStickFilter(0.3 + (Math.floor(i / 5) % 2 ? 0.0078 : -0.0078), 0, adv, s, 1).x;
+      if (i >= 100) worst = Math.max(worst, Math.abs(out - 0.3));
+    }
+    expect(worst).toBeLessThan(0.002);
+  });
+  it('advanced mode: a fast sweep at 1 ms reports is barely smoothed', () => {
+    const s = createFilterState();
+    applyStickFilter(0, 0, adv, s, 1);
+    let out = 0;
+    for (let i = 1; i <= 20; i++) out = applyStickFilter(i / 20, 0, adv, s, 1).x;
+    expect(out).toBeGreaterThan(0.9);
+  });
 });
