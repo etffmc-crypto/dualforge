@@ -25,14 +25,27 @@ export function createEngineHost(opts: { onEvent: (e: EngineEvent) => void; log:
       if (stopping) return;
       const now = Date.now();
       restarts = restarts.filter((t) => now - t < 60_000);
-      if (restarts.length >= 5) { opts.onEvent({ type: 'error', code: 'E_ENGINE_RESTART_LIMIT', msg: 'engine crashed 5× in 60 s' }); return; }
       restarts.push(now);
-      setTimeout(() => { spawn(); if (lastProfileCmd) child?.postMessage(lastProfileCmd); }, 500 * restarts.length);
+      if (restarts.length >= 5) {
+        const msg = 'engine crashed 5× in 60 s';
+        opts.log.error({ code: 'E_ENGINE_RESTART_LIMIT', msg });
+        opts.onEvent({ type: 'error', code: 'E_ENGINE_RESTART_LIMIT', msg });
+        return;
+      }
+      restartTimer = setTimeout(() => {
+        restartTimer = null;
+        if (stopping) return;
+        spawn(); if (lastProfileCmd) child?.postMessage(lastProfileCmd);
+      }, 500 * restarts.length);
     });
   }
 
   return {
-    start() { stopping = false; spawn(); },
+    start() {
+      stopping = false;
+      if (killTimer) { clearTimeout(killTimer); killTimer = null; }
+      spawn();
+    },
     send(cmd: EngineCommand) { if (cmd.type === 'setProfile') lastProfileCmd = cmd; child?.postMessage(cmd); },
     stop() {
       stopping = true;

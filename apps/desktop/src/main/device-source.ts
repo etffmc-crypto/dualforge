@@ -11,8 +11,7 @@ export function createDeviceSource(): InputSource {
   let opening = false;
 
   function logErr(code: string, e: unknown) {
-    process.stderr.write(`${code} ${e instanceof Error ? e.message : String(e)}
-`);
+    process.stderr.write(`${code} ${e instanceof Error ? e.message : String(e)}\n`);
   }
 
   async function tryOpen(onReport: (b: Uint8Array, t: number) => void, onStatus: (c: boolean) => void) {
