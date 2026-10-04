@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fileURLToPath } from 'node:url';
 import { defaultProfile, type XInputState } from '@dualforge/shared';
-import { createEngineLoop, type InputSource, type PadSink } from '../src/main/engine-loop.js';
+import { createEngineLoop, GRACE_MS, type InputSource, type PadSink } from '../src/main/engine-loop.js';
 import { createReplaySource } from '../src/main/replay-source.js';
 
 const FIX = fileURLToPath(new URL('../../../packages/engine/test/fixtures/stick-sweep.hidlog', import.meta.url));
@@ -140,6 +140,100 @@ describe('engine loop safety and errors', () => {
     await loop.start();
     await vi.advanceTimersByTimeAsync(1000);
     expect(events.filter((e) => e.type === 'error')).toHaveLength(1);
+    loop.stop(); vi.useRealTimers();
+  });
+});
+
+describe('engine loop plan 2: compiled profiles, grace release, trigger effects', () => {
+  it('setProfile preserves filter state (no jump)', async () => {
+    vi.useFakeTimers();
+    const sink = fakeSink();
+    let report!: (b: Uint8Array, t: number) => void;
+    const src: InputSource = { start(r, st) { report = r; st(true); }, write() {}, stop() {} };
+    const loop = createEngineLoop({ source: src, sink, emit: () => {}, now: () => performance.now() });
+    const a = defaultProfile('p', 'p');
+    a.sticks.left.filter = { ...a.sticks.left.filter, enabled: true, strength: 100 };
+    loop.setProfile(a);
+    await loop.start();
+    const stepReport = (): Uint8Array => { const b = usbReport(false); b[1] = 255; return b; };
+    report(usbReport(false), 1000);
+    for (let i = 1; i <= 20; i++) report(stepReport(), 1000 + i * 5);
+    const before = sink.frames[sink.frames.length - 1]!.lx;
+    expect(before).toBeGreaterThan(0.5);
+    expect(before).toBeLessThan(0.99);
+    const b = structuredClone(a);
+    b.lights.r = 255;
+    loop.setProfile(b);
+    report(stepReport(), 1000 + 21 * 5);
+    const after = sink.frames[sink.frames.length - 1]!.lx;
+    expect(after).toBeGreaterThan(0.5);
+    expect(after).toBeLessThan(0.99);   // a state reset would pass the raw value (1.0) straight through
+    expect(after).toBeGreaterThanOrEqual(before);
+    loop.stop(); vi.useRealTimers();
+  });
+  it('releases the virtual pad 2 s after disconnect and reconnects on re-plug', async () => {
+    vi.useFakeTimers();
+    const sink = fakeSink();
+    const connect = vi.fn(async () => { sink.ready = true; });
+    const disconnect = vi.fn(() => { sink.ready = false; });
+    sink.connect = connect; sink.disconnect = disconnect;
+    let status!: (c: boolean) => void;
+    const src: InputSource = { start(_r, st) { status = st; st(true); }, write() {}, stop() {} };
+    const loop = createEngineLoop({ source: src, sink, emit: () => {}, now: () => performance.now() });
+    loop.setProfile(defaultProfile('p', 'p'));
+    await loop.start();
+    connect.mockClear();
+    status(false);
+    await vi.advanceTimersByTimeAsync(GRACE_MS - 1);
+    expect(disconnect).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(disconnect).toHaveBeenCalledTimes(1);
+    status(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(connect).toHaveBeenCalledTimes(1);
+    loop.stop(); vi.useRealTimers();
+  });
+  it('re-plug inside the grace window keeps the pad and cancels the release', async () => {
+    vi.useFakeTimers();
+    const sink = fakeSink();
+    const disconnect = vi.fn();
+    sink.disconnect = disconnect;
+    let status!: (c: boolean) => void;
+    const src: InputSource = { start(_r, st) { status = st; st(true); }, write() {}, stop() {} };
+    const loop = createEngineLoop({ source: src, sink, emit: () => {}, now: () => performance.now() });
+    loop.setProfile(defaultProfile('p', 'p'));
+    await loop.start();
+    status(false);
+    await vi.advanceTimersByTimeAsync(1000);
+    status(true);
+    await vi.advanceTimersByTimeAsync(GRACE_MS * 2);
+    expect(disconnect).not.toHaveBeenCalled();
+    loop.stop(); vi.useRealTimers();
+  });
+  it('includes trigger effects in the output report', async () => {
+    vi.useFakeTimers();
+    const writes: Uint8Array[] = [];
+    const src: InputSource = { start(_r, st) { st(true); }, write(r) { writes.push(r); }, stop() {} };
+    const loop = createEngineLoop({ source: src, sink: fakeSink(), emit: () => {}, now: () => performance.now() });
+    const p = defaultProfile('p', 'p');
+    p.triggers.left.effect = { mode: 'resistance', start: 1, force: 2 };
+    loop.setProfile(p);
+    await loop.start();
+    const last = writes[writes.length - 1]!;
+    expect([last[22], last[23], last[24]]).toEqual([0x01, 1, 2]);
+    expect(last[11]).toBe(0x05);
+    loop.stop(); vi.useRealTimers();
+  });
+  it('setProfile forces an output write even when the report is unchanged', async () => {
+    vi.useFakeTimers();
+    const writes: Uint8Array[] = [];
+    const src: InputSource = { start(_r, st) { st(true); }, write(r) { writes.push(r); }, stop() {} };
+    const loop = createEngineLoop({ source: src, sink: fakeSink(), emit: () => {}, now: () => performance.now() });
+    loop.setProfile(defaultProfile('p', 'p'));
+    await loop.start();
+    const n = writes.length;
+    loop.setProfile(defaultProfile('p', 'p'));
+    expect(writes.length).toBe(n + 1);
     loop.stop(); vi.useRealTimers();
   });
 });

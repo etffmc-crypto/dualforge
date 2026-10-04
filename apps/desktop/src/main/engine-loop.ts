@@ -18,6 +18,14 @@ export interface LoopDeps { source: InputSource; sink: PadSink; emit: (e: Engine
 const SNAPSHOT_MS = 1000 / 60;
 const KEEPALIVE_MS = 250;
 const ERROR_DEDUPE_MS = 30_000;
+export const GRACE_MS = 2000;
+const LAT_RING = 1024;
+
+function sameBytes(a: Uint8Array, b: Uint8Array | null): boolean {
+  if (!b || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
 
 export function createEngineLoop(d: LoopDeps) {
   let profile: Profile | null = null;
@@ -25,9 +33,12 @@ export function createEngineLoop(d: LoopDeps) {
   let state = createPipelineState();
   let connected = false;
   const t0 = d.now();
-  let lastSnap = 0, lastOutWrite = 0, lastOutHex = '';
+  let lastSnap = 0, lastOutWrite = 0;
+  let lastOutBytes: Uint8Array | null = null;   // last written output report (byte-compare, no hex string)
+  let graceTimer: ReturnType<typeof setTimeout> | null = null;
   let reports = 0, hzWindowStart = t0, reportHz = 0;
-  const latencies: number[] = [];
+  const latencies = new Float64Array(LAT_RING);
+  let latIdx = 0, latCount = 0;
   let rumble = { large: 0, small: 0 };
   let lastRaw: RawState | null = null, lastOut: XInputState | null = null;
 
@@ -37,13 +48,13 @@ export function createEngineLoop(d: LoopDeps) {
       rumbleLeft: rumble.large * (p.vibration.left / 100), rumbleRight: rumble.small * (p.vibration.right / 100),
       lightbar: { r: p.lights.r, g: p.lights.g, b: p.lights.b },
       brightness: p.lights.brightness as 0 | 1 | 2, playerLeds: p.lights.playerLeds, micLed: 0,
+      triggers: { left: p.triggers.left.effect, right: p.triggers.right.effect },
     };
   }
   function maybeWriteOutput(now: number, force = false) {
     if (!profile || !connected) return;
     const rep = buildOutputReport(feedback());
-    const hex = Buffer.from(rep).toString('hex');
-    if (force || hex !== lastOutHex || now - lastOutWrite >= KEEPALIVE_MS) { d.source.write(rep); lastOutHex = hex; lastOutWrite = now; }
+    if (force || !sameBytes(rep, lastOutBytes) || now - lastOutWrite >= KEEPALIVE_MS) { d.source.write(rep); lastOutBytes = rep; lastOutWrite = now; }
   }
   function onReport(buf: Uint8Array, t: number) {
     if (!profile || !compiled) return;
@@ -53,7 +64,7 @@ export function createEngineLoop(d: LoopDeps) {
     const out = processReport(raw, compiled, state, t - t0);
     if (d.sink.ready) d.sink.update(out.xinput);
     lastRaw = raw; lastOut = out.xinput;
-    latencies.push(d.now() - start); if (latencies.length > 1000) latencies.shift();
+    latencies[latIdx] = d.now() - start; latIdx = (latIdx + 1) % LAT_RING; if (latCount < LAT_RING) latCount++;
     reports++;
     const now = d.now();
     if (now - hzWindowStart >= 1000) { reportHz = reports / ((now - hzWindowStart) / 1000); reports = 0; hzWindowStart = now; }
@@ -68,8 +79,17 @@ export function createEngineLoop(d: LoopDeps) {
   function onStatus(c: boolean) {
     connected = c;
     if (!c) {
-      // TODO(plan2): 2 s grace release of ViGEm target (spec §6)
       neutralize();
+      if (graceTimer) clearTimeout(graceTimer);
+      graceTimer = setTimeout(() => { graceTimer = null; d.sink.disconnect(); d.emit({ type: 'status', connected, vigemReady: d.sink.ready }); }, GRACE_MS);
+    } else {
+      if (graceTimer) { clearTimeout(graceTimer); graceTimer = null; }
+      if (!d.sink.ready) {
+        d.sink.connect().then(
+          () => d.emit({ type: 'status', connected, vigemReady: d.sink.ready }),
+          (e: unknown) => onError('E_VIGEM_INIT', (e as Error).message),
+        );
+      }
     }
     d.emit({ type: 'status', connected, vigemReady: d.sink.ready });
     if (!c) { const now = d.now(); lastSnap = now; emitSnapshot(now); }
@@ -85,7 +105,7 @@ export function createEngineLoop(d: LoopDeps) {
     d.emit({ type: 'error', code, msg: n > 0 ? `${msg} (x${n})` : msg });
   }
   function emitSnapshot(now: number) {
-    const sorted = [...latencies].sort((a, b) => a - b);
+    const sorted = latencies.slice(0, latCount).sort();   // copy only at snapshot time
     const p99 = sorted[Math.floor(sorted.length * 0.99)] ?? 0;
     const raw = lastRaw, out = lastOut;
     d.emit({ type: 'snapshot', snapshot: {
@@ -100,7 +120,8 @@ export function createEngineLoop(d: LoopDeps) {
   let idle: NodeJS.Timeout | null = null;
 
   return {
-    setProfile(p: Profile) { profile = p; compiled = compileProfile(p); state = createPipelineState(); maybeWriteOutput(d.now(), true); },
+    // Pipeline state (filters, hair-trigger hysteresis, turbo) is deliberately preserved so live edits do not jump.
+    setProfile(p: Profile) { profile = p; compiled = compileProfile(p); maybeWriteOutput(d.now(), true); },
     async start() {
       try { await d.sink.connect(); } catch (e) { d.emit({ type: 'error', code: 'E_VIGEM_INIT', msg: (e as Error).message }); }
       d.sink.onRumble((large, small) => { rumble = { large, small }; maybeWriteOutput(d.now()); });
@@ -109,12 +130,14 @@ export function createEngineLoop(d: LoopDeps) {
     },
     stop() {
       if (idle) clearInterval(idle);
+      if (graceTimer) { clearTimeout(graceTimer); graceTimer = null; }
       if (profile) d.source.write(buildOutputReport({ ...feedback(), rumbleLeft: 0, rumbleRight: 0 }));
       d.source.stop(); d.sink.disconnect();
     },
     swapSource(src: InputSource) {
       d.source.stop(); d.source = src;
-      connected = false; lastOutHex = '';
+      connected = false; lastOutBytes = null;
+      if (graceTimer) { clearTimeout(graceTimer); graceTimer = null; }
       neutralize();
       d.emit({ type: 'status', connected: false, vigemReady: d.sink.ready });
       const now = d.now(); lastSnap = now; emitSnapshot(now);
