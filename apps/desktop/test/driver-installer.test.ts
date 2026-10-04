@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -67,8 +67,10 @@ describe('driver installer', () => {
     const order = ['downloading', 'verifying', 'launching', 'done'].map((s) => r.events.findIndex((e) => e.state === s));
     expect([...order].sort((a, b) => a - b)).toEqual(order);
     expect(r.events.some((e) => e.state === 'downloading' && e.pct === 100)).toBe(true);
-    expect(readFileSync(join(dir, 'HidHide_1.5.exe'))).toEqual(BYTES);
-    expect(r.openPath).toHaveBeenCalledWith(join(dir, 'HidHide_1.5.exe'));
+    const runDir = join(dir, readdirSync(dir)[0]!);
+    expect(readdirSync(dir)).toHaveLength(1);
+    expect(readFileSync(join(runDir, 'HidHide_1.5.exe'))).toEqual(BYTES);
+    expect(r.openPath).toHaveBeenCalledWith(join(runDir, 'HidHide_1.5.exe'));
     expect(r.log.info).toHaveBeenCalledWith(expect.objectContaining({ code: 'DRIVER_DOWNLOADED', sha256: res.sha256 }));
     expect(r.inst.status().hidhide.state).toBe('done');
     const args = (r.exec.mock.calls[0] as unknown as [string, string[]])[1];
@@ -87,7 +89,7 @@ describe('driver installer', () => {
     const res = await r.inst.install('hidhide');
     expect(res).toMatchObject({ state: 'failed', code: 'E_DRIVER_SIGNATURE' });
     expect(r.openPath).not.toHaveBeenCalled();
-    expect(existsSync(join(dir, 'HidHide_1.5.exe'))).toBe(false);
+    expect(readdirSync(dir)).toEqual([]);   // the whole run folder is removed
   });
 
   it('never launches for a wrong signer', async () => {
@@ -127,14 +129,66 @@ describe('driver installer', () => {
   it('enforces the 50 MB cap by content-length and by streamed bytes', async () => {
     const mk = (headers: Record<string, string>, chunks: Buffer[]) => (async (u: string | URL | Request) =>
       String(u).startsWith('https://api.github.com/')
-        ? releaseJson([{ name: 'big.exe', browser_download_url: 'https://github.com/big.exe' }])
+        ? releaseJson([{ name: 'big.exe', browser_download_url: 'https://github.com/nefarius/ViGEmBus/releases/download/v1/big.exe' }])
         : bodyResponse(chunks, headers)) as unknown as typeof fetch;
     const a = rig({ fetchImpl: mk({ 'content-length': String(MAX_DOWNLOAD_BYTES + 1) }, [BYTES]) });
     expect(await a.inst.install('vigem')).toMatchObject({ code: 'E_DRIVER_TOO_LARGE' });
     const big = Buffer.alloc(1024 * 1024);
     const b = rig({ fetchImpl: mk({}, Array.from({ length: 51 }, () => big)) });
     expect(await b.inst.install('vigem')).toMatchObject({ code: 'E_DRIVER_TOO_LARGE' });
-    expect(existsSync(join(dir, 'big.exe'))).toBe(false);
+    expect(readdirSync(dir)).toEqual([]);
+  });
+
+  it('refuses a launch when the file changed after verification (E_DRIVER_TAMPERED) and deletes it', async () => {
+    const r = rig();
+    const exec = vi.fn(async (_f: string, args: string[]) => {
+      const p = /-FilePath '([^']+)'/.exec(args.join(' '))![1]!;
+      writeFileSync(p, 'swapped');
+      return { stdout: VALID };
+    });
+    const inst = createDriverInstaller({ fetch: r.fetchImpl, exec, openPath: r.openPath, dir, emit: () => {}, log: r.log });
+    expect(await inst.install('hidhide')).toMatchObject({ state: 'failed', code: 'E_DRIVER_TAMPERED' });
+    expect(r.openPath).not.toHaveBeenCalled();
+    expect(readdirSync(dir)).toEqual([]);
+  });
+
+  describe('redirects', () => {
+    const START = 'https://github.com/nefarius/HidHide/releases/download/v1/HidHide_1.5.exe';
+    const mk = (hops: Record<string, Response | (() => Response)>) => vi.fn(async (u: string | URL | Request) => {
+      const k = String(u);
+      if (k.startsWith('https://api.github.com/')) return releaseJson([{ name: 'HidHide_1.5.exe', browser_download_url: START }]);
+      const h = hops[k];
+      if (!h) throw new Error('unexpected ' + k);
+      return typeof h === 'function' ? h() : h;
+    }) as unknown as typeof fetch;
+    const redirect = (to: string) => new Response(null, { status: 302, headers: { location: to } });
+    it('follows a valid two-hop redirect chain manually', async () => {
+      const f = mk({
+        [START]: redirect('https://objects.githubusercontent.com/a'),
+        'https://objects.githubusercontent.com/a': redirect('https://release-assets.githubusercontent.com/b'),
+        'https://release-assets.githubusercontent.com/b': () => bodyResponse([BYTES], { 'content-length': String(BYTES.length) }),
+      });
+      const r = rig({ fetchImpl: f });
+      expect(await r.inst.install('hidhide')).toMatchObject({ state: 'done' });
+      expect((f as unknown as { mock: { calls: [unknown, { redirect: string }][] } }).mock.calls[1]![1].redirect).toBe('manual');
+    });
+    it('a redirect to a foreign host is E_DRIVER_URL and nothing is launched', async () => {
+      const r = rig({ fetchImpl: mk({ [START]: redirect('https://evil.example/x.exe') }) });
+      expect(await r.inst.install('hidhide')).toMatchObject({ state: 'failed', code: 'E_DRIVER_URL' });
+      expect(r.openPath).not.toHaveBeenCalled();
+    });
+    it('rejects http hops, a missing location and more than 3 hops', async () => {
+      expect(await rig({ fetchImpl: mk({ [START]: redirect('http://objects.githubusercontent.com/a') }) }).inst.install('hidhide')).toMatchObject({ code: 'E_DRIVER_URL' });
+      expect(await rig({ fetchImpl: mk({ [START]: new Response(null, { status: 302 }) }) }).inst.install('hidhide')).toMatchObject({ code: 'E_DRIVER_URL' });
+      const c = 'https://objects.githubusercontent.com/';
+      const f = mk({ [START]: redirect(c + '1'), [c + '1']: redirect(c + '2'), [c + '2']: redirect(c + '3'), [c + '3']: redirect(c + '4'), [c + '4']: () => bodyResponse([BYTES]) });
+      expect(await rig({ fetchImpl: f }).inst.install('hidhide')).toMatchObject({ code: 'E_DRIVER_URL' });
+    });
+    it('the initial URL must be a Nefarius release path on github.com', async () => {
+      const f = (async (u: string | URL | Request) => String(u).startsWith('https://api.')
+        ? releaseJson([{ name: 'x.exe', browser_download_url: 'https://github.com/someone/else/releases/download/v1/x.exe' }]) : bodyResponse([BYTES])) as unknown as typeof fetch;
+      expect(await rig({ fetchImpl: f }).inst.install('hidhide')).toMatchObject({ code: 'E_DRIVER_NO_ASSET' });
+    });
   });
 
   it('a second click while installing does not start another download', async () => {

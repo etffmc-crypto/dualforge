@@ -104,7 +104,9 @@ export const useStore = create<State>((set, get) => {
       try {
         set({ settings: await window.dualforge.settings.set(patch) });
       } catch (err) {
-        set({ settings: before, lastError: { code: 'E_SETTINGS_SEND', msg: String(err) } });
+        // main may have persisted a corrected value (e.g. hidHide forced off after a failed enable), so resync from it; fall back to the old value
+        const actual = await window.dualforge.settings.get().catch(() => before);
+        set({ settings: actual, lastError: { code: 'E_SETTINGS_SEND', msg: String(err) } });
       }
     },
     refreshProfiles: async () => set({ profiles: await window.dualforge.profiles.list() }),

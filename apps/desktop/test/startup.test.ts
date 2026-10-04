@@ -10,9 +10,12 @@ describe('startup args', () => {
   });
   it('the window starts hidden for --minimized or settings.startMinimized', () => {
     const s = defaultSettings();
-    expect(shouldStartHidden(['x'], s)).toBe(false);
-    expect(shouldStartHidden(['x', START_ARG], s)).toBe(true);
-    expect(shouldStartHidden(['x'], { ...s, startMinimized: true })).toBe(true);
+    expect(shouldStartHidden(['x'], s, true)).toBe(false);
+    expect(shouldStartHidden(['x', START_ARG], s, true)).toBe(true);
+    expect(shouldStartHidden(['x'], { ...s, startMinimized: true }, true)).toBe(true);
+  });
+  it('never starts hidden without a tray (the window could not be recovered)', () => {
+    expect(shouldStartHidden(['x', START_ARG], { ...defaultSettings(), startMinimized: true }, false)).toBe(false);
   });
 });
 

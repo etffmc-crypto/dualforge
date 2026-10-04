@@ -18,6 +18,7 @@ import { createInjector } from './injector.js';
 import { createGameWatcher } from './game-watcher.js';
 import { createProcessLister } from './processes.js';
 import { createHidHide } from './hidhide.js';
+import { createSettingsHooks } from './settings-hooks.js';
 import { applyLoginItem, shouldHideOnClose, shouldStartHidden } from './startup.js';
 import { createTray, type AppTray } from './tray.js';
 import { createUpdater } from './updater.js';
@@ -46,19 +47,13 @@ const ipc = registerIpc({
   ipc: ipcMain, dialog, store, settings, engine, log: logger,
   processes: createProcessLister(undefined, [basename(process.execPath)]),
   notifyActive: (id) => { if (win && !win.isDestroyed()) win.webContents.send('profiles:active', id); tray?.refresh(); },
-  onSettingsChanged: async (prev, next) => {
-    if (prev.startWithWindows !== next.startWithWindows) applyLoginItem(app, next, logger);
-    if (!prev.updates && next.updates) void updater.check();
-    if (prev.hidHide === next.hidHide) return;
-    const r = next.hidHide ? await hidhide.enable() : await hidhide.disable();
-    void health.run();   // re-check so Health reflects the new state at once
-    if (r.ok) return;
-    if (next.hidHide) {   // could not enable: leave the setting off so the toggle tells the truth, and tell the renderer why
-      const reverted = settings.set({ hidHide: false });
-      engine.send({ type: 'setSettings', settings: reverted });
-      throw new Error(r.code ?? 'E_HIDHIDE_CLI');
-    }
-  },
+  onProfilesChanged: () => tray?.refresh(),
+  onSettingsChanged: createSettingsHooks({
+    hidhide, settingsStore: settings, engine, log: logger,
+    applyLoginItem: (next) => applyLoginItem(app, next, logger),
+    onUpdatesEnabled: () => { void updater.check(); },
+    refreshHealth: () => { void health.run(); },   // re-check so Health reflects the new state at once
+  }),
 });
 
 // The main process loads the addon too, only to read the foreground process name for auto-switching (E_INJECT_LOAD is logged once).
@@ -75,7 +70,7 @@ const installer = createDriverInstaller({
 registerDriverIpc({ ipc: ipcMain, installer, log: logger });
 const installRepair = (driver: 'vigem' | 'hidhide') => async () => {
   const s = await installer.install(driver);
-  return s.state === 'done' ? { ok: true } : { ok: false, code: s.code ?? 'E_DRIVER_DOWNLOAD' };
+  return s.state === 'done' ? { ok: true } : { ok: false, code: s.code ?? 'E_DRIVER_DOWNLOAD', msg: `driver install failed (${s.code ?? 'E_DRIVER_DOWNLOAD'})` };
 };
 
 const health = createHealthService({
@@ -124,7 +119,7 @@ function validateReplayPath(raw: unknown): string {
 }
 
 function createWindow(): void {
-  const startHidden = shouldStartHidden(process.argv, settings.get());
+  const startHidden = shouldStartHidden(process.argv, settings.get(), tray?.exists() ?? false);
   win = new BrowserWindow({
     width: 1280, height: 800, minWidth: 1000, minHeight: 680,
     frame: false, backgroundColor: '#0d0b10', show: false,
@@ -136,6 +131,7 @@ function createWindow(): void {
     if (shouldHideOnClose({ closeToTray: settings.get().closeToTray, hasTray: tray?.exists() ?? false, quitting })) { e.preventDefault(); win?.hide(); }
   });
   win.on('hide', () => tray?.refresh());
+  win.on('session-end', () => { quitting = true; });   // Windows logoff/shutdown must not be swallowed by close-to-tray
   win.on('focus', () => engine.send({ type: 'uiFocused', focused: true }));
   win.on('blur', () => engine.send({ type: 'uiFocused', focused: false }));
   win.on('closed', () => { win = null; });
@@ -180,8 +176,6 @@ if (!app.requestSingleInstanceLock()) {
     logger.info({ code: 'APP_START', version: app.getVersion() });
     const pruned = pruneLogs(LOG_DIR, Date.now(), (msg) => logger.warn({ code: 'LOG_PRUNE', msg }));
     if (pruned.length) logger.info({ code: 'LOG_PRUNE', deleted: pruned.length });
-    createWindow();
-    applyLoginItem(app, settings.get(), logger);
     tray = createTray({
       Tray, Menu, nativeImage, iconPath: trayIconPath(), log: logger,
       profiles: () => store.list().map((p) => ({ id: p.id, name: p.name })),
@@ -191,6 +185,8 @@ if (!app.requestSingleInstanceLock()) {
       health: () => { showWindow(); win?.webContents.send('app:navigate', 'health'); },
       quit: () => app.quit(),
     });
+    createWindow();
+    applyLoginItem(app, settings.get(), logger);
     if (settings.get().updates) setTimeout(() => void updater.check(), 10_000);   // opt-in only
     engine.start();
     engine.send({ type: 'setSettings', settings: settings.get() });

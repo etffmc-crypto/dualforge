@@ -210,12 +210,12 @@ The installer's Authenticode signature is not Valid (not signed, hash mismatch, 
 The signature is valid but not from Nefarius Software Solutions. The file is deleted and never launched.
 
 ### E_DRIVER_LAUNCH
-Windows could not start the installer (for example the UAC prompt was declined). The downloaded file stays in `%TEMP%\DualForge`. Fix: click install again and accept the prompt.
+Windows could not start the installer (for example the UAC prompt was declined). The downloaded file stays in a `run-*` folder under `%TEMP%DualForge`. Fix: click install again and accept the prompt.
 
 ## HidHide
 
 ### E_HIDHIDE_NOT_INSTALLED
-HidHide was asked to enable but `HidHideCLI.exe` is not under `%ProgramFiles%Nefarius Software SolutionsHidHided`. Fix: install HidHide from the Health page.
+HidHide was asked to enable but `HidHideCLI.exe` was not found at its default path, `%ProgramFiles%Nefarius Software SolutionsHidHidedHidHideCLI.exe`. Fix: install HidHide from the Health page.
 
 ### E_HIDHIDE_NO_DEVICE
 No connected DualSense "HID-compliant game controller" was found through PnP, so there is nothing to hide. The setting stays off. Fix: connect the controller over USB and try again.
@@ -239,6 +239,17 @@ The update check is not available: this is a development build (no `app-update.y
 
 ### E_UPDATE_CHECK
 The update check failed (offline, GitHub unreachable, bad release metadata; see `msg` in the log). Fix: try again later.
+
+## Driver installer (redirects, integrity)
+
+### E_DRIVER_URL
+A download URL was refused: the first URL is not a Nefarius release asset on github.com, a redirect left the allowed hosts (github.com, objects.githubusercontent.com, release-assets.githubusercontent.com), was not https, had no location, or there were more than 3 hops. Nothing is launched.
+
+### E_DRIVER_TAMPERED
+The installer's SHA-256 changed between the signature check and the launch. The file is deleted and never launched. Fix: retry; scan the PC if it repeats.
+
+### E_STARTUP_LOGIN_ITEM
+Writing the start-with-Windows login item failed (see `msg`). The setting is saved but may not take effect. Fix: toggle it again.
 
 ## Diagnostics bundle
 

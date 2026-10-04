@@ -6,9 +6,9 @@ export function parseStartupArgs(argv: readonly string[]): { minimized: boolean 
   return { minimized: argv.includes(START_ARG) };
 }
 
-/** The window is created hidden for a login launch (--minimized) or when the user prefers it. */
-export function shouldStartHidden(argv: readonly string[], s: Pick<Settings, 'startMinimized'>): boolean {
-  return parseStartupArgs(argv).minimized || s.startMinimized;
+/** The window is created hidden for a login launch (--minimized) or when the user prefers it, but only when a tray exists to bring it back. */
+export function shouldStartHidden(argv: readonly string[], s: Pick<Settings, 'startMinimized'>, hasTray: boolean): boolean {
+  return hasTray && (parseStartupArgs(argv).minimized || s.startMinimized);
 }
 
 export function loginItemOptions(s: Pick<Settings, 'startWithWindows'>): { openAtLogin: boolean; args: string[] } {

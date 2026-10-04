@@ -29,6 +29,8 @@ export interface IpcDeps {
   /** Running exe basenames for the auto-switch picker (see processes.ts). */
   processes: () => Promise<string[]>;
   /** Runs after settings:set persisted (HidHide, login item, tray); the reply waits for it and a rejection reaches the renderer. */
+  /** Profile names or slots changed (rename, duplicate, reset, import, save, activate); the tray menu refreshes from it. */
+  onProfilesChanged?: () => void;
   onSettingsChanged?: (prev: Settings, next: Settings) => void | Promise<void>;
 }
 
@@ -43,6 +45,7 @@ export function registerIpc(d: IpcDeps) {
     engineProfileId = id; engineSource = source;
     d.engine.send({ type: 'setProfile', profile: p });
     d.notifyActive(id);
+    d.onProfilesChanged?.();
     return p;
   }
   function activate(id: string): Profile {
@@ -55,6 +58,7 @@ export function registerIpc(d: IpcDeps) {
     if (!parsed.success) { d.log.error({ code: 'E_PROFILE_SCHEMA', msg: 'profiles:set rejected' }); throw new Error('E_PROFILE_SCHEMA'); }
     d.store.setDeferred(parsed.data);   // cache + engine first; the disk write is debounced and cannot block the update
     if (parsed.data.id === engineProfileId) d.engine.send({ type: 'setProfile', profile: d.store.get(engineProfileId) });
+    d.onProfilesChanged?.();
     return true;
   }
   const h = (ch: string, fn: (...a: unknown[]) => unknown) => d.ipc.handle(ch, (_e, ...a) => fn(...a));
@@ -62,17 +66,19 @@ export function registerIpc(d: IpcDeps) {
   h('profiles:list', () => d.store.list());
   h('profiles:get', (id) => d.store.get(IdSchema.parse(id)));
   h('profiles:set', saveProfile);
-  h('profiles:rename', (id, name) => { d.store.rename(IdSchema.parse(id), NameSchema.parse(name)); if (id === engineProfileId) d.engine.send({ type: 'setProfile', profile: d.store.get(engineProfileId) }); });
+  h('profiles:rename', (id, name) => { d.store.rename(IdSchema.parse(id), NameSchema.parse(name)); if (id === engineProfileId) d.engine.send({ type: 'setProfile', profile: d.store.get(engineProfileId) }); d.onProfilesChanged?.(); });
   h('profiles:duplicate', (from, to) => {
     const slot = IdSchema.parse(to);
     const p = d.store.duplicate(IdSchema.parse(from), slot);
     if (slot === engineProfileId) d.engine.send({ type: 'setProfile', profile: p });
+    d.onProfilesChanged?.();
     return p;
   });
   function resetProfile(id: unknown): void {
     const pid = IdSchema.parse(id);
     d.store.reset(pid);
     if (pid === engineProfileId) d.engine.send({ type: 'setProfile', profile: d.store.get(pid) });
+    d.onProfilesChanged?.();
   }
   h('profiles:reset', resetProfile);
   h('profiles:export', async (id) => {
@@ -89,6 +95,7 @@ export function registerIpc(d: IpcDeps) {
     if (r.canceled || !f) return null;
     const p = d.store.importFrom(f, slot);
     if (slot === engineProfileId) d.engine.send({ type: 'setProfile', profile: p });
+    d.onProfilesChanged?.();
     return p;
   });
   h('profiles:shareCode', (id) => shareCodeFor(d.store.get(IdSchema.parse(id))));
@@ -99,6 +106,7 @@ export function registerIpc(d: IpcDeps) {
     catch (e) { d.log.error({ code: 'E_SHARE_CODE', msg: (e as Error).message }); throw new Error('E_SHARE_CODE'); }
     const p = d.store.adopt(decoded, slot);
     if (slot === engineProfileId) d.engine.send({ type: 'setProfile', profile: p });
+    d.onProfilesChanged?.();
     return p;
   });
   h('profiles:current', () => ({ id: engineProfileId, source: engineSource }));

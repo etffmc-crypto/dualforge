@@ -167,3 +167,19 @@ describe('settings change hook', () => {
     await expect(call('settings:set', { hidHide: true }) as Promise<unknown>).rejects.toThrow('E_HIDHIDE_CLI');
   });
 });
+
+describe('profiles changed hook', () => {
+  it('fires for rename, duplicate, reset, save, import-code and activate', async () => {
+    const changed = vi.fn();
+    const { call } = rig(nodeIo, undefined, { onProfilesChanged: changed });
+    call('profiles:rename', 'p2', 'Racing');
+    expect(changed).toHaveBeenCalledTimes(1);
+    call('profiles:duplicate', 'p2', 'p3');
+    call('profiles:reset', 'p3');
+    call('profiles:set', defaultProfile('p1', 'Mine'));
+    const code = call('profiles:shareCode', 'p1') as string;
+    call('profiles:importShareCode', code, 'p4');
+    call('profiles:activate', 'p2');
+    expect(changed.mock.calls.length).toBeGreaterThanOrEqual(6);
+  });
+});

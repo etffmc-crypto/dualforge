@@ -1,4 +1,4 @@
-import { createWriteStream, mkdirSync, rmSync } from 'node:fs';
+import { createWriteStream, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { basename, join } from 'node:path';
@@ -15,6 +15,18 @@ export const DRIVER_REPOS: Record<DriverId, string> = { vigem: 'nefarius/ViGEmBu
 export const SIGNER = 'Nefarius Software Solutions';
 export const MAX_DOWNLOAD_BYTES = 50 * 1024 * 1024;
 export const SIGNATURE_TIMEOUT_MS = 30_000;
+/** Hosts a release download may be served from (GitHub redirects release assets to its CDN). */
+export const ALLOWED_HOSTS = new Set(['github.com', 'objects.githubusercontent.com', 'release-assets.githubusercontent.com']);
+export const MAX_REDIRECTS = 3;
+const ASSET_PATH = /^\/nefarius\/(ViGEmBus|HidHide)\/releases\/download\//;
+
+function checkHop(raw: string, first: boolean): URL {
+  let u: URL;
+  try { u = new URL(raw); } catch { throw new InstallError('E_DRIVER_URL', 'malformed download URL'); }
+  if (u.protocol !== 'https:' || !ALLOWED_HOSTS.has(u.hostname)) throw new InstallError('E_DRIVER_URL', `download host not allowed: ${u.hostname}`);
+  if (first && (u.hostname !== 'github.com' || !ASSET_PATH.test(u.pathname))) throw new InstallError('E_DRIVER_URL', 'download URL is not a Nefarius release asset');
+  return u;
+}
 
 export type DriverState = 'idle' | 'downloading' | 'verifying' | 'launching' | 'done' | 'failed';
 export interface DriverStatus { driver: DriverId; state: DriverState; pct?: number; code?: string; sha256?: string; url?: string }
@@ -70,7 +82,7 @@ export function createDriverInstaller(d: InstallerDeps) {
       if (typeof a.name !== 'string' || typeof a.browser_download_url !== 'string' || !a.name.toLowerCase().endsWith('.exe')) continue;
       let host = '';
       try { const u = new URL(a.browser_download_url); host = u.protocol === 'https:' ? u.hostname : ''; } catch { /* bad url */ }
-      if (host !== 'github.com') continue;
+      if (host !== 'github.com' || !ASSET_PATH.test(new URL(a.browser_download_url).pathname)) continue;
       if (!SAFE_ASSET.test(a.name)) throw new InstallError('E_DRIVER_NO_ASSET', 'release asset has an unsafe file name');
       return { name: a.name, url: a.browser_download_url };
     }
@@ -80,12 +92,19 @@ export function createDriverInstaller(d: InstallerDeps) {
   /** Streams to `dest`, capped at 50 MB; progress is a whole percent (when the size is known). */
   async function download(url: string, dest: string, onProgress: (pct: number) => void): Promise<void> {
     let res: Response;
-    try { res = await d.fetch(url, { headers: { 'User-Agent': 'DualForge' } }); }
-    catch (e) { throw new InstallError('E_DRIVER_DOWNLOAD', (e as Error).message); }
+    let hop = checkHop(url, true);
+    for (let n = 0; ; n++) {
+      try { res = await d.fetch(hop.href, { headers: { 'User-Agent': 'DualForge' }, redirect: 'manual' }); }
+      catch (e) { throw new InstallError('E_DRIVER_DOWNLOAD', (e as Error).message); }
+      if (res.status < 300 || res.status >= 400) break;
+      if (n >= MAX_REDIRECTS) throw new InstallError('E_DRIVER_URL', 'too many redirects');
+      const loc = res.headers.get('location');
+      if (!loc) throw new InstallError('E_DRIVER_URL', 'redirect without a location');
+      hop = checkHop(new URL(loc, hop).href, false);
+    }
     if (!res.ok || !res.body) throw new InstallError('E_DRIVER_DOWNLOAD', `download answered ${res.status}`);
     const total = Number(res.headers.get('content-length') ?? 0);
     if (total > MAX_DOWNLOAD_BYTES) throw new InstallError('E_DRIVER_TOO_LARGE', `installer is ${total} bytes (limit ${MAX_DOWNLOAD_BYTES})`);
-    mkdirSync(d.dir, { recursive: true });
     let got = 0, lastPct = -1;
     const counter = async function* (src: AsyncIterable<Buffer>) {
       for await (const chunk of src) {
@@ -121,6 +140,7 @@ export function createDriverInstaller(d: InstallerDeps) {
     if (busy.has(driver)) return status[driver];
     busy.add(driver);
     let file: string | null = null;
+    let runDir: string | null = null;
     let url: string | undefined;
     let hash: string | undefined;
     try {
@@ -128,7 +148,9 @@ export function createDriverInstaller(d: InstallerDeps) {
       const asset = await fetchLatestRelease(DRIVER_REPOS[driver]);
       const assetUrl = asset.url;
       url = assetUrl;
-      file = join(d.dir, basename(asset.name));
+      mkdirSync(d.dir, { recursive: true });
+      runDir = mkdtempSync(join(d.dir, 'run-'));   // a fresh private folder per run, so a stale or planted file is never reused
+      file = join(runDir, basename(asset.name));
       set({ driver, state: 'downloading', pct: 0, url: assetUrl });
       await download(asset.url, file, (pct) => set({ driver, state: 'downloading', pct, url: assetUrl }));
       set({ driver, state: 'verifying', url });
@@ -136,6 +158,7 @@ export function createDriverInstaller(d: InstallerDeps) {
       d.log.info({ code: 'DRIVER_DOWNLOADED', driver, url, sha256: hash, file });
       const verdict = await verifySignature(file);
       if (!verdict.ok) throw new InstallError(verdict.code, `Authenticode status ${verdict.status}`);
+      if ((await sha256(file)) !== hash) throw new InstallError('E_DRIVER_TAMPERED', 'installer changed between verification and launch');
       set({ driver, state: 'launching', url, sha256: hash });
       const err = await d.openPath(file);
       if (err) throw new InstallError('E_DRIVER_LAUNCH', err);
@@ -145,7 +168,7 @@ export function createDriverInstaller(d: InstallerDeps) {
       const code = e instanceof InstallError ? e.code : 'E_DRIVER_DOWNLOAD';
       d.log.error({ code, msg: (e as Error).message, driver });
       // a file that failed verification is never left behind to be double-clicked
-      if (file && code !== 'E_DRIVER_LAUNCH') rmSync(file, { force: true });
+      if (runDir && code !== 'E_DRIVER_LAUNCH') rmSync(runDir, { recursive: true, force: true });
       return set({ driver, state: 'failed', code, ...(url ? { url } : {}), ...(hash ? { sha256: hash } : {}) });
     } finally { busy.delete(driver); }
   }

@@ -132,6 +132,15 @@ describe('store profiles + settings', () => {
     expect(useStore.getState().lastError?.code).toBe('E_SETTINGS_SEND');
   });
 
+  it('after a rejected patch the store resyncs to what main actually persisted', async () => {
+    await useStore.getState().loadSettings();
+    settingsApi.set.mockRejectedValueOnce(new Error('E_STARTUP_LOGIN_ITEM'));
+    settingsApi.get.mockResolvedValueOnce({ ...useStore.getState().settings!, startWithWindows: true });
+    await useStore.getState().updateSettings({ startWithWindows: true });
+    expect(useStore.getState().settings!.startWithWindows).toBe(true);
+    expect(useStore.getState().lastError?.msg).toMatch(/E_STARTUP_LOGIN_ITEM/);
+  });
+
   it('profiles loaded from main are made dense: every button has a mapping', async () => {
     const sparse = (id: string) => ({ ...defaultProfile(id, 'Sparse'), mappings: { cross: defaultProfile(id, 'x').mappings.cross } });
     profilesApi.get.mockImplementationOnce(async (id: string) => sparse(id) as ReturnType<typeof defaultProfile>);
