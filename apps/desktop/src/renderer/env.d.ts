@@ -1,0 +1,2 @@
+/** Root package.json version, injected by electron-vite `define` (see electron.vite.config.ts). */
+declare const __APP_VERSION__: string;

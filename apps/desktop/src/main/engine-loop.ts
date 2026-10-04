@@ -1,10 +1,10 @@
-import { buildOutputReport, createPipelineState, parseDualSenseUsb, processReport, type Feedback } from '@dualforge/engine';
+import { buildOutputReport, compileProfile, createPipelineState, type CompiledProfile, parseDualSenseUsb, processReport, type Feedback } from '@dualforge/engine';
 import { type EngineEvent, type Profile, type RawState, type XInputState, emptyButtons, emptyXInput } from '@dualforge/shared';
 
 export interface InputSource {
   start(onReport: (buf: Uint8Array, tMs: number) => void, onStatus: (connected: boolean) => void, onError: (code: string, msg: string) => void): void;
-  write(report: Uint8Array): void;
-  stop(): void;
+  write(report: Uint8Array): Promise<void>;
+  stop(): Promise<void>;
 }
 export interface PadSink {
   ready: boolean;
@@ -18,15 +18,28 @@ export interface LoopDeps { source: InputSource; sink: PadSink; emit: (e: Engine
 const SNAPSHOT_MS = 1000 / 60;
 const KEEPALIVE_MS = 250;
 const ERROR_DEDUPE_MS = 30_000;
+export const GRACE_MS = 2000;
+const LAT_RING = 1024;
+
+function sameBytes(a: Uint8Array, b: Uint8Array | null): boolean {
+  if (!b || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
 
 export function createEngineLoop(d: LoopDeps) {
   let profile: Profile | null = null;
+  let compiled: CompiledProfile | null = null;
   let state = createPipelineState();
   let connected = false;
   const t0 = d.now();
-  let lastSnap = 0, lastOutWrite = 0, lastOutHex = '';
+  let lastSnap = 0, lastOutWrite = 0;
+  let lastOutBytes: Uint8Array | null = null;   // last written output report (byte-compare, no hex string)
+  let connecting: Promise<void> | null = null;
+  let graceTimer: ReturnType<typeof setTimeout> | null = null;
   let reports = 0, hzWindowStart = t0, reportHz = 0;
-  const latencies: number[] = [];
+  const latencies = new Float64Array(LAT_RING);
+  let latIdx = 0, latCount = 0;
   let rumble = { large: 0, small: 0 };
   let lastRaw: RawState | null = null, lastOut: XInputState | null = null;
 
@@ -36,23 +49,26 @@ export function createEngineLoop(d: LoopDeps) {
       rumbleLeft: rumble.large * (p.vibration.left / 100), rumbleRight: rumble.small * (p.vibration.right / 100),
       lightbar: { r: p.lights.r, g: p.lights.g, b: p.lights.b },
       brightness: p.lights.brightness as 0 | 1 | 2, playerLeds: p.lights.playerLeds, micLed: 0,
+      triggers: { left: p.triggers.left.effect, right: p.triggers.right.effect },
     };
   }
   function maybeWriteOutput(now: number, force = false) {
     if (!profile || !connected) return;
     const rep = buildOutputReport(feedback());
-    const hex = Buffer.from(rep).toString('hex');
-    if (force || hex !== lastOutHex || now - lastOutWrite >= KEEPALIVE_MS) { d.source.write(rep); lastOutHex = hex; lastOutWrite = now; }
+    if (force || !sameBytes(rep, lastOutBytes) || now - lastOutWrite >= KEEPALIVE_MS) { void d.source.write(rep); lastOutBytes = rep; lastOutWrite = now; }
+  }
+  function safeReport(): Uint8Array {
+    return buildOutputReport({ ...feedback(), rumbleLeft: 0, rumbleRight: 0, triggers: { left: { mode: 'off' }, right: { mode: 'off' } } });
   }
   function onReport(buf: Uint8Array, t: number) {
-    if (!profile) return;
+    if (!profile || !compiled) return;
     const start = d.now();
     let raw: RawState;
     try { raw = parseDualSenseUsb(buf); } catch (e) { d.emit({ type: 'error', code: 'E_REPORT_PARSE', msg: (e as Error).message }); return; }
-    const out = processReport(raw, profile, state, t - t0);
+    const out = processReport(raw, compiled, state, t - t0);
     if (d.sink.ready) d.sink.update(out.xinput);
     lastRaw = raw; lastOut = out.xinput;
-    latencies.push(d.now() - start); if (latencies.length > 1000) latencies.shift();
+    latencies[latIdx] = d.now() - start; latIdx = (latIdx + 1) % LAT_RING; if (latCount < LAT_RING) latCount++;
     reports++;
     const now = d.now();
     if (now - hzWindowStart >= 1000) { reportHz = reports / ((now - hzWindowStart) / 1000); reports = 0; hzWindowStart = now; }
@@ -64,11 +80,28 @@ export function createEngineLoop(d: LoopDeps) {
     state = createPipelineState();
     lastRaw = null; lastOut = null; reportHz = 0; reports = 0;
   }
+  function armGrace() {
+    if (graceTimer) clearTimeout(graceTimer);
+    graceTimer = setTimeout(() => { graceTimer = null; d.sink.disconnect(); d.emit({ type: 'status', connected, vigemReady: d.sink.ready }); }, GRACE_MS);
+  }
+  // One connect at a time; failures go through the deduped error path (one E_VIGEM_INIT per 30 s).
+  function ensureConnected(): Promise<void> {
+    if (d.sink.ready) return Promise.resolve();
+    if (connecting) return connecting;
+    connecting = d.sink.connect()
+      .catch((e: unknown) => onError('E_VIGEM_INIT', (e as Error).message))
+      .finally(() => { connecting = null; });
+    return connecting;
+  }
   function onStatus(c: boolean) {
     connected = c;
     if (!c) {
-      // TODO(plan2): 2 s grace release of ViGEm target (spec §6)
       neutralize();
+      if (graceTimer) clearTimeout(graceTimer);
+      armGrace();
+    } else {
+      if (graceTimer) { clearTimeout(graceTimer); graceTimer = null; }
+      if (!d.sink.ready) void ensureConnected().then(() => d.emit({ type: 'status', connected, vigemReady: d.sink.ready }));
     }
     d.emit({ type: 'status', connected, vigemReady: d.sink.ready });
     if (!c) { const now = d.now(); lastSnap = now; emitSnapshot(now); }
@@ -84,7 +117,7 @@ export function createEngineLoop(d: LoopDeps) {
     d.emit({ type: 'error', code, msg: n > 0 ? `${msg} (x${n})` : msg });
   }
   function emitSnapshot(now: number) {
-    const sorted = [...latencies].sort((a, b) => a - b);
+    const sorted = latencies.slice(0, latCount).sort();   // copy only at snapshot time
     const p99 = sorted[Math.floor(sorted.length * 0.99)] ?? 0;
     const raw = lastRaw, out = lastOut;
     d.emit({ type: 'snapshot', snapshot: {
@@ -97,27 +130,39 @@ export function createEngineLoop(d: LoopDeps) {
     } });
   }
   let idle: NodeJS.Timeout | null = null;
+  let swapping: Promise<void> = Promise.resolve();
 
   return {
-    setProfile(p: Profile) { profile = p; state = createPipelineState(); maybeWriteOutput(d.now(), true); },
+    // Pipeline state (filters, hair-trigger hysteresis, turbo) is deliberately preserved so live edits do not jump.
+    setProfile(p: Profile) { profile = p; compiled = compileProfile(p); maybeWriteOutput(d.now(), true); },
     async start() {
-      try { await d.sink.connect(); } catch (e) { d.emit({ type: 'error', code: 'E_VIGEM_INIT', msg: (e as Error).message }); }
+      await ensureConnected();
       d.sink.onRumble((large, small) => { rumble = { large, small }; maybeWriteOutput(d.now()); });
       d.source.start(onReport, onStatus, onError);
       idle = setInterval(() => { const now = d.now(); if (now - lastSnap >= SNAPSHOT_MS) { lastSnap = now; emitSnapshot(now); } maybeWriteOutput(now); }, 100);
     },
-    stop() {
+    async stop() {
       if (idle) clearInterval(idle);
-      if (profile) d.source.write(buildOutputReport({ ...feedback(), rumbleLeft: 0, rumbleRight: 0 }));
-      d.source.stop(); d.sink.disconnect();
+      if (graceTimer) { clearTimeout(graceTimer); graceTimer = null; }
+      if (profile) await d.source.write(safeReport());   // rumble + trigger effects off before the handle closes
+      await d.source.stop();
+      d.sink.disconnect();
     },
-    swapSource(src: InputSource) {
-      d.source.stop(); d.source = src;
-      connected = false; lastOutHex = '';
-      neutralize();
-      d.emit({ type: 'status', connected: false, vigemReady: d.sink.ready });
-      const now = d.now(); lastSnap = now; emitSnapshot(now);
-      d.source.start(onReport, onStatus, onError);
+    // Concurrent swaps are serialised: a second call waits for the first to finish, then proceeds.
+    swapSource(src: InputSource): Promise<void> {
+      const run = swapping.catch(() => {}).then(() => doSwap(src));
+      swapping = run;
+      return run;
     },
   };
+  async function doSwap(src: InputSource) {
+    if (profile && connected) await d.source.write(safeReport()).catch(() => {});
+    await d.source.stop(); d.source = src;
+    connected = false; lastOutBytes = null;
+    neutralize();
+    armGrace();   // a never-connecting new source still releases the pad
+    d.emit({ type: 'status', connected: false, vigemReady: d.sink.ready });
+    const now = d.now(); lastSnap = now; emitSnapshot(now);
+    d.source.start(onReport, onStatus, onError);
+  }
 }

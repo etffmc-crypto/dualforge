@@ -17,7 +17,7 @@ export function createReplaySource(path: string, loop = true): InputSource {
         if (i >= log.length) { if (loop) i = 0; else { if (timer) clearInterval(timer); onStatus(false); } }
       }, 1);
     },
-    write() { /* no device */ },
-    stop() { if (timer) clearInterval(timer); },
+    async write() { /* no device */ },
+    async stop() { if (timer) clearInterval(timer); },
   };
 }

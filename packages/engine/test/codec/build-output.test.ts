@@ -11,9 +11,9 @@ describe('buildOutputReport', () => {
   });
   it('sets valid flags', () => {
     const r = buildOutputReport(fb);
-    expect(r[1] & 0x03).toBe(0x03);            // vibration + haptics select
-    expect(r[2] & 0x15).toBe(0x15);            // mic LED, lightbar, player LEDs
-    expect(r[39] & 0x06).toBe(0x06);           // lightbar setup + vibration v2
+    expect(r[1]! & 0x03).toBe(0x03);            // vibration + haptics select
+    expect(r[2]! & 0x15).toBe(0x15);            // mic LED, lightbar, player LEDs
+    expect(r[39]! & 0x06).toBe(0x06);           // lightbar setup + vibration v2
   });
   it('scales motors 0..255 (right=small, left=large)', () => {
     const r = buildOutputReport(fb);
@@ -32,5 +32,16 @@ describe('buildOutputReport', () => {
     const r = buildOutputReport({ ...fb, rumbleLeft: 7, rumbleRight: -3 });
     expect(r[4]).toBe(255);
     expect(r[3]).toBe(0);
+  });
+  it('writes trigger effects into right (11..21) and left (22..32) blocks and sets flag0 bits', () => {
+    const r = buildOutputReport({ ...fb, triggers: { left: { mode: 'resistance', start: 1, force: 2 }, right: { mode: 'section', start: 3, end: 4, force: 5 } } });
+    expect([r[11], r[12], r[13], r[14]]).toEqual([0x02, 3, 4, 5]);
+    expect([r[22], r[23], r[24]]).toEqual([0x01, 1, 2]);
+    expect(r[1]! & 0x0c).toBe(0x0c);
+  });
+  it('defaults triggers to off', () => {
+    const r = buildOutputReport(fb);
+    expect(r[11]).toBe(0x05);
+    expect(r[22]).toBe(0x05);
   });
 });

@@ -11,10 +11,24 @@ export const StickCurveSchema = z.union([
   z.object({ kind: z.literal('custom'), points: z.array(CurvePointSchema).length(8) }),
 ]);
 
+export const MAX_CURVE_POINTS = 8;
+const pct = z.number().min(0).max(100);
+
 export const StickFilterSchema = z.object({
   enabled: z.boolean(),
-  strength: z.number().min(0).max(100), // 0 = off, 100 = heavy smoothing
-});
+  mode: z.enum(['basic', 'advanced']).default('basic'),
+  strength: pct, // 0 = off, 100 = heavy smoothing
+  // advanced mode: [speed 0..1, strength 0..100] x 5
+  curve: z.array(z.tuple([unit, pct])).length(5).default([[0, 0], [0.1, 0], [0.25, 0], [0.5, 0], [1, 0]]),
+}).refine((f) => f.curve.every((p, i, a) => i === 0 || p[0] >= a[i - 1]![0]), { message: 'filter curve x must be non-decreasing' });
+
+export const TriggerEffectSchema = z.discriminatedUnion('mode', [
+  z.object({ mode: z.literal('off') }),
+  z.object({ mode: z.literal('resistance'), start: z.number().int().min(0).max(9), force: z.number().int().min(0).max(8) }),
+  z.object({ mode: z.literal('section'), start: z.number().int().min(0).max(9), end: z.number().int().min(0).max(9), force: z.number().int().min(0).max(8) }),
+  z.object({ mode: z.literal('vibration'), frequency: z.number().int().min(1).max(255), force: z.number().int().min(0).max(8) }),
+]);
+export type TriggerEffect = z.infer<typeof TriggerEffectSchema>;
 
 export const StickConfigSchema = z.object({
   calibration: z.object({ cx: z.number().min(-1).max(1), cy: z.number().min(-1).max(1), radius: z.number().min(0.5).max(1.5) }),
@@ -24,8 +38,11 @@ export const StickConfigSchema = z.object({
   invertY: z.boolean(),
   curve: StickCurveSchema,
   filter: StickFilterSchema,
-});
+})
+  .refine((s) => s.deadzone.center < 1 - s.deadzone.outer, { message: 'center deadzone overlaps outer' })
+  .refine((s) => s.curve.kind === 'preset' || s.curve.points.every((p, i, a) => i === 0 || p[0] >= a[i - 1]![0]), { message: 'curve x must be non-decreasing' });
 export type StickConfig = z.infer<typeof StickConfigSchema>;
+export type StickConfigInput = z.input<typeof StickConfigSchema>;
 
 export const TriggerConfigSchema = z.object({
   deadzone: z.object({ initial: unit, max: unit }),
@@ -35,8 +52,10 @@ export const TriggerConfigSchema = z.object({
     z.object({ mode: z.literal('adaptive'), value: z.number().min(1).max(100) }),
   ]),
   curve: z.enum(CURVE_PRESETS),
-});
+  effect: TriggerEffectSchema.default({ mode: 'off' }),
+}).refine((t) => t.deadzone.initial < t.deadzone.max, { message: 'trigger initial must be < max' });
 export type TriggerConfig = z.infer<typeof TriggerConfigSchema>;
+export type TriggerConfigInput = z.input<typeof TriggerConfigSchema>;
 
 export const TargetSchema = z.union([
   z.object({ type: z.literal('none') }),
@@ -76,11 +95,11 @@ function defaultStick(): StickConfig {
     deadzone: { center: 0.05, anti: 0, outer: 0.02 },
     circular: true, invertX: false, invertY: false,
     curve: { kind: 'preset', preset: 'linear' },
-    filter: { enabled: false, strength: 0 },
+    filter: { enabled: false, mode: 'basic', strength: 0, curve: [[0, 0], [0.1, 0], [0.25, 0], [0.5, 0], [1, 0]] },
   };
 }
 function defaultTrigger(): TriggerConfig {
-  return { deadzone: { initial: 0.02, max: 0.98 }, hairTrigger: { mode: 'off' }, curve: 'linear' };
+  return { deadzone: { initial: 0.02, max: 0.98 }, hairTrigger: { mode: 'off' }, curve: 'linear', effect: { mode: 'off' } };
 }
 const DEFAULT_TARGET: Record<DsButton, Target> = {
   cross: { type: 'xbutton', button: 'A' }, circle: { type: 'xbutton', button: 'B' },
