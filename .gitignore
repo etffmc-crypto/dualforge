@@ -7,3 +7,5 @@ release/
 coverage/
 maintenance/reports/*.tmp
 
+.superpowers/
+*.tsbuildinfo
