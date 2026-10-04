@@ -40,6 +40,10 @@ const api = {
   },
   replay: (path: string): Promise<void> => ipcRenderer.invoke('engine:replay', path),
   useDevice: (): Promise<void> => ipcRenderer.invoke('engine:useDevice'),
+  engine: {
+    /** Plays a macro of the running profile once on the live pipeline (key/mouse steps are not injected while DualForge is focused). */
+    runMacro: (id: string): Promise<void> => ipcRenderer.invoke('engine:runMacro', id),
+  },
   window: {
     minimize: () => ipcRenderer.send('window:minimize'),
     toggleMaximize: () => ipcRenderer.send('window:toggleMaximize'),

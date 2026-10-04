@@ -19,6 +19,7 @@ port.on('message', (m) => {
     case 'setProfile': loop.setProfile(c.profile); break;
     case 'setSettings': loop.setSettings(c.settings); break;
     case 'uiFocused': loop.setUiFocused(c.focused); break;
+    case 'runMacro': loop.runMacro(c.id); break;
     case 'replay':
       void (async () => {
         try { await loop.swapSource(createReplaySource(c.path, true)); }

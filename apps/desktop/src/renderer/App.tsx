@@ -8,6 +8,7 @@ import { Triggers } from './pages/Triggers';
 import { Settings } from './pages/Settings';
 import { Overview } from './pages/Overview';
 import { Buttons } from './pages/Buttons';
+import { Macros } from './pages/Macros';
 import './styles/shell.css';
 import './styles/pages.css';
 import './styles/controls.css';
@@ -25,7 +26,7 @@ function Page() {
     case 'motion': return <ComingSoon title="Motion" note="Coming in Plan 3." />;
     case 'vibrations': return <ComingSoon title="Vibrations" note="Coming in Plan 3." />;
     case 'lights': return <ComingSoon title="Lights" note="Coming in Plan 3." />;
-    case 'macros': return <ComingSoon title="Macros" note="Coming in Plan 3B." />;
+    case 'macros': return <Macros />;
   }
 }
 

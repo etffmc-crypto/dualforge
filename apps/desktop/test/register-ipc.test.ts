@@ -106,3 +106,16 @@ describe('profile / settings IPC', () => {
     expect(sent[0]).toMatchObject({ type: 'setProfile', profile: { id: 'p2', name: 'Src copy' } });
   });
 });
+
+describe('engine IPC', () => {
+  it('engine:runMacro validates the id and forwards a runMacro command', () => {
+    const { call, sent } = rig();
+    call('engine:runMacro', 'm-1');
+    expect(sent.at(-1)).toEqual({ type: 'runMacro', id: 'm-1' });
+    const n = sent.length;
+    expect(() => call('engine:runMacro', '')).toThrow();
+    expect(() => call('engine:runMacro', { id: 'm-1' })).toThrow();
+    expect(() => call('engine:runMacro', 'x'.repeat(65))).toThrow();
+    expect(sent).toHaveLength(n);
+  });
+});

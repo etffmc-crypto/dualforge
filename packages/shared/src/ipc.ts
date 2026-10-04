@@ -22,6 +22,7 @@ export const EngineCommandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('useDevice') }),
   z.object({ type: z.literal('uiFocused'), focused: z.boolean() }),
   z.object({ type: z.literal('setSettings'), settings: SettingsSchema }),
+  z.object({ type: z.literal('runMacro'), id: z.string().min(1).max(64) }),   // play-test a macro of the running profile
   z.object({ type: z.literal('shutdown') }),
 ]);
 export type EngineCommand = z.infer<typeof EngineCommandSchema>;

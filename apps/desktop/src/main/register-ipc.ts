@@ -8,6 +8,7 @@ const IdSchema = z.enum(PROFILE_IDS);
 const NameSchema = z.string().trim().min(1).max(40);
 const CodeSchema = z.string().max(64 * 1024);
 const PatchSchema = SettingsSchema.partial().strict();
+const MacroIdSchema = z.string().min(1).max(64);
 
 type Handler = (event: unknown, ...args: unknown[]) => unknown;
 export interface IpcLike { handle(channel: string, fn: Handler): void }
@@ -106,6 +107,7 @@ export function registerIpc(d: IpcDeps) {
     if (parsed.data.activeProfile !== undefined) applyProfile(next.activeProfile);
     return next;
   });
+  h('engine:runMacro', (id) => d.engine.send({ type: 'runMacro', id: MacroIdSchema.parse(id) }));
   // Plan 1 channels, kept for the existing renderer: they act on the profile the engine is running (so UI edits go live even during an auto-switch).
   h('profile:get', () => d.store.get(engineProfileId));
   h('profile:set', saveProfile);

@@ -1,4 +1,4 @@
-import { type OutputFrame, buildOutputReport, reconcileMacros, compileProfile, computeLightbar, createPipelineState, type CompiledProfile, parseDualSenseUsb, processReport, type Feedback } from '@dualforge/engine';
+import { type OutputFrame, buildOutputReport, reconcileMacros, startMacro, compileProfile, computeLightbar, createPipelineState, type CompiledProfile, parseDualSenseUsb, processReport, type Feedback } from '@dualforge/engine';
 import { defaultSettings, type EngineEvent, type Profile, type Settings, type RawState, type XInputState, emptyButtons, emptyXInput } from '@dualforge/shared';
 
 export interface InputSource {
@@ -200,6 +200,14 @@ export function createEngineLoop(d: LoopDeps) {
       profile = p; compiled = compileProfile(p);
       if (prev) reconcileMacros(state.macros, prev.macros, compiled.macros, Math.max(0, state.lastMs));
       maybeWriteOutput(d.now(), true);
+    },
+    /**
+     * Starts a macro of the running profile on the live pipeline (UI play-test). Its steps then flow through the normal
+     * output path, so key/mouse steps stay gated by uiFocused. Unknown ids and already-running macros are no-ops.
+     */
+    runMacro(id: string) {
+      if (!compiled) return;
+      startMacro(state.macros, id, Math.max(0, state.lastMs), compiled.macros);
     },
     /** Synchronously releases every injected key/mouse button and neutralizes the virtual pad (crash / fault path). */
     releaseAll() { neutralize(); },

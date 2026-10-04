@@ -496,3 +496,44 @@ describe('engine loop final review: replay never injects, macros survive profile
     await loop.stop(); vi.useRealTimers();
   });
 });
+
+describe('engine loop plan 3b: runMacro', () => {
+  async function macroRig() {
+    let report!: (b: Uint8Array, t: number) => void;
+    const sink = fakeSink();
+    const src: InputSource = { kind: 'device', start(r, st) { report = r; st(true); }, async write() {}, async stop() {} };
+    let now = 0;
+    const loop = createEngineLoop({ source: src, sink, emit: () => {}, now: () => now });
+    const p = defaultProfile('p', 'p');
+    p.macros = [{ id: 'm1', name: 'Tap B', loop: false, steps: [
+      { target: { type: 'xbutton', button: 'B' }, holdMs: 50, delayMs: 20 },
+      { target: { type: 'xbutton', button: 'Y' }, holdMs: 30, delayMs: 0 },
+    ] }];
+    loop.setProfile(p);
+    await loop.start();
+    const at = (t: number) => { now = t; report(usbReport(false), t); return sink.frames.at(-1)!; };
+    return { loop, at };
+  }
+  it('starts the macro on the running pipeline: its steps reach the virtual pad, then it ends', async () => {
+    vi.useFakeTimers();
+    const { loop, at } = await macroRig();
+    at(1000);
+    loop.runMacro('m1');
+    expect(at(1010).buttons.B).toBe(true);
+    expect(at(1040).buttons.B).toBe(true);
+    const gap = at(1060);
+    expect(gap.buttons.B || gap.buttons.Y).toBe(false);
+    expect(at(1080).buttons.Y).toBe(true);
+    const end = at(1200);
+    expect(end.buttons.B || end.buttons.Y).toBe(false);
+    await loop.stop(); vi.useRealTimers();
+  });
+  it('an unknown macro id is a no-op', async () => {
+    vi.useFakeTimers();
+    const { loop, at } = await macroRig();
+    at(1000);
+    expect(() => loop.runMacro('nope')).not.toThrow();
+    expect(at(1010).buttons.B).toBe(false);
+    await loop.stop(); vi.useRealTimers();
+  });
+});

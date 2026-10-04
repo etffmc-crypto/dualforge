@@ -144,3 +144,33 @@ test('Buttons page: map square to B in the mapping dialog; the replayed cross st
   expect((await page.evaluate(() => window.dualforge.getProfile())).mappings.cross.targets).toEqual([{ type: 'xbutton', button: 'A' }]);
   await app.close();
 });
+
+test('Macros page: a macro built in the editor is saved, listed and can be assigned to a button', async () => {
+  const app = await launchApp();
+  const page = await app.firstWindow();
+  await page.getByRole('tab', { name: 'Macros' }).click();
+  await expect(page.getByText('No macros yet')).toBeVisible();
+  await page.getByRole('button', { name: 'New macro' }).click();
+  const ed = page.getByRole('dialog', { name: 'New macro' });
+  await ed.getByRole('textbox', { name: 'Macro name' }).fill('Combo');
+  await ed.getByRole('button', { name: 'Add step' }).click();
+  await ed.getByRole('button', { name: 'Step 2 output: A' }).click();
+  const picker = page.getByRole('dialog', { name: 'Step 2 output' });
+  await picker.getByRole('button', { name: 'Y', exact: true }).click();
+  await ed.getByRole('spinbutton', { name: 'Step 2 hold (ms)' }).fill('120');
+  await ed.getByRole('button', { name: 'Play test' }).click();   // saves, then runs it on the engine
+  await page.getByRole('dialog', { name: 'Edit macro' }).getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByRole('article', { name: 'Combo' })).toBeVisible();
+  await expect.poll(async () => (await page.evaluate(() => window.dualforge.getProfile())).macros.map((m) => [m.name, m.steps.length, m.steps[1]?.holdMs]), { timeout: 2000 })
+    .toEqual([['Combo', 2, 120]]);
+
+  await page.getByRole('tab', { name: 'Buttons' }).click();
+  await page.getByRole('button', { name: /^Map R3:/ }).click();
+  const map = page.getByRole('dialog', { name: 'Remap R3' });
+  await map.getByRole('tab', { name: 'Macro' }).click();
+  await map.getByRole('button', { name: 'Combo' }).click();
+  await map.getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByRole('button', { name: 'Map R3: ⟨macro⟩ Combo' })).toBeVisible();
+  await expect.poll(async () => (await page.evaluate(() => window.dualforge.getProfile())).mappings.r3?.targets[0]?.type, { timeout: 2000 }).toBe('macro');
+  await app.close();
+});

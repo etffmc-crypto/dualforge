@@ -1,6 +1,6 @@
 import type { ComponentType } from 'react';
 import { useStore, type Page } from '../store';
-import { ButtonsIcon, FlaskIcon, GridIcon, HomeIcon, LightsIcon, MotionIcon, SticksIcon, TriggersIcon, VibrationsIcon } from './icons';
+import { ButtonsIcon, FlaskIcon, GridIcon, HomeIcon, LightsIcon, MacrosIcon, MotionIcon, SticksIcon, TriggersIcon, VibrationsIcon } from './icons';
 
 export const TABS: { id: Page; label: string; Icon: ComponentType<{ size?: number }> }[] = [
   { id: 'home', label: 'Home', Icon: HomeIcon },
@@ -11,6 +11,7 @@ export const TABS: { id: Page; label: string; Icon: ComponentType<{ size?: numbe
   { id: 'motion', label: 'Motion', Icon: MotionIcon },
   { id: 'vibrations', label: 'Vibrations', Icon: VibrationsIcon },
   { id: 'lights', label: 'Lights', Icon: LightsIcon },
+  { id: 'macros', label: 'Macros', Icon: MacrosIcon },
   { id: 'inputTest', label: 'Input Test', Icon: FlaskIcon },
 ];
 
