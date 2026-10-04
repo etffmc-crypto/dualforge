@@ -24,6 +24,14 @@ describe('RangeSlider', () => {
   });
 });
 
+describe('RangeSlider fill clamp', () => {
+  it('clamps the fill when value is outside [min,max]', () => {
+    render(<RangeSlider value={0.5} min={-0.1} max={0.1} onChange={() => {}} ariaLabel="Offset" />);
+    const fill = (screen.getByRole('slider', { name: 'Offset' }) as HTMLInputElement).style.getPropertyValue('--fill');
+    expect(fill).toContain('* 1)');
+  });
+});
+
 describe('DualRangeSlider', () => {
   it('enforces min gap when the low handle is pushed into the high one', () => {
     const onChange = vi.fn();

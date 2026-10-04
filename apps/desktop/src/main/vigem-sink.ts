@@ -24,7 +24,11 @@ export function createViGEmSink(): PadSink {
       pad = p;
       p.updateMode = 'manual';
       const e2 = p.connect();
-      if (e2) throw new Error(`E_VIGEM_TARGET ${e2.message ?? e2}`);
+      if (e2) {
+        try { p.disconnect(); } catch { /* ignore */ }
+        pad = null;
+        throw new Error(`E_VIGEM_TARGET ${e2.message ?? e2}`);
+      }
       p.on('vibration', (d: { large: number; small: number }) => rumbleCb?.(d.large / 255, d.small / 255));
       sink.ready = true;
     },

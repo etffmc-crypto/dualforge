@@ -14,7 +14,7 @@ export interface RangeSliderProps {
 
 /** Single-handle slider: red fill from the left, 14px red handle with a dark ring. */
 export function RangeSlider({ value, min = 0, max = 1, step = 0.01, onChange, format, label, ariaLabel }: RangeSliderProps) {
-  const pct = max > min ? ((value - min) / (max - min)) * 100 : 0;
+  const pct = max > min ? Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100)) : 0;
   return (
     <div className="rs">
       {label && <span className="rs-label">{label}</span>}
