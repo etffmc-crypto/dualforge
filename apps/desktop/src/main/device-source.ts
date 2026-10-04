@@ -49,7 +49,11 @@ export function createDeviceSource(): InputSource {
       void tryOpen(onReport, onStatus);
       timer = setInterval(() => void tryOpen(onReport, onStatus), POLL_MS);
     },
-    write(report) { if (dev) void dev.write(Buffer.from(report)).catch((e) => logErr('E_HID_WRITE', e)); },
-    stop() { stopped = true; if (timer) clearInterval(timer); if (dev) { void dev.close().catch((e) => logErr('E_HID_CLOSE', e)); dev = null; } },
+    async write(report) { if (dev) await dev.write(Buffer.from(report)).then(() => undefined, (e) => logErr('E_HID_WRITE', e)); },
+    async stop() {
+      stopped = true; if (timer) clearInterval(timer);
+      const d = dev; dev = null;
+      if (d) await d.close().catch((e) => logErr('E_HID_CLOSE', e));
+    },
   };
 }

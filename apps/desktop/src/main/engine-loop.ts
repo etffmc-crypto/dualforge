@@ -3,8 +3,8 @@ import { type EngineEvent, type Profile, type RawState, type XInputState, emptyB
 
 export interface InputSource {
   start(onReport: (buf: Uint8Array, tMs: number) => void, onStatus: (connected: boolean) => void, onError: (code: string, msg: string) => void): void;
-  write(report: Uint8Array): void;
-  stop(): void;
+  write(report: Uint8Array): Promise<void>;
+  stop(): Promise<void>;
 }
 export interface PadSink {
   ready: boolean;
@@ -55,7 +55,10 @@ export function createEngineLoop(d: LoopDeps) {
   function maybeWriteOutput(now: number, force = false) {
     if (!profile || !connected) return;
     const rep = buildOutputReport(feedback());
-    if (force || !sameBytes(rep, lastOutBytes) || now - lastOutWrite >= KEEPALIVE_MS) { d.source.write(rep); lastOutBytes = rep; lastOutWrite = now; }
+    if (force || !sameBytes(rep, lastOutBytes) || now - lastOutWrite >= KEEPALIVE_MS) { void d.source.write(rep); lastOutBytes = rep; lastOutWrite = now; }
+  }
+  function safeReport(): Uint8Array {
+    return buildOutputReport({ ...feedback(), rumbleLeft: 0, rumbleRight: 0, triggers: { left: { mode: 'off' }, right: { mode: 'off' } } });
   }
   function onReport(buf: Uint8Array, t: number) {
     if (!profile || !compiled) return;
@@ -137,14 +140,16 @@ export function createEngineLoop(d: LoopDeps) {
       d.source.start(onReport, onStatus, onError);
       idle = setInterval(() => { const now = d.now(); if (now - lastSnap >= SNAPSHOT_MS) { lastSnap = now; emitSnapshot(now); } maybeWriteOutput(now); }, 100);
     },
-    stop() {
+    async stop() {
       if (idle) clearInterval(idle);
       if (graceTimer) { clearTimeout(graceTimer); graceTimer = null; }
-      if (profile) d.source.write(buildOutputReport({ ...feedback(), rumbleLeft: 0, rumbleRight: 0 }));
-      d.source.stop(); d.sink.disconnect();
+      if (profile) await d.source.write(safeReport());   // rumble + trigger effects off before the handle closes
+      await d.source.stop();
+      d.sink.disconnect();
     },
-    swapSource(src: InputSource) {
-      d.source.stop(); d.source = src;
+    async swapSource(src: InputSource) {
+      if (profile && connected) await d.source.write(safeReport()).catch(() => {});
+      await d.source.stop(); d.source = src;
       connected = false; lastOutBytes = null;
       neutralize();
       armGrace();   // a never-connecting new source still releases the pad

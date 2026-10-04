@@ -20,7 +20,7 @@ port.on('message', (m) => {
       catch (e) { emit({ type: 'error', code: 'E_REPLAY_OPEN', msg: (e as Error).message }); }
       break;
     case 'useDevice': loop.swapSource(createDeviceSource()); break;
-    case 'shutdown': loop.stop(); process.exit(0);
+    case 'shutdown': void (async () => { await loop.stop(); process.exit(0); })(); break;
   }
 });
 void loop.start();
