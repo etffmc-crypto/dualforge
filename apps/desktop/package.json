@@ -9,7 +9,7 @@
     "build": "electron-vite build",
     "preview": "electron-vite preview",
     "test:ui": "electron-vite build && playwright test",
-    "rebuild": "electron-rebuild -f -w node-hid,vigemclient,@dualforge/sendinput",
+    "rebuild": "electron-rebuild -f -w node-hid,vigemclient,@dualforge/sendinput && node scripts/write-addon-marker.mjs",
     "test:packaged": "node scripts/test-packaged.mjs"
   },
   "dependencies": {
