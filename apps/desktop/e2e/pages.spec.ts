@@ -123,3 +123,24 @@ test('Overview dashboard: five tiles around the pad, Lights animation edits the 
   await expect(page.getByRole('tab', { name: 'Motion' })).toHaveAttribute('aria-selected', 'true');
   await app.close();
 });
+
+test('Buttons page: map square to B in the mapping dialog; the replayed cross still drives A', async () => {
+  const app = await launchApp();
+  const page = await app.firstWindow();
+  await page.getByRole('tab', { name: 'Buttons' }).click();
+  await expect(page.locator('.lead-line')).toHaveCount(19);
+  await page.getByRole('button', { name: /^Map □:/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Remap □' });
+  await dialog.getByRole('button', { name: 'B', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByRole('button', { name: 'Map □: B' })).toBeVisible();
+  await expect.poll(async () => (await page.evaluate(() => window.dualforge.getProfile())).mappings.square, { timeout: 2000 })
+    .toEqual({ targets: [{ type: 'xbutton', button: 'B' }], turboHz: 0, continuous: false });
+
+  await page.getByRole('tab', { name: 'Input Test' }).click();
+  await page.evaluate((f) => window.dualforge.replay(f), resolve(import.meta.dirname, '../../../packages/engine/test/fixtures/stick-sweep.hidlog'));
+  const xA = page.locator('.btn-grid').last().locator('.cell', { hasText: /^A$/ });
+  await expect(xA).toHaveClass(/\bon\b/, { timeout: 5000 });
+  expect((await page.evaluate(() => window.dualforge.getProfile())).mappings.cross.targets).toEqual([{ type: 'xbutton', button: 'A' }]);
+  await app.close();
+});

@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { ProfileSchema, type EngineSnapshot, type Profile, type ProfileSummary, type Settings } from '@dualforge/shared';
 
 export type Page =
-  | 'home' | 'overview' | 'buttons' | 'sticks' | 'triggers' | 'motion' | 'vibrations' | 'lights' | 'inputTest' | 'settings';
+  | 'home' | 'overview' | 'buttons' | 'sticks' | 'triggers' | 'motion' | 'vibrations' | 'lights' | 'macros' | 'inputTest' | 'settings';
 export type Side = 'left' | 'right';
 export type SubTabPage = 'sticks' | 'triggers';
 

@@ -1,4 +1,4 @@
-import { DS_BUTTONS, defaultProfile, type DsButton, type Profile, type Target } from '@dualforge/shared';
+import { BUTTON_LABELS, DS_BUTTONS, defaultProfile, type DsButton, type Profile, type Target } from '@dualforge/shared';
 
 type Rgb = { r: number; g: number; b: number };
 
@@ -40,13 +40,13 @@ export function formatTarget(t: Target, source: DsButton, p: Profile): string {
 const DEFAULTS = defaultProfile('defaults', 'defaults').mappings;
 const same = (a: Target[], b: Target[]) => JSON.stringify(a) === JSON.stringify(b);
 
-/** Mappings whose targets differ from the stock pad, in button order, as `cross ▸ B`. */
+/** Mappings whose targets differ from the stock pad, in button order, as `✕ ▸ B`. */
 export function mappingChips(p: Profile): { button: DsButton; text: string }[] {
   return DS_BUTTONS.flatMap((b) => {
     const m = p.mappings[b];
     const d = DEFAULTS[b];
     if (!m || !d || same(m.targets, d.targets)) return [];
-    return [{ button: b, text: `${b} ▸ ${m.targets.map((t) => formatTarget(t, b, p)).join(' + ')}` }];
+    return [{ button: b, text: `${BUTTON_LABELS[b]} ▸ ${m.targets.map((t) => formatTarget(t, b, p)).join(' + ')}` }];
   });
 }
 

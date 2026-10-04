@@ -7,6 +7,7 @@ import { Sticks } from './pages/Sticks';
 import { Triggers } from './pages/Triggers';
 import { Settings } from './pages/Settings';
 import { Overview } from './pages/Overview';
+import { Buttons } from './pages/Buttons';
 import './styles/shell.css';
 import './styles/pages.css';
 import './styles/controls.css';
@@ -16,7 +17,7 @@ function Page() {
   switch (page) {
     case 'home': return <Home />;
     case 'overview': return <Overview />;
-    case 'buttons': return <ComingSoon title="Buttons" note="Coming in Plan 3B." />;
+    case 'buttons': return <Buttons />;
     case 'settings': return <Settings />;
     case 'inputTest': return <InputTest />;
     case 'sticks': return <Sticks />;
@@ -24,6 +25,7 @@ function Page() {
     case 'motion': return <ComingSoon title="Motion" note="Coming in Plan 3." />;
     case 'vibrations': return <ComingSoon title="Vibrations" note="Coming in Plan 3." />;
     case 'lights': return <ComingSoon title="Lights" note="Coming in Plan 3." />;
+    case 'macros': return <ComingSoon title="Macros" note="Coming in Plan 3B." />;
   }
 }
 

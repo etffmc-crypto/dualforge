@@ -20,13 +20,13 @@
 }
 
 /* ---------- tab strip ---------- */
-.tabstrip { align-self: end; display: flex; justify-content: center; align-items: center; gap: 2px; height: 68px; }
+.tabstrip { min-width: 0; align-self: end; display: flex; justify-content: center; align-items: center; gap: 2px; height: 68px; }
 .pill {
   font-size: 10px; font-weight: 500; line-height: 1; padding: 4px 6px; margin: 0 14px; border-radius: 6px;
   border: 1.5px solid currentColor; color: var(--text-dim); align-self: center; margin-top: -6px;
 }
 .tab {
-  position: relative; width: 88px; height: 68px; padding: 8px 0 12px; border: 0; border-radius: 8px 8px 0 0;
+  position: relative; flex: 0 1 88px; min-width: 72px; height: 68px; padding: 8px 0 12px; border: 0; border-radius: 8px 8px 0 0;
   background: transparent; color: var(--text-secondary); cursor: pointer;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   transition: background-color 120ms ease, color 120ms ease;

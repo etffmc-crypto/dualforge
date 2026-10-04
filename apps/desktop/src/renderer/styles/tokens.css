@@ -26,6 +26,9 @@
   --well: rgba(0, 0, 0, 0.2); --gate-stroke: rgba(255, 255, 255, 0.18); --scroll-thumb: rgba(255, 255, 255, 0.12);
   --modal-bg: #1b161c; --backdrop: rgba(13, 11, 16, 0.55); --modal-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
   --card-shadow: none; --card-head: rgba(255, 255, 255, 0.035);
+  --lead: rgba(255, 255, 255, 0.34); --lead-dot: #fff; --pill-ring: rgba(255, 255, 255, 0.6); --pill-bg: rgba(13, 11, 16, 0.55);
+  --key: rgba(255, 255, 255, 0.08); --key-hover: rgba(255, 255, 255, 0.15); --foot-bg: rgba(255, 255, 255, 0.04);
+  --xb-a: #6fcf4a; --xb-b: #ff5a5a; --xb-x: #4a90ff; --xb-y: #f2c230;
   --font: 'Poppins', 'Segoe UI', system-ui, sans-serif; --mono: 'Cascadia Mono', Consolas, monospace;
   color-scheme: dark;
 }
@@ -49,5 +52,8 @@
   --well: rgba(20, 20, 30, 0.035); --gate-stroke: rgba(20, 20, 30, 0.18); --scroll-thumb: rgba(20, 20, 30, 0.16);
   --modal-bg: #ffffff; --backdrop: rgba(26, 26, 31, 0.28); --modal-shadow: 0 24px 60px rgba(20, 20, 30, 0.18);
   --card-shadow: 0 1px 2px rgba(20, 20, 30, 0.04); --card-head: rgba(20, 20, 30, 0.025);
+  --lead: rgba(20, 20, 30, 0.3); --lead-dot: #1a1a1f; --pill-ring: rgba(20, 20, 30, 0.35); --pill-bg: #ffffff;
+  --key: rgba(20, 20, 30, 0.06); --key-hover: rgba(20, 20, 30, 0.11); --foot-bg: rgba(20, 20, 30, 0.03);
+  --xb-a: #3f9a1f; --xb-b: #d63231; --xb-x: #2563eb; --xb-y: #b88a00;
   color-scheme: light;
 }

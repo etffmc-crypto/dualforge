@@ -60,7 +60,7 @@ describe('Overview cards', () => {
     expect(card('Sticks').querySelectorAll('.curve-preview')).toHaveLength(2);
     // Buttons: only the non-default mappings
     const rows = within(card('Buttons')).getAllByRole('button', { name: /▸/ }).map((b) => b.textContent);
-    expect(rows).toEqual(['cross ▸ B', 'square ▸ Space + Mouse left', 'r2 ▸ LT (digital)']);
+    expect(rows).toEqual(['✕ ▸ B', '□ ▸ Space + Mouse left', 'R2 ▸ LT (digital)']);
     // stage
     expect(screen.getByText('DUALSENSE')).toBeTruthy();
     expect(screen.getByTitle('Battery 72%')).toBeTruthy();
@@ -68,7 +68,7 @@ describe('Overview cards', () => {
 
   it('a mapping chip opens the Buttons page; the Motion chevron opens Motion', () => {
     render(<Overview />);
-    fireEvent.click(screen.getByRole('button', { name: 'cross ▸ B' }));
+    fireEvent.click(screen.getByRole('button', { name: '✕ ▸ B' }));
     expect(useStore.getState().page).toBe('buttons');
     fireEvent.click(screen.getByRole('button', { name: 'Open Motion' }));
     expect(useStore.getState().page).toBe('motion');
@@ -149,7 +149,7 @@ describe('overview format helpers', () => {
     expect(mappingChips(p)).toEqual([]);
     p.mappings.dpadUp = { targets: [{ type: 'key', code: 'VK_UP' }], turboHz: 0, continuous: false };
     p.mappings.cross = { targets: [{ type: 'xbutton', button: 'A' }], turboHz: 10, continuous: false }; // same target, turbo only
-    expect(mappingChips(p).map((c) => c.text)).toEqual(['dpadUp ▸ Up']);
+    expect(mappingChips(p).map((c) => c.text)).toEqual(['D-Pad ↑ ▸ Up']);
   });
 
   it('converts between hue and rgb', () => {
