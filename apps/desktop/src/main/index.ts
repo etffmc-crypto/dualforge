@@ -2,7 +2,8 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { basename, join, resolve, extname } from 'node:path';
 import { statSync } from 'node:fs';
 import { z } from 'zod';
-import { logger } from './logger.js';
+import { logger, LOG_DIR } from './logger.js';
+import { pruneLogs } from './log-prune.js';
 import { createEngineHost } from './engine-host.js';
 import { createProfileStore } from './profile-store.js';
 import { createSettingsStore } from './settings-store.js';
@@ -76,6 +77,8 @@ if (!app.requestSingleInstanceLock()) {
   app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
   app.whenReady().then(() => {
     logger.info({ code: 'APP_START', version: app.getVersion() });
+    const pruned = pruneLogs(LOG_DIR, Date.now(), (msg) => logger.warn({ code: 'LOG_PRUNE', msg }));
+    if (pruned.length) logger.info({ code: 'LOG_PRUNE', deleted: pruned.length });
     createWindow();
     engine.start();
     engine.send({ type: 'setSettings', settings: settings.get() });

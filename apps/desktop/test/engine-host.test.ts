@@ -49,6 +49,21 @@ describe('engine host', () => {
     expect(log.error).toHaveBeenCalledWith(expect.objectContaining({ code: 'E_ENGINE_RESTART_LIMIT' }));
   });
 
+  it('logs E_INJECT_LOAD once across engine respawns, but still forwards every event', () => {
+    const { host, events, log } = setup();
+    host.start();
+    const ev = { type: 'error', code: 'E_INJECT_LOAD', msg: 'no addon' };
+    children[0]!.emit('message', ev);
+    children[0]!.emit('exit', 1); vi.advanceTimersByTime(500);
+    children[1]!.emit('message', ev);
+    children[1]!.emit('message', { type: 'error', code: 'E_PIPELINE', msg: 'x' });
+    children[1]!.emit('message', { type: 'error', code: 'E_PIPELINE', msg: 'x' });
+    const logged = (c: string) => log.error.mock.calls.filter((a) => (a[0] as { code: string }).code === c).length;
+    expect(logged('E_INJECT_LOAD')).toBe(1);
+    expect(logged('E_PIPELINE')).toBe(2);          // only the permanent-condition code is deduped
+    expect(events.filter((e) => e.type === 'error' && e.code === 'E_INJECT_LOAD')).toHaveLength(2);
+  });
+
   it('stop() during a pending backoff cancels the respawn', () => {
     const { host } = setup();
     host.start();

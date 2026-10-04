@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import { EngineEventSchema, type EngineCommand, type EngineEvent } from '@dualforge/shared';
 import type { Logger } from 'pino';
 
+const LOG_ONCE = new Set(['E_INJECT_LOAD']);
+
 export function createEngineHost(opts: { onEvent: (e: EngineEvent) => void; log: Logger }) {
   let child: UtilityProcess | null = null;
   let restarts: number[] = [];
@@ -11,6 +13,8 @@ export function createEngineHost(opts: { onEvent: (e: EngineEvent) => void; log:
   const last: { setProfile?: EngineCommand; setSettings?: EngineCommand; uiFocused?: EngineCommand } = {};
   let restartTimer: NodeJS.Timeout | null = null;
   let killTimer: NodeJS.Timeout | null = null;
+  // Codes that describe a permanent condition (a missing addon): every respawned engine re-reports them, but the log gets one line per run.
+  const loggedOnce = new Set<string>();
 
   function spawn() {
     const thisChild = utilityProcess.fork(join(__dirname, 'engine-process.js'), [], { serviceName: 'dualforge-engine', stdio: 'pipe' });
@@ -19,7 +23,10 @@ export function createEngineHost(opts: { onEvent: (e: EngineEvent) => void; log:
     child.on('message', (m: unknown) => {
       const p = EngineEventSchema.safeParse(m);
       if (p.success) {
-        if (p.data.type === 'error') opts.log.error({ code: p.data.code, msg: p.data.msg });
+        if (p.data.type === 'error') {
+          if (!LOG_ONCE.has(p.data.code) || !loggedOnce.has(p.data.code)) opts.log.error({ code: p.data.code, msg: p.data.msg });
+          loggedOnce.add(p.data.code);
+        }
         else if (p.data.type === 'status') opts.log.info({ code: 'ENGINE_STATUS', connected: p.data.connected, vigemReady: p.data.vigemReady });
         opts.onEvent(p.data);
       }
