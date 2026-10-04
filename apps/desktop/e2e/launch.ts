@@ -11,9 +11,15 @@ const MAIN = resolve(import.meta.dirname, '../out/main/index.js');
  */
 export function launchApp(extraEnv: Record<string, string> = {}) {
   const env: Record<string, string> = {};
-  for (const [k, v] of Object.entries(process.env)) if (v !== undefined && k !== 'DUALFORGE_NAV_REPLAY') env[k] = v;
+  for (const [k, v] of Object.entries(process.env))
+    if (v !== undefined && k !== 'DUALFORGE_NAV_REPLAY') env[k] = v;
   return electron.launch({
     args: [MAIN],
-    env: { ...env, DUALFORGE_NO_INJECT: '1', DUALFORGE_DATA_DIR: mkdtempSync(join(tmpdir(), 'df-e2e-')), ...extraEnv },
+    env: {
+      ...env,
+      DUALFORGE_NO_INJECT: '1',
+      DUALFORGE_DATA_DIR: mkdtempSync(join(tmpdir(), 'df-e2e-')),
+      ...extraEnv,
+    },
   });
 }

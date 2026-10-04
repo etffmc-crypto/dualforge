@@ -4,11 +4,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStore } from '../../src/renderer/store';
 import { Footer, ERROR_CHIP_MS } from '../../src/renderer/components/Footer';
 
-const raise = (code: string, msg = 'boom') => act(() => { useStore.setState({ lastError: { code, msg } }); });
+const raise = (code: string, msg = 'boom') =>
+  act(() => {
+    useStore.setState({ lastError: { code, msg } });
+  });
 const chip = () => screen.queryByRole('alert');
 
-beforeEach(() => { vi.useFakeTimers(); vi.stubGlobal('__APP_VERSION__', '0.1.0'); useStore.setState({ lastError: null }); });
-afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); });
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.stubGlobal('__APP_VERSION__', '0.1.0');
+  useStore.setState({ lastError: null });
+});
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
 describe('Footer', () => {
   it('shows the PlayStation legend: ✕ Confirm, ○ Back', () => {
@@ -35,15 +46,21 @@ describe('Footer', () => {
     for (const code of ['E_RUMBLE_TEST', 'E_MACRO_TEST', 'E_CLIPBOARD']) {
       raise(code);
       expect(chip()!.textContent).toContain(code);
-      act(() => { vi.advanceTimersByTime(ERROR_CHIP_MS - 1); });
+      act(() => {
+        vi.advanceTimersByTime(ERROR_CHIP_MS - 1);
+      });
       expect(chip()).not.toBeNull();
-      act(() => { vi.advanceTimersByTime(1); });
+      act(() => {
+        vi.advanceTimersByTime(1);
+      });
       expect(chip()).toBeNull();
     }
     expect(ERROR_CHIP_MS).toBe(6000);
     for (const code of ['E_PROFILE_SEND', 'E_PROFILE_INVALID']) {
       raise(code);
-      act(() => { vi.advanceTimersByTime(60_000); });
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
       expect(chip()!.textContent).toContain(code);
     }
   });
@@ -51,9 +68,13 @@ describe('Footer', () => {
   it('a newer error restarts the clock and is not cleared by the older one’s timer', () => {
     render(<Footer />);
     raise('E_RUMBLE_TEST');
-    act(() => { vi.advanceTimersByTime(4000); });
+    act(() => {
+      vi.advanceTimersByTime(4000);
+    });
     raise('E_PROFILE_INVALID', 'trigger deadzone: initial must be below max');
-    act(() => { vi.advanceTimersByTime(4000); });
+    act(() => {
+      vi.advanceTimersByTime(4000);
+    });
     expect(chip()!.textContent).toContain('E_PROFILE_INVALID');
     expect(chip()!.textContent).toContain('trigger deadzone: initial must be below max');
   });

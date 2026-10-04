@@ -3,38 +3,65 @@ import { ProfileSchema } from './profile.js';
 import { SettingsSchema } from './settings.js';
 
 /** A touchpad finger: x 0..1919, y 0..1079 (DualSense touchpad units). */
-export const TouchPointSchema = z.object({ active: z.boolean(), id: z.number(), x: z.number(), y: z.number() });
+export const TouchPointSchema = z.object({
+  active: z.boolean(),
+  id: z.number(),
+  x: z.number(),
+  y: z.number(),
+});
 
 export const EngineSnapshotSchema = z.object({
-  t: z.number(),                         // ms since engine start
+  t: z.number(), // ms since engine start
   connected: z.boolean(),
   /** Where the input comes from: the controller, or a recorded .hidlog being replayed. */
   source: z.enum(['device', 'replay']).default('device'),
   vigemReady: z.boolean(),
   reportHz: z.number(),
   pipelineP99Ms: z.number(),
-  battery: z.object({ percent: z.number(), state: z.enum(['discharging', 'charging', 'full', 'unknown']) }),
-  raw: z.object({ lx: z.number(), ly: z.number(), rx: z.number(), ry: z.number(), l2: z.number(), r2: z.number(),
-                  buttons: z.record(z.string(), z.boolean()), gyro: z.object({ x: z.number(), y: z.number(), z: z.number() }),
-                  touch: z.array(TouchPointSchema).max(2).default([]) }),
-  out: z.object({ lx: z.number(), ly: z.number(), rx: z.number(), ry: z.number(), lt: z.number(), rt: z.number(),
-                  buttons: z.record(z.string(), z.boolean()) }),
+  battery: z.object({
+    percent: z.number(),
+    state: z.enum(['discharging', 'charging', 'full', 'unknown']),
+  }),
+  raw: z.object({
+    lx: z.number(),
+    ly: z.number(),
+    rx: z.number(),
+    ry: z.number(),
+    l2: z.number(),
+    r2: z.number(),
+    buttons: z.record(z.string(), z.boolean()),
+    gyro: z.object({ x: z.number(), y: z.number(), z: z.number() }),
+    touch: z.array(TouchPointSchema).max(2).default([]),
+  }),
+  out: z.object({
+    lx: z.number(),
+    ly: z.number(),
+    rx: z.number(),
+    ry: z.number(),
+    lt: z.number(),
+    rt: z.number(),
+    buttons: z.record(z.string(), z.boolean()),
+  }),
 });
 export type EngineSnapshot = z.infer<typeof EngineSnapshotSchema>;
 
 /** UI rumble test: motor levels 0..1 (left = large motor) played for `ms`, then the game's rumble resumes. */
-export const TestRumbleSchema = z.object({
-  left: z.number().min(0).max(1), right: z.number().min(0).max(1), ms: z.number().int().min(50).max(2000),
-}).strict();
+export const TestRumbleSchema = z
+  .object({
+    left: z.number().min(0).max(1),
+    right: z.number().min(0).max(1),
+    ms: z.number().int().min(50).max(2000),
+  })
+  .strict();
 export type TestRumble = z.infer<typeof TestRumbleSchema>;
 
 export const EngineCommandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('setProfile'), profile: ProfileSchema }),
-  z.object({ type: z.literal('replay'), path: z.string() }),  // use a .hidlog instead of a device
+  z.object({ type: z.literal('replay'), path: z.string() }), // use a .hidlog instead of a device
   z.object({ type: z.literal('useDevice') }),
   z.object({ type: z.literal('uiFocused'), focused: z.boolean() }),
   z.object({ type: z.literal('setSettings'), settings: SettingsSchema }),
-  z.object({ type: z.literal('runMacro'), id: z.string().min(1).max(64) }),   // play-test a macro of the running profile
+  z.object({ type: z.literal('runMacro'), id: z.string().min(1).max(64) }), // play-test a macro of the running profile
   TestRumbleSchema.extend({ type: z.literal('testRumble') }),
   z.object({ type: z.literal('shutdown') }),
 ]);
@@ -47,5 +74,9 @@ export const EngineEventSchema = z.discriminatedUnion('type', [
 ]);
 export type EngineEvent = z.infer<typeof EngineEventSchema>;
 
-export const ProfileSummarySchema = z.object({ id: z.string().min(1), name: z.string().min(1), slot: z.number().int().min(1).max(4) });
+export const ProfileSummarySchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  slot: z.number().int().min(1).max(4),
+});
 export type ProfileSummary = z.infer<typeof ProfileSummarySchema>;

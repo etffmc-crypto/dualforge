@@ -5,19 +5,41 @@ const CLI = 'C:\\Program Files\\Nefarius Software Solutions\\HidHide\\x64\\HidHi
 const INSTANCE = 'HID\\VID_054C&PID_0CE6&MI_03\\B&15810585&0&0000';
 const EXE = 'C:\\app\\DualForge.exe';
 
-function rig(opts: { installed?: boolean; pnp?: string; fail?: (args: string[]) => boolean; devList?: string } = {}) {
+function rig(
+  opts: {
+    installed?: boolean;
+    pnp?: string;
+    fail?: (args: string[]) => boolean;
+    devList?: string;
+  } = {},
+) {
   const calls: { file: string; args: string[] }[] = [];
   const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
   const exec = vi.fn(async (file: string, args: string[]) => {
     calls.push({ file, args });
     if (opts.fail?.(args)) throw new Error('access denied');
-    if (file === CLI) return { stdout: args[0] === '--dev-list' ? (opts.devList ?? '') : args[0] === '--app-list' ? `"C:\\Games\\a.exe"\r\n${EXE}\r\n` : '' };
-    return { stdout: opts.pnp ?? `${INSTANCE}\r\n` };   // PowerShell PnP query
+    if (file === CLI)
+      return {
+        stdout:
+          args[0] === '--dev-list'
+            ? (opts.devList ?? '')
+            : args[0] === '--app-list'
+              ? `"C:\\Games\\a.exe"\r\n${EXE}\r\n`
+              : '',
+      };
+    return { stdout: opts.pnp ?? `${INSTANCE}\r\n` }; // PowerShell PnP query
   });
-  const h = createHidHide({ exec, exists: (p) => (opts.installed ?? true) && p === CLI, ownExe: EXE, programFiles: 'C:\\Program Files', log });
+  const h = createHidHide({
+    exec,
+    exists: (p) => (opts.installed ?? true) && p === CLI,
+    ownExe: EXE,
+    programFiles: 'C:\\Program Files',
+    log,
+  });
   return { h, calls, log, exec };
 }
-const cli = (calls: { file: string; args: string[] }[]) => calls.filter((c) => c.file === CLI).map((c) => c.args);
+const cli = (calls: { file: string; args: string[] }[]) =>
+  calls.filter((c) => c.file === CLI).map((c) => c.args);
 
 describe('hidhide', () => {
   it('findCli returns the Program Files path, or null when HidHide is not installed', () => {
@@ -31,7 +53,12 @@ describe('hidhide', () => {
     await h.devHide(INSTANCE);
     await h.cloak(true);
     await h.cloak(false);
-    expect(cli(calls)).toEqual([['--app-reg', EXE], ['--dev-hide', INSTANCE], ['--cloak-on'], ['--cloak-off']]);
+    expect(cli(calls)).toEqual([
+      ['--app-reg', EXE],
+      ['--dev-hide', INSTANCE],
+      ['--cloak-on'],
+      ['--cloak-off'],
+    ]);
   });
 
   it('parses --app-list and --dev-list output (quotes, blanks, CRLF)', async () => {
@@ -44,7 +71,12 @@ describe('hidhide', () => {
   it('enable: registers the exe, hides the pad found through PnP, then cloaks on (in that order)', async () => {
     const { h, calls } = rig();
     expect(await h.enable()).toEqual({ ok: true });
-    expect(cli(calls)).toEqual([['--app-reg', EXE], ['--dev-list'], ['--dev-hide', INSTANCE], ['--cloak-on']]);
+    expect(cli(calls)).toEqual([
+      ['--app-reg', EXE],
+      ['--dev-list'],
+      ['--dev-hide', INSTANCE],
+      ['--cloak-on'],
+    ]);
     expect(calls.find((c) => c.file !== CLI)!.args.join(' ')).toContain('Get-PnpDevice');
   });
 
@@ -87,6 +119,9 @@ describe('hidhide', () => {
   });
 
   it('disable surfaces E_HIDHIDE_CLI when cloak-off fails', async () => {
-    expect(await rig({ fail: () => true }).h.disable()).toMatchObject({ ok: false, code: 'E_HIDHIDE_CLI' });
+    expect(await rig({ fail: () => true }).h.disable()).toMatchObject({
+      ok: false,
+      code: 'E_HIDHIDE_CLI',
+    });
   });
 });

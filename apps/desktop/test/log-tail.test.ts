@@ -5,8 +5,12 @@ import { join } from 'node:path';
 import { LOG_TAIL_MAX, newestLog, readLogTail, registerLogIpc } from '../src/main/log-tail.js';
 
 let dir: string;
-beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'df-logtail-')); });
-afterEach(() => { rmSync(dir, { recursive: true, force: true }); });
+beforeEach(() => {
+  dir = mkdtempSync(join(tmpdir(), 'df-logtail-'));
+});
+afterEach(() => {
+  rmSync(dir, { recursive: true, force: true });
+});
 
 const line = (i: number) => JSON.stringify({ level: 30, time: i, code: 'X', msg: `line ${i}` });
 function writeLog(name: string, n: number, mtimeS: number) {
@@ -19,7 +23,7 @@ describe('newestLog', () => {
     writeLog('app.1.log', 3, 1000);
     writeLog('app.2.log', 3, 2000);
     writeLog('other.log', 3, 3000);
-    mkdirSync(join(dir, 'app.9.log'));   // a folder named like a log is never read
+    mkdirSync(join(dir, 'app.9.log')); // a folder named like a log is never read
     expect(newestLog(dir)).toBe(join(dir, 'app.2.log'));
   });
 
@@ -74,7 +78,14 @@ describe('logs:tail IPC', () => {
 
   it('rejects bad payloads with E_LOGS_REQUEST (no path can be passed)', () => {
     const { call, log } = setup();
-    for (const bad of [{ lines: 0 }, { lines: LOG_TAIL_MAX + 1 }, { lines: 1.5 }, { lines: 5, file: '../../secret' }, 'x', null]) {
+    for (const bad of [
+      { lines: 0 },
+      { lines: LOG_TAIL_MAX + 1 },
+      { lines: 1.5 },
+      { lines: 5, file: '../../secret' },
+      'x',
+      null,
+    ]) {
       expect(() => call(bad)).toThrow('E_LOGS_REQUEST');
     }
     expect(log.error).toHaveBeenCalledWith(expect.objectContaining({ code: 'E_LOGS_REQUEST' }));

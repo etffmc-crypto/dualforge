@@ -1,4 +1,11 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 
 export interface FileIo {
@@ -6,8 +13,15 @@ export interface FileIo {
   renameSync(from: string, to: string): void;
   unlinkSync(path: string): void;
 }
-export const nodeIo: FileIo = { writeFileSync: (p, d) => writeFileSync(p, d, 'utf8'), renameSync, unlinkSync };
-export interface StoreLog { error(o: object): void; warn(o: object): void }
+export const nodeIo: FileIo = {
+  writeFileSync: (p, d) => writeFileSync(p, d, 'utf8'),
+  renameSync,
+  unlinkSync,
+};
+export interface StoreLog {
+  error(o: object): void;
+  warn(o: object): void;
+}
 
 /** Temp file in the same directory + rename: readers never see a partial file, and a failed write leaves the old file intact. */
 export function writeJsonAtomic(file: string, data: unknown, io: FileIo = nodeIo): void {
@@ -17,7 +31,11 @@ export function writeJsonAtomic(file: string, data: unknown, io: FileIo = nodeIo
     io.writeFileSync(tmp, JSON.stringify(data, null, 2));
     io.renameSync(tmp, file);
   } catch (e) {
-    try { io.unlinkSync(tmp); } catch { /* temp file may not exist */ }
+    try {
+      io.unlinkSync(tmp);
+    } catch {
+      /* temp file may not exist */
+    }
     throw e;
   }
 }
@@ -29,7 +47,14 @@ export function readJsonFile(file: string): unknown {
 }
 
 /** Moves a bad file to `<corruptDir>/<name>.<ts>.json` so it is never silently overwritten, and logs `code`. */
-export function quarantine(file: string, corruptDir: string, log: StoreLog, code: string, reason: string, io: FileIo = nodeIo): void {
+export function quarantine(
+  file: string,
+  corruptDir: string,
+  log: StoreLog,
+  code: string,
+  reason: string,
+  io: FileIo = nodeIo,
+): void {
   try {
     mkdirSync(corruptDir, { recursive: true });
     const base = basename(file).replace(/\.json$/i, '');

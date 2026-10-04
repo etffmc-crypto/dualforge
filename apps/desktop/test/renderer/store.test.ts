@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DS_BUTTONS, defaultProfile, defaultSettings, type EngineEvent, type EngineSnapshot } from '@dualforge/shared';
+import {
+  DS_BUTTONS,
+  defaultProfile,
+  defaultSettings,
+  type EngineEvent,
+  type EngineSnapshot,
+} from '@dualforge/shared';
 import { DEBOUNCE_MS, useStore } from '../../src/renderer/store';
 
 const set = vi.fn(async () => true);
@@ -8,13 +14,24 @@ let activeCb: ((id: string) => void) | null = null;
 let engineCb: ((e: EngineEvent) => void) | null = null;
 const profilesApi = {
   set,
-  current: vi.fn(async (): Promise<{ id: string; source: 'manual' | 'auto' }> => ({ id: 'p2', source: 'manual' })),
+  current: vi.fn(async (): Promise<{ id: string; source: 'manual' | 'auto' }> => ({
+    id: 'p2',
+    source: 'manual',
+  })),
   get: vi.fn(async (id: string) => defaultProfile(id, `Slot ${id}`)),
-  list: vi.fn(async () => [{ id: 'p1', name: 'One', slot: 1 }, { id: 'p2', name: 'Two', slot: 2 }]),
+  list: vi.fn(async () => [
+    { id: 'p1', name: 'One', slot: 1 },
+    { id: 'p2', name: 'Two', slot: 2 },
+  ]),
   activate: vi.fn(async (id: string) => defaultProfile(id, `Slot ${id}`)),
   rename: vi.fn(async () => {}),
   reset: vi.fn(async () => {}),
-  onActive: vi.fn((cb: (id: string) => void) => { activeCb = cb; return () => { activeCb = null; }; }),
+  onActive: vi.fn((cb: (id: string) => void) => {
+    activeCb = cb;
+    return () => {
+      activeCb = null;
+    };
+  }),
 };
 const settingsApi = {
   get: vi.fn(async () => defaultSettings()),
@@ -23,8 +40,24 @@ const settingsApi = {
 
 function snap(connected: boolean): EngineSnapshot {
   return {
-    t: 0, connected, source: 'device', vigemReady: true, reportHz: 250, pipelineP99Ms: 0, battery: { percent: 50, state: 'discharging' },
-    raw: { lx: 0, ly: 0, rx: 0, ry: 0, l2: 0, r2: 0, buttons: {}, gyro: { x: 0, y: 0, z: 0 }, touch: [] },
+    t: 0,
+    connected,
+    source: 'device',
+    vigemReady: true,
+    reportHz: 250,
+    pipelineP99Ms: 0,
+    battery: { percent: 50, state: 'discharging' },
+    raw: {
+      lx: 0,
+      ly: 0,
+      rx: 0,
+      ry: 0,
+      l2: 0,
+      r2: 0,
+      buttons: {},
+      gyro: { x: 0, y: 0, z: 0 },
+      touch: [],
+    },
     out: { lx: 0, ly: 0, rx: 0, ry: 0, lt: 0, rt: 0, buttons: {} },
   };
 }
@@ -33,12 +66,25 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
   vi.stubGlobal('dualforge', {
-    profiles: profilesApi, settings: settingsApi,
-    onEngineEvent: (cb: (e: EngineEvent) => void) => { engineCb = cb; return () => { engineCb = null; }; },
+    profiles: profilesApi,
+    settings: settingsApi,
+    onEngineEvent: (cb: (e: EngineEvent) => void) => {
+      engineCb = cb;
+      return () => {
+        engineCb = null;
+      };
+    },
   });
   useStore.setState({
-    profile: defaultProfile('p1', 'Profile 1'), lastError: null, subTab: { sticks: 'left', triggers: 'left' },
-    page: 'home', autoRouted: false, settings: null, profiles: [], activeProfileId: null, snapshot: null,
+    profile: defaultProfile('p1', 'Profile 1'),
+    lastError: null,
+    subTab: { sticks: 'left', triggers: 'left' },
+    page: 'home',
+    autoRouted: false,
+    settings: null,
+    profiles: [],
+    activeProfileId: null,
+    snapshot: null,
   });
 });
 afterEach(() => {
@@ -50,21 +96,31 @@ afterEach(() => {
 describe('store profile editing', () => {
   it('applies immediately and sends one debounced profiles.set with the latest profile', () => {
     const { updateProfile } = useStore.getState();
-    updateProfile((d) => { d.sticks.left.deadzone.anti = 0.1; });
-    updateProfile((d) => { d.sticks.left.deadzone.anti = 0.2; });
+    updateProfile((d) => {
+      d.sticks.left.deadzone.anti = 0.1;
+    });
+    updateProfile((d) => {
+      d.sticks.left.deadzone.anti = 0.2;
+    });
     expect(useStore.getState().profile!.sticks.left.deadzone.anti).toBe(0.2);
     expect(set).not.toHaveBeenCalled();
     vi.advanceTimersByTime(DEBOUNCE_MS - 1);
     expect(set).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1);
     expect(set).toHaveBeenCalledTimes(1);
-    expect((set.mock.calls[0] as unknown[])[0]).toMatchObject({ id: 'p1', sticks: { left: { deadzone: { anti: 0.2 } } } });
+    expect((set.mock.calls[0] as unknown[])[0]).toMatchObject({
+      id: 'p1',
+      sticks: { left: { deadzone: { anti: 0.2 } } },
+    });
     expect(DEBOUNCE_MS).toBe(100);
   });
 
   it('rejects an invalid mutation with E_PROFILE_INVALID and keeps the old profile', () => {
     const before = useStore.getState().profile;
-    useStore.getState().updateProfile((d) => { d.triggers.left.deadzone.initial = 0.9; d.triggers.left.deadzone.max = 0.1; });
+    useStore.getState().updateProfile((d) => {
+      d.triggers.left.deadzone.initial = 0.9;
+      d.triggers.left.deadzone.max = 0.1;
+    });
     expect(useStore.getState().profile).toBe(before);
     expect(useStore.getState().lastError?.code).toBe('E_PROFILE_INVALID');
     vi.advanceTimersByTime(500);
@@ -73,12 +129,16 @@ describe('store profile editing', () => {
 
   it('does not mutate the previous profile object', () => {
     const before = useStore.getState().profile!;
-    useStore.getState().updateProfile((d) => { d.sticks.right.invertX = true; });
+    useStore.getState().updateProfile((d) => {
+      d.sticks.right.invertX = true;
+    });
     expect(before.sticks.right.invertX).toBe(false);
   });
 
   it('flushProfile sends immediately and cancels the pending debounce', () => {
-    useStore.getState().updateProfile((d) => { d.sticks.left.circular = false; });
+    useStore.getState().updateProfile((d) => {
+      d.sticks.left.circular = false;
+    });
     useStore.getState().flushProfile();
     expect(set).toHaveBeenCalledTimes(1);
     vi.advanceTimersByTime(500);
@@ -102,7 +162,9 @@ describe('store profiles + settings', () => {
 
   it('reloads the profile when the engine switches (onActive), flushing pending edits first', async () => {
     const unsub = useStore.getState().subscribe();
-    useStore.getState().updateProfile((d) => { d.sticks.left.circular = false; });
+    useStore.getState().updateProfile((d) => {
+      d.sticks.left.circular = false;
+    });
     profilesApi.current.mockResolvedValueOnce({ id: 'p3', source: 'auto' });
     activeCb!('p3');
     expect(set).toHaveBeenCalledTimes(1); // p1's edit is saved to p1, not lost or written into p3
@@ -135,20 +197,32 @@ describe('store profiles + settings', () => {
   it('after a rejected patch the store resyncs to what main actually persisted', async () => {
     await useStore.getState().loadSettings();
     settingsApi.set.mockRejectedValueOnce(new Error('E_STARTUP_LOGIN_ITEM'));
-    settingsApi.get.mockResolvedValueOnce({ ...useStore.getState().settings!, startWithWindows: true });
+    settingsApi.get.mockResolvedValueOnce({
+      ...useStore.getState().settings!,
+      startWithWindows: true,
+    });
     await useStore.getState().updateSettings({ startWithWindows: true });
     expect(useStore.getState().settings!.startWithWindows).toBe(true);
     expect(useStore.getState().lastError?.msg).toMatch(/E_STARTUP_LOGIN_ITEM/);
   });
 
   it('profiles loaded from main are made dense: every button has a mapping', async () => {
-    const sparse = (id: string) => ({ ...defaultProfile(id, 'Sparse'), mappings: { cross: defaultProfile(id, 'x').mappings.cross } });
-    profilesApi.get.mockImplementationOnce(async (id: string) => sparse(id) as ReturnType<typeof defaultProfile>);
+    const sparse = (id: string) => ({
+      ...defaultProfile(id, 'Sparse'),
+      mappings: { cross: defaultProfile(id, 'x').mappings.cross },
+    });
+    profilesApi.get.mockImplementationOnce(
+      async (id: string) => sparse(id) as ReturnType<typeof defaultProfile>,
+    );
     await useStore.getState().loadProfile();
     expect(Object.keys(useStore.getState().profile!.mappings)).toHaveLength(DS_BUTTONS.length);
-    profilesApi.activate.mockImplementationOnce(async (id: string) => sparse(id) as ReturnType<typeof defaultProfile>);
+    profilesApi.activate.mockImplementationOnce(
+      async (id: string) => sparse(id) as ReturnType<typeof defaultProfile>,
+    );
     await useStore.getState().activateProfile('p3');
-    expect(useStore.getState().profile!.mappings.circle).toEqual(defaultProfile('p3', 'x').mappings.circle);
+    expect(useStore.getState().profile!.mappings.circle).toEqual(
+      defaultProfile('p3', 'x').mappings.circle,
+    );
   });
 
   it('activateProfile switches the engine and loads that profile', async () => {
@@ -168,7 +242,9 @@ describe('store profiles + settings', () => {
 
   it('resetProfile drops pending edits, resets the running slot and reloads it', async () => {
     useStore.setState({ activeProfileId: 'p2' });
-    useStore.getState().updateProfile((d) => { d.sticks.left.circular = false; });
+    useStore.getState().updateProfile((d) => {
+      d.sticks.left.circular = false;
+    });
     await useStore.getState().resetProfile();
     vi.advanceTimersByTime(500);
     expect(set).not.toHaveBeenCalled();

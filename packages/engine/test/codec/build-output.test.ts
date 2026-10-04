@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { buildOutputReport, type Feedback } from '../../src/codec/build-output.js';
 
-const fb: Feedback = { rumbleLeft: 1, rumbleRight: 0.5, lightbar: { r: 10, g: 20, b: 30 }, brightness: 1, playerLeds: 0b00100, micLed: 2 };
+const fb: Feedback = {
+  rumbleLeft: 1,
+  rumbleRight: 0.5,
+  lightbar: { r: 10, g: 20, b: 30 },
+  brightness: 1,
+  playerLeds: 0b00100,
+  micLed: 2,
+};
 
 describe('buildOutputReport', () => {
   it('is 48 bytes with report id 0x02', () => {
@@ -11,9 +18,9 @@ describe('buildOutputReport', () => {
   });
   it('sets valid flags', () => {
     const r = buildOutputReport(fb);
-    expect(r[1]! & 0x03).toBe(0x03);            // vibration + haptics select
-    expect(r[2]! & 0x15).toBe(0x15);            // mic LED, lightbar, player LEDs
-    expect(r[39]! & 0x06).toBe(0x06);           // lightbar setup + vibration v2
+    expect(r[1]! & 0x03).toBe(0x03); // vibration + haptics select
+    expect(r[2]! & 0x15).toBe(0x15); // mic LED, lightbar, player LEDs
+    expect(r[39]! & 0x06).toBe(0x06); // lightbar setup + vibration v2
   });
   it('scales motors 0..255 (right=small, left=large)', () => {
     const r = buildOutputReport(fb);
@@ -34,7 +41,13 @@ describe('buildOutputReport', () => {
     expect(r[3]).toBe(0);
   });
   it('writes trigger effects into right (11..21) and left (22..32) blocks and sets flag0 bits', () => {
-    const r = buildOutputReport({ ...fb, triggers: { left: { mode: 'resistance', start: 1, force: 2 }, right: { mode: 'section', start: 3, end: 4, force: 5 } } });
+    const r = buildOutputReport({
+      ...fb,
+      triggers: {
+        left: { mode: 'resistance', start: 1, force: 2 },
+        right: { mode: 'section', start: 3, end: 4, force: 5 },
+      },
+    });
     expect([r[11], r[12], r[13], r[14]]).toEqual([0x02, 3, 4, 5]);
     expect([r[22], r[23], r[24]]).toEqual([0x01, 1, 2]);
     expect(r[1]! & 0x0c).toBe(0x0c);

@@ -8,8 +8,11 @@ const FRAME_MS = 1000 / 30;
 /** On-screen stand-in for the DualSense brightness levels (0 = high). */
 const LEVEL = [1, 0.72, 0.45] as const;
 
-const reducedMotion = () => typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const isAnimated = (l: Lights, charging: boolean) => l.mode === 'breathing' || l.mode === 'rainbow' || (l.mode === 'battery' && charging);
+const reducedMotion = () =>
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const isAnimated = (l: Lights, charging: boolean) =>
+  l.mode === 'breathing' || l.mode === 'rainbow' || (l.mode === 'battery' && charging);
 
 /**
  * The lightbar colour the controller shows right now, computed with the engine's own light function so the

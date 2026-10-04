@@ -4,7 +4,12 @@ import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
-const SOURCE_DIRS = ['apps/desktop/src', 'packages/shared/src', 'packages/engine/src', 'native/sendinput/src'];
+const SOURCE_DIRS = [
+  'apps/desktop/src',
+  'packages/shared/src',
+  'packages/engine/src',
+  'native/sendinput/src',
+];
 const EXTS = new Set(['.ts', '.tsx', '.cc', '.js']);
 /** Documentation placeholders that look like codes but are not. */
 const PLACEHOLDERS = new Set(['E_CODE']);
@@ -40,11 +45,14 @@ describe('error-code registry', () => {
   });
 
   it('documents every E_ code used in source as a "### CODE" heading', () => {
-    const missing = [...codesInSource()].filter(([c]) => !documented.has(c)).map(([c, f]) => `${c} (${f})`);
+    const missing = [...codesInSource()]
+      .filter(([c]) => !documented.has(c))
+      .map(([c, f]) => `${c} (${f})`);
     expect(missing).toEqual([]);
   });
 
   it('lists the non-E_ structured log codes', () => {
-    for (const c of ['APP_START', 'ENGINE_STATUS', 'ENGINE_EXIT', 'ENGINE_STDERR']) expect(documented.has(c)).toBe(true);
+    for (const c of ['APP_START', 'ENGINE_STATUS', 'ENGINE_EXIT', 'ENGINE_STDERR'])
+      expect(documented.has(c)).toBe(true);
   });
 });

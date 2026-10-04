@@ -8,11 +8,24 @@ import { useStore } from '../../store';
 /** The meter spans ±METER_DPS; the engine's stick output is at full deflection at 200 °/s × sensitivity 1. */
 export const METER_DPS = 200;
 
-const signed = (v: number) => { const r = Math.round(v); return r > 0 ? `+${r}` : String(r); };
+const signed = (v: number) => {
+  const r = Math.round(v);
+  return r > 0 ? `+${r}` : String(r);
+};
 const frac = (v: number) => Math.max(-1, Math.min(1, v / METER_DPS));
 
 /** One centred bar: fill grows from the middle; the shaded band is the deadzone. */
-function MeterBar({ id, label, dps, deadzone }: { id: string; label: string; dps: number; deadzone: number }) {
+function MeterBar({
+  id,
+  label,
+  dps,
+  deadzone,
+}: {
+  id: string;
+  label: string;
+  dps: number;
+  deadzone: number;
+}) {
   const f = frac(dps);
   const band = Math.min(1, deadzone / METER_DPS) * 50;
   const live = Math.abs(dps) >= deadzone;
@@ -21,7 +34,10 @@ function MeterBar({ id, label, dps, deadzone }: { id: string; label: string; dps
       <span className="gm-label">{label}</span>
       <div className="gm-track" aria-hidden="true">
         <span className="gm-dz" style={{ left: `${50 - band}%`, width: `${band * 2}%` }} />
-        <span className={`gm-fill${live ? '' : ' idle'}`} style={{ left: `${50 + Math.min(0, f) * 50}%`, width: `${Math.abs(f) * 50}%` }} />
+        <span
+          className={`gm-fill${live ? '' : ' idle'}`}
+          style={{ left: `${50 + Math.min(0, f) * 50}%`, width: `${Math.abs(f) * 50}%` }}
+        />
         <span className="gm-mid" />
       </div>
       <span className="gm-value" data-testid={`meter-${id}`}>{`${signed(dps)} °/s`}</span>
@@ -45,7 +61,10 @@ export function MotionStage({ gyro }: { gyro: GyroConfig }) {
           <figcaption>{PRESET_LABELS[gyro.curve]} motion curve</figcaption>
         </figure>
         <div className="stage-bars gyro-meter" role="group" aria-label="Live rotation">
-          <div className="gm-head"><span>Live rotation</span><span className="gm-scale">±{METER_DPS} °/s</span></div>
+          <div className="gm-head">
+            <span>Live rotation</span>
+            <span className="gm-scale">±{METER_DPS} °/s</span>
+          </div>
           <MeterBar id="yaw" label="Yaw" dps={yaw} deadzone={gyro.deadzoneDps} />
           <MeterBar id="pitch" label="Pitch" dps={pitch} deadzone={gyro.deadzoneDps} />
           <div className="stage-caption">
@@ -57,8 +76,10 @@ export function MotionStage({ gyro }: { gyro: GyroConfig }) {
       </div>
       <div className="stage-pad">
         <DualSenseTop
-          pressed={s?.raw.buttons ?? {}} lightbar={lights ?? { r: 0, g: 80, b: 255 }}
-          sticks={s ? { lx: s.raw.lx, ly: s.raw.ly, rx: s.raw.rx, ry: s.raw.ry } : undefined} playerLeds={lights?.playerLeds ?? 0}
+          pressed={s?.raw.buttons ?? {}}
+          lightbar={lights ?? { r: 0, g: 80, b: 255 }}
+          sticks={s ? { lx: s.raw.lx, ly: s.raw.ly, rx: s.raw.rx, ry: s.raw.ry } : undefined}
+          playerLeds={lights?.playerLeds ?? 0}
         />
       </div>
     </div>

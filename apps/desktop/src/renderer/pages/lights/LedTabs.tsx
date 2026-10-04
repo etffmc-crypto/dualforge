@@ -3,7 +3,11 @@ import { PanelSection } from '../../components/SettingsLayout';
 import type { Lights, LightsEdit } from './LightbarTab';
 
 const LEDS = [0, 1, 2, 3, 4];
-const MIC: { value: '0' | '1' | '2'; label: string }[] = [{ value: '0', label: 'Off' }, { value: '1', label: 'On' }, { value: '2', label: 'Pulse' }];
+const MIC: { value: '0' | '1' | '2'; label: string }[] = [
+  { value: '0', label: 'Off' },
+  { value: '1', label: 'On' },
+  { value: '2', label: 'Pulse' },
+];
 
 /** Player LEDs sub-tab: the five lamps under the touchpad as switches laid out like the strip itself (left = bit 0). */
 export function PlayerLedsTab({ lights, edit }: { lights: Lights; edit: LightsEdit }) {
@@ -14,10 +18,19 @@ export function PlayerLedsTab({ lights, edit }: { lights: Lights; edit: LightsEd
         {LEDS.map((i) => {
           const on = ((lights.playerLeds >> i) & 1) === 1;
           return (
-            <button data-nav
-              key={i} type="button" role="switch" aria-checked={on} aria-label={`Player LED ${i + 1}`}
+            <button
+              data-nav
+              key={i}
+              type="button"
+              role="switch"
+              aria-checked={on}
+              aria-label={`Player LED ${i + 1}`}
               className={`led-switch${on ? ' on' : ''}${i === 2 ? ' centre' : ''}`}
-              onClick={() => edit((l) => { l.playerLeds ^= 1 << i; })}
+              onClick={() =>
+                edit((l) => {
+                  l.playerLeds ^= 1 << i;
+                })
+              }
             >
               <span className="led-lamp" />
               <span className="led-n">{i + 1}</span>
@@ -33,8 +46,20 @@ export function PlayerLedsTab({ lights, edit }: { lights: Lights; edit: LightsEd
 export function MicTab({ lights, edit }: { lights: Lights; edit: LightsEdit }) {
   return (
     <PanelSection title="Mic LED">
-      <Segmented label="Mic LED" options={MIC} value={String(lights.micLed) as '0' | '1' | '2'} onChange={(v) => edit((l) => { l.micLed = Number(v); })} />
-      <p className="psec-hint">The light on the mute button. This only changes the light; the microphone itself is untouched.</p>
+      <Segmented
+        label="Mic LED"
+        options={MIC}
+        value={String(lights.micLed) as '0' | '1' | '2'}
+        onChange={(v) =>
+          edit((l) => {
+            l.micLed = Number(v);
+          })
+        }
+      />
+      <p className="psec-hint">
+        The light on the mute button. This only changes the light; the microphone itself is
+        untouched.
+      </p>
     </PanelSection>
   );
 }

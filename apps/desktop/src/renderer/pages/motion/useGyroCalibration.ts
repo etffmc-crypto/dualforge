@@ -33,18 +33,34 @@ export function useGyroCalibration(onDone: (bias: Bias) => void) {
     const unsub = useStore.subscribe((s, prev) => {
       const snap = s.snapshot;
       if (snap === prev.snapshot || !snap?.connected) return;
-      sum.x += snap.raw.gyro.x; sum.y += snap.raw.gyro.y; sum.z += snap.raw.gyro.z;
+      sum.x += snap.raw.gyro.x;
+      sum.y += snap.raw.gyro.y;
+      sum.z += snap.raw.gyro.z;
       n++;
     });
     const t0 = Date.now();
-    const tick = setInterval(() => setState({ phase: 'running', progress: Math.min(1, (Date.now() - t0) / CALIBRATE_MS) }), TICK_MS);
+    const tick = setInterval(
+      () => setState({ phase: 'running', progress: Math.min(1, (Date.now() - t0) / CALIBRATE_MS) }),
+      TICK_MS,
+    );
     const finish = setTimeout(() => {
       end();
-      if (n === 0) { setState({ phase: 'error', msg: 'No motion data came in. Connect the controller and try again.' }); return; }
+      if (n === 0) {
+        setState({
+          phase: 'error',
+          msg: 'No motion data came in. Connect the controller and try again.',
+        });
+        return;
+      }
       done.current({ x: r3(sum.x / n), y: r3(sum.y / n), z: r3(sum.z / n) });
       setState({ phase: 'done' });
     }, CALIBRATE_MS);
-    const end = () => { unsub(); clearInterval(tick); clearTimeout(finish); stop.current = null; };
+    const end = () => {
+      unsub();
+      clearInterval(tick);
+      clearTimeout(finish);
+      stop.current = null;
+    };
     stop.current = end;
     setState({ phase: 'running', progress: 0 });
   };

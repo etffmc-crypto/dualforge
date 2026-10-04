@@ -1,6 +1,13 @@
 import { join } from 'node:path';
 import { defaultSettings, SettingsSchema, type Settings } from '@dualforge/shared';
-import { nodeIo, quarantine, readJsonFile, writeJsonAtomic, type FileIo, type StoreLog } from './json-file.js';
+import {
+  nodeIo,
+  quarantine,
+  readJsonFile,
+  writeJsonAtomic,
+  type FileIo,
+  type StoreLog,
+} from './json-file.js';
 
 export function createSettingsStore(dir: string, log: StoreLog, io: FileIo = nodeIo) {
   const file = join(dir, 'settings.json');
@@ -20,7 +27,9 @@ export function createSettingsStore(dir: string, log: StoreLog, io: FileIo = nod
   }
 
   return {
-    get(): Settings { return (cache ??= load()); },
+    get(): Settings {
+      return (cache ??= load());
+    },
     set(patch: Partial<Settings>): Settings {
       const next = SettingsSchema.parse({ ...this.get(), ...patch, schemaVersion: 1 });
       writeJsonAtomic(file, next, io);

@@ -40,28 +40,59 @@ describe('profile schema', () => {
   });
   it('rejects non-monotone custom curve x', () => {
     const p = defaultProfile('p', 'p');
-    p.sticks.left.curve = { kind: 'custom', points: [[0.2, 0.1], [0.1, 0.2], [0.3, 0.3], [0.4, 0.4], [0.5, 0.5], [0.6, 0.6], [0.8, 0.8], [1, 1]] };
+    p.sticks.left.curve = {
+      kind: 'custom',
+      points: [
+        [0.2, 0.1],
+        [0.1, 0.2],
+        [0.3, 0.3],
+        [0.4, 0.4],
+        [0.5, 0.5],
+        [0.6, 0.6],
+        [0.8, 0.8],
+        [1, 1],
+      ],
+    };
     expect(ProfileSchema.safeParse(p).success).toBe(false);
   });
   it('accepts each trigger effect mode', () => {
     const p = defaultProfile('p', 'p');
-    for (const e of [{ mode: 'resistance', start: 2, force: 6 }, { mode: 'section', start: 2, end: 6, force: 8 }, { mode: 'vibration', frequency: 20, force: 5 }] as const) {
+    for (const e of [
+      { mode: 'resistance', start: 2, force: 6 },
+      { mode: 'section', start: 2, end: 6, force: 8 },
+      { mode: 'vibration', frequency: 20, force: 5 },
+    ] as const) {
       p.triggers.left.effect = e;
       expect(ProfileSchema.safeParse(p).success).toBe(true);
     }
   });
   it('rejects non-monotone advanced filter curve x', () => {
     const p = defaultProfile('p', 'p');
-    p.sticks.left.filter.curve = [[0, 0], [0.5, 0], [0.2, 0], [0.7, 0], [1, 0]];
+    p.sticks.left.filter.curve = [
+      [0, 0],
+      [0.5, 0],
+      [0.2, 0],
+      [0.7, 0],
+      [1, 0],
+    ];
     expect(ProfileSchema.safeParse(p).success).toBe(false);
   });
 });
 
 describe('plan 3A schema additions', () => {
   it('old profile without gyro/macros/digital/lights ext parses with defaults', () => {
-    const p = defaultProfile('p', 'p') as unknown as { gyro?: unknown; macros?: unknown; triggers: { left: { digital?: boolean } }; lights: Record<string, unknown> };
-    delete p.gyro; delete p.macros; delete p.triggers.left.digital;
-    delete p.lights.mode; delete p.lights.speed; delete p.lights.micLed;
+    const p = defaultProfile('p', 'p') as unknown as {
+      gyro?: unknown;
+      macros?: unknown;
+      triggers: { left: { digital?: boolean } };
+      lights: Record<string, unknown>;
+    };
+    delete p.gyro;
+    delete p.macros;
+    delete p.triggers.left.digital;
+    delete p.lights.mode;
+    delete p.lights.speed;
+    delete p.lights.micLed;
     const r = ProfileSchema.safeParse(p);
     expect(r.success).toBe(true);
     if (r.success) {
@@ -73,9 +104,20 @@ describe('plan 3A schema additions', () => {
   });
   it('rejects a macro target referencing a missing macro id', () => {
     const p = defaultProfile('p', 'p');
-    p.mappings.cross = { targets: [{ type: 'macro', macroId: 'nope' }], turboHz: 0, continuous: false };
+    p.mappings.cross = {
+      targets: [{ type: 'macro', macroId: 'nope' }],
+      turboHz: 0,
+      continuous: false,
+    };
     expect(ProfileSchema.safeParse(p).success).toBe(false);
-    p.macros = [{ id: 'nope', name: 'm', steps: [{ target: { type: 'key', code: 'VK_A' }, holdMs: 10, delayMs: 0 }], loop: false }];
+    p.macros = [
+      {
+        id: 'nope',
+        name: 'm',
+        steps: [{ target: { type: 'key', code: 'VK_A' }, holdMs: 10, delayMs: 0 }],
+        loop: false,
+      },
+    ];
     expect(ProfileSchema.safeParse(p).success).toBe(true);
   });
   it('default l2/r2 map to xtrigger', () => {
@@ -86,12 +128,25 @@ describe('plan 3A schema additions', () => {
 });
 
 describe('final-review schema hardening', () => {
-  const macro = (id: string, target: object = { type: 'key', code: 'VK_A' }) => ({ id, name: id, steps: [{ target, holdMs: 10, delayMs: 0 }], loop: false });
+  const macro = (id: string, target: object = { type: 'key', code: 'VK_A' }) => ({
+    id,
+    name: id,
+    steps: [{ target, holdMs: 10, delayMs: 0 }],
+    loop: false,
+  });
   it('rejects key codes not in the VK table (e.g. prototype names)', () => {
     const p = defaultProfile('p', 'p');
-    p.mappings.cross = { targets: [{ type: 'key', code: 'constructor' }], turboHz: 0, continuous: false };
+    p.mappings.cross = {
+      targets: [{ type: 'key', code: 'constructor' }],
+      turboHz: 0,
+      continuous: false,
+    };
     expect(ProfileSchema.safeParse(p).success).toBe(false);
-    p.mappings.cross = { targets: [{ type: 'key', code: 'VK_SPACE' }], turboHz: 0, continuous: false };
+    p.mappings.cross = {
+      targets: [{ type: 'key', code: 'VK_SPACE' }],
+      turboHz: 0,
+      continuous: false,
+    };
     expect(ProfileSchema.safeParse(p).success).toBe(true);
   });
   it('rejects duplicate macro ids', () => {
@@ -126,7 +181,7 @@ describe('ensureDenseMappings', () => {
     for (const b of DS_BUTTONS) expect(dense.mappings[b]).toBeDefined();
     expect(dense.mappings.cross).toEqual(custom);
     expect(dense.mappings.circle).toEqual(defaultProfile('x', 'x').mappings.circle);
-    expect(Object.keys(sparse.mappings)).toEqual(['cross']);   // pure: the input is untouched
+    expect(Object.keys(sparse.mappings)).toEqual(['cross']); // pure: the input is untouched
   });
   it('returns the same object when nothing is missing', () => {
     const p = defaultProfile('p1', 'Profile 1');

@@ -1,7 +1,9 @@
 import type { Battery, Profile } from '@dualforge/shared';
 
 export interface LightbarFrame {
-  r: number; g: number; b: number;
+  r: number;
+  g: number;
+  b: number;
   brightness: 0 | 1 | 2;
   playerLeds: number;
   micLed: 0 | 1 | 2;
@@ -12,23 +14,45 @@ export interface LightbarFrame {
 const byte = (v: number): number => Math.max(0, Math.min(255, Math.round(v)));
 
 function hsvToRgb(h: number): [number, number, number] {
-  const i = Math.floor(h * 6) % 6, f = h * 6 - Math.floor(h * 6);
+  const i = Math.floor(h * 6) % 6,
+    f = h * 6 - Math.floor(h * 6);
   const q = 1 - f;
-  const [r, g, b] = [[1, f, 0], [q, 1, 0], [0, 1, f], [0, q, 1], [f, 0, 1], [1, 0, q]][i]!;
+  const [r, g, b] = [
+    [1, f, 0],
+    [q, 1, 0],
+    [0, 1, f],
+    [0, q, 1],
+    [f, 0, 1],
+    [1, 0, q],
+  ][i]!;
   return [byte(r! * 255), byte(g! * 255), byte(b! * 255)];
 }
 
-export function computeLightbar(cfg: Profile['lights'], tMs: number, battery: Battery): LightbarFrame {
+export function computeLightbar(
+  cfg: Profile['lights'],
+  tMs: number,
+  battery: Battery,
+): LightbarFrame {
   const base = {
-    brightness: cfg.brightness as 0 | 1 | 2, playerLeds: cfg.playerLeds, micLed: cfg.micLed as 0 | 1 | 2,
+    brightness: cfg.brightness as 0 | 1 | 2,
+    playerLeds: cfg.playerLeds,
+    micLed: cfg.micLed as 0 | 1 | 2,
   };
   switch (cfg.mode) {
-    case 'off': return { ...base, r: 0, g: 0, b: 0, animated: false };
-    case 'static': return { ...base, r: cfg.r, g: cfg.g, b: cfg.b, animated: false };
+    case 'off':
+      return { ...base, r: 0, g: 0, b: 0, animated: false };
+    case 'static':
+      return { ...base, r: cfg.r, g: cfg.g, b: cfg.b, animated: false };
     case 'breathing': {
       const period = 4000 - 35 * cfg.speed;
       const k = 0.15 + 0.85 * (0.5 + 0.5 * Math.sin((2 * Math.PI * tMs) / period));
-      return { ...base, r: byte(cfg.r * k), g: byte(cfg.g * k), b: byte(cfg.b * k), animated: true };
+      return {
+        ...base,
+        r: byte(cfg.r * k),
+        g: byte(cfg.g * k),
+        b: byte(cfg.b * k),
+        animated: true,
+      };
     }
     case 'rainbow': {
       const period = 6000 - 55 * cfg.speed;

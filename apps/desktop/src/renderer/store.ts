@@ -1,12 +1,33 @@
 import { create } from 'zustand';
-import { ensureDenseMappings, ProfileSchema, type EngineSnapshot, type HealthState, type Profile, type ProfileSummary, type Settings } from '@dualforge/shared';
+import {
+  ensureDenseMappings,
+  ProfileSchema,
+  type EngineSnapshot,
+  type HealthState,
+  type Profile,
+  type ProfileSummary,
+  type Settings,
+} from '@dualforge/shared';
 
 export const PAGES = [
-  'home', 'overview', 'buttons', 'sticks', 'triggers', 'motion', 'vibrations', 'lights', 'macros', 'inputTest', 'settings', 'profiles', 'health',
+  'home',
+  'overview',
+  'buttons',
+  'sticks',
+  'triggers',
+  'motion',
+  'vibrations',
+  'lights',
+  'macros',
+  'inputTest',
+  'settings',
+  'profiles',
+  'health',
 ] as const;
 export type Page = (typeof PAGES)[number];
 /** Whitelist for page ids that arrive from outside the renderer (tray "Health" via `app.onNavigate`). */
-export const isPage = (p: unknown): p is Page => typeof p === 'string' && (PAGES as readonly string[]).includes(p);
+export const isPage = (p: unknown): p is Page =>
+  typeof p === 'string' && (PAGES as readonly string[]).includes(p);
 export type Side = 'left' | 'right';
 export type SubTabPage = 'sticks' | 'triggers';
 
@@ -68,7 +89,8 @@ let pending: ReturnType<typeof setTimeout> | null = null;
 
 /** True while any gamepad-navigation hold is outstanding. */
 export const navSuspended = (): boolean => useStore.getState().navHolds > 0;
-const fail = (code: string) => (err: unknown) => useStore.setState({ lastError: { code, msg: String(err) } });
+const fail = (code: string) => (err: unknown) =>
+  useStore.setState({ lastError: { code, msg: String(err) } });
 
 export const useStore = create<State>((set, get) => {
   const send = () => {
@@ -78,11 +100,25 @@ export const useStore = create<State>((set, get) => {
     // profiles.set saves to p.id's slot, so an edit can never land in a different profile after a switch
     window.dualforge.profiles.set(p).catch(fail('E_PROFILE_SEND'));
   };
-  const flushPending = () => { if (pending) { clearTimeout(pending); send(); } };
-  const dropPending = () => { if (pending) clearTimeout(pending); pending = null; };
+  const flushPending = () => {
+    if (pending) {
+      clearTimeout(pending);
+      send();
+    }
+  };
+  const dropPending = () => {
+    if (pending) clearTimeout(pending);
+    pending = null;
+  };
   return {
-    snapshot: null, lastError: null, page: 'home', autoRouted: false,
-    profile: null, activeProfileId: null, profiles: [], settings: null,
+    snapshot: null,
+    lastError: null,
+    page: 'home',
+    autoRouted: false,
+    profile: null,
+    activeProfileId: null,
+    profiles: [],
+    settings: null,
     subTab: { sticks: 'left', triggers: 'left' },
     health: null,
     navHolds: 0,
@@ -146,7 +182,12 @@ export const useStore = create<State>((set, get) => {
         if (e.type === 'snapshot') {
           const s = get();
           // Overview is the landing page once a controller shows up; after that Home is only a click away
-          if (e.snapshot.connected && !s.autoRouted) set({ snapshot: e.snapshot, autoRouted: true, page: s.page === 'home' ? 'overview' : s.page });
+          if (e.snapshot.connected && !s.autoRouted)
+            set({
+              snapshot: e.snapshot,
+              autoRouted: true,
+              page: s.page === 'home' ? 'overview' : s.page,
+            });
           else set({ snapshot: e.snapshot });
         } else if (e.type === 'error') set({ lastError: { code: e.code, msg: e.msg } });
       });
@@ -155,7 +196,10 @@ export const useStore = create<State>((set, get) => {
         set({ activeProfileId: id });
         get().loadProfile().catch(fail('E_PROFILE_LOAD'));
       });
-      return () => { offEngine(); offActive(); };
+      return () => {
+        offEngine();
+        offActive();
+      };
     },
     updateProfile: (mutate) => {
       const cur = get().profile;
@@ -164,7 +208,12 @@ export const useStore = create<State>((set, get) => {
       mutate(draft);
       const parsed = ProfileSchema.safeParse(draft);
       if (!parsed.success) {
-        set({ lastError: { code: 'E_PROFILE_INVALID', msg: parsed.error.issues.map((i) => i.message).join('; ') } });
+        set({
+          lastError: {
+            code: 'E_PROFILE_INVALID',
+            msg: parsed.error.issues.map((i) => i.message).join('; '),
+          },
+        });
         return false;
       }
       set({ profile: parsed.data });

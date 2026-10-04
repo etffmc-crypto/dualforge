@@ -18,14 +18,19 @@ export function createSettingsHooks(d: SettingsHookDeps) {
   return async (prev: Settings, next: Settings): Promise<void> => {
     let loginError: Error | null = null;
     if (prev.startWithWindows !== next.startWithWindows) {
-      try { d.applyLoginItem(next); }
-      catch (e) { loginError = e as Error; d.log.error({ code: 'E_STARTUP_LOGIN_ITEM', msg: loginError.message }); }
+      try {
+        d.applyLoginItem(next);
+      } catch (e) {
+        loginError = e as Error;
+        d.log.error({ code: 'E_STARTUP_LOGIN_ITEM', msg: loginError.message });
+      }
     }
     if (!prev.updates && next.updates) d.onUpdatesEnabled?.();
     if (prev.hidHide !== next.hidHide) {
       const r = next.hidHide ? await d.hidhide.enable() : await d.hidhide.disable();
       d.refreshHealth?.();
-      if (!r.ok && next.hidHide) {   // could not enable: persist hidHide=false so the toggle tells the truth, and tell the renderer why
+      if (!r.ok && next.hidHide) {
+        // could not enable: persist hidHide=false so the toggle tells the truth, and tell the renderer why
         d.engine.send({ type: 'setSettings', settings: d.settingsStore.set({ hidHide: false }) });
         throw new Error(r.code ?? 'E_HIDHIDE_CLI');
       }

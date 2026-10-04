@@ -17,21 +17,33 @@ const profilesApi = {
   get: vi.fn(async (id: string) => defaultProfile(id, names[id]!)),
   list: vi.fn(async () => summaries()),
   activate: vi.fn(async (id: string) => defaultProfile(id, names[id]!)),
-  rename: vi.fn(async (id: string, name: string) => { names[id] = name; }),
-  duplicate: vi.fn(async (from: string, to: string) => { names[to] = `${names[from]} copy`; return defaultProfile(to, names[to]!); }),
+  rename: vi.fn(async (id: string, name: string) => {
+    names[id] = name;
+  }),
+  duplicate: vi.fn(async (from: string, to: string) => {
+    names[to] = `${names[from]} copy`;
+    return defaultProfile(to, names[to]!);
+  }),
   reset: vi.fn(async () => {}),
   export: vi.fn(async (): Promise<string | null> => 'C:\\Users\\me\\Profile 1.dualforge.json'),
   import: vi.fn(async (): Promise<unknown> => null),
   shareCode: vi.fn(async () => CODE),
   importShareCode: vi.fn(async (code: string, to: string) => {
-    if (!code.startsWith('DUALFORGE:')) throw new Error("Error invoking remote method 'profiles:importShareCode': Error: E_SHARE_CODE");
-    names[to] = 'Shared'; return defaultProfile(to, 'Shared');
+    if (!code.startsWith('DUALFORGE:'))
+      throw new Error(
+        "Error invoking remote method 'profiles:importShareCode': Error: E_SHARE_CODE",
+      );
+    names[to] = 'Shared';
+    return defaultProfile(to, 'Shared');
   }),
   onActive: vi.fn(() => () => {}),
 };
 const settingsApi = {
   get: vi.fn(async () => stored),
-  set: vi.fn(async (patch: Partial<Settings>) => { stored = { ...stored, ...patch }; return stored; }),
+  set: vi.fn(async (patch: Partial<Settings>) => {
+    stored = { ...stored, ...patch };
+    return stored;
+  }),
 };
 const processes = vi.fn(async () => ['cs2.exe', 'discord.exe', 'eldenring.exe']);
 const writeText = vi.fn(async () => {});
@@ -42,16 +54,25 @@ beforeEach(() => {
   Object.assign(names, { p1: 'Profile 1', p2: 'Profile 2', p3: 'Profile 3', p4: 'Profile 4' });
   stored = defaultSettings();
   vi.stubGlobal('dualforge', {
-    profiles: profilesApi, settings: settingsApi, system: { processes, openDataDir: vi.fn() },
+    profiles: profilesApi,
+    settings: settingsApi,
+    system: { processes, openDataDir: vi.fn() },
     window: { minimize: vi.fn(), toggleMaximize: vi.fn(), close: vi.fn() },
   });
   Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
   useStore.setState({
-    profile: defaultProfile('p1', 'Profile 1'), activeProfileId: 'p1', settings: defaultSettings(), lastError: null, page: 'profiles',
+    profile: defaultProfile('p1', 'Profile 1'),
+    activeProfileId: 'p1',
+    settings: defaultSettings(),
+    lastError: null,
+    page: 'profiles',
     profiles: summaries(),
   });
 });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const slot = (n: number) => within(screen.getByRole('article', { name: `Slot ${n}` }));
 
@@ -61,7 +82,9 @@ describe('Profiles page: slot cards', () => {
     for (const n of [1, 2, 3, 4]) expect(slot(n).getByText(`Profile ${n}`)).toBeTruthy();
     expect(slot(1).getByText('Active')).toBeTruthy();
     expect(slot(2).queryByText('Active')).toBeNull();
-    expect((slot(1).getByRole('button', { name: 'Activate' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((slot(1).getByRole('button', { name: 'Activate' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
     fireEvent.click(slot(3).getByRole('button', { name: 'Activate' }));
     expect(profilesApi.activate).toHaveBeenCalledWith('p3');
     await waitFor(() => expect(slot(3).getByText('Active')).toBeTruthy());
@@ -84,7 +107,7 @@ describe('Profiles page: slot cards', () => {
     render(<Profiles />);
     fireEvent.click(slot(1).getByRole('button', { name: 'Duplicate to…' }));
     const dlg = within(screen.getByRole('dialog', { name: 'Duplicate Profile 1' }));
-    expect(dlg.queryByRole('radio', { name: 'Profile 1' })).toBeNull();   // not onto itself
+    expect(dlg.queryByRole('radio', { name: 'Profile 1' })).toBeNull(); // not onto itself
     fireEvent.click(dlg.getByRole('radio', { name: 'Profile 4' }));
     expect(dlg.getByText(/Profile 4 is replaced/)).toBeTruthy();
     fireEvent.click(dlg.getByRole('button', { name: 'Duplicate' }));
@@ -108,21 +131,33 @@ describe('Profiles page: slot cards', () => {
     render(<Profiles />);
     fireEvent.click(slot(1).getByRole('button', { name: 'Export' }));
     expect(profilesApi.export).toHaveBeenCalledWith('p1');
-    await waitFor(() => expect(screen.getByRole('status').textContent).toMatch(/Exported Profile 1 to C:\\Users\\me\\Profile 1\.dualforge\.json/));
+    await waitFor(() =>
+      expect(screen.getByRole('status').textContent).toMatch(
+        /Exported Profile 1 to C:\\Users\\me\\Profile 1\.dualforge\.json/,
+      ),
+    );
     profilesApi.import.mockResolvedValueOnce(defaultProfile('p3', 'From file'));
     names.p3 = 'From file';
     fireEvent.click(slot(3).getByRole('button', { name: 'Import' }));
     expect(profilesApi.import).toHaveBeenCalledWith('p3');
-    await waitFor(() => expect(screen.getByRole('status').textContent).toMatch(/Imported From file into slot 3/));
+    await waitFor(() =>
+      expect(screen.getByRole('status').textContent).toMatch(/Imported From file into slot 3/),
+    );
   });
 
   it('editing the running profile is flushed before it is duplicated, so the copy has the latest edit', async () => {
     render(<Profiles />);
-    act(() => { useStore.getState().updateProfile((d) => { d.sticks.left.deadzone.anti = 0.3; }); });
+    act(() => {
+      useStore.getState().updateProfile((d) => {
+        d.sticks.left.deadzone.anti = 0.3;
+      });
+    });
     fireEvent.click(slot(1).getByRole('button', { name: 'Duplicate to…' }));
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Duplicate' }));
     await waitFor(() => expect(profilesApi.duplicate).toHaveBeenCalled());
-    expect(profilesApi.set.mock.invocationCallOrder[0]!).toBeLessThan(profilesApi.duplicate.mock.invocationCallOrder[0]!);
+    expect(profilesApi.set.mock.invocationCallOrder[0]!).toBeLessThan(
+      profilesApi.duplicate.mock.invocationCallOrder[0]!,
+    );
   });
 
   it('the header Profiles button opens this page', () => {
@@ -136,7 +171,9 @@ describe('Profiles page: slot cards', () => {
 describe('Profiles page: share codes', () => {
   it('shows the running profile code and copies it', async () => {
     render(<Profiles />);
-    const box = screen.getByRole('textbox', { name: 'Share code for Profile 1' }) as HTMLTextAreaElement;
+    const box = screen.getByRole('textbox', {
+      name: 'Share code for Profile 1',
+    }) as HTMLTextAreaElement;
     await waitFor(() => expect(box.value).toBe(CODE));
     expect(box.readOnly).toBe(true);
     fireEvent.click(screen.getByRole('button', { name: 'Copy code' }));
@@ -146,27 +183,44 @@ describe('Profiles page: share codes', () => {
 
   it('imports a pasted code into the chosen slot', async () => {
     render(<Profiles />);
-    fireEvent.change(screen.getByRole('textbox', { name: 'Paste a share code' }), { target: { value: `  ${CODE}\n` } });
-    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Import into' })).getByRole('radio', { name: 'Profile 3' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Paste a share code' }), {
+      target: { value: `  ${CODE}\n` },
+    });
+    fireEvent.click(
+      within(screen.getByRole('radiogroup', { name: 'Import into' })).getByRole('radio', {
+        name: 'Profile 3',
+      }),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Import code' }));
     await waitFor(() => expect(profilesApi.importShareCode).toHaveBeenCalledWith(CODE, 'p3'));
     await waitFor(() => expect(slot(3).getByText('Shared')).toBeTruthy());
     expect(screen.getByText('Imported into slot 3 as Shared.')).toBeTruthy();
-    expect((screen.getByRole('textbox', { name: 'Paste a share code' }) as HTMLTextAreaElement).value).toBe('');
+    expect(
+      (screen.getByRole('textbox', { name: 'Paste a share code' }) as HTMLTextAreaElement).value,
+    ).toBe('');
   });
 
   it('a bad code shows an inline error and changes nothing', async () => {
     render(<Profiles />);
-    fireEvent.change(screen.getByRole('textbox', { name: 'Paste a share code' }), { target: { value: 'hello' } });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Paste a share code' }), {
+      target: { value: 'hello' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Import code' }));
-    await waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/not a DualForge share code/));
+    await waitFor(() =>
+      expect(screen.getByRole('alert').textContent).toMatch(/not a DualForge share code/),
+    );
     expect(names.p2).toBe('Profile 2');
   });
 });
 
 describe('Profiles page: auto-switch', () => {
   const exeBox = () => screen.getByRole('textbox', { name: 'Game executable' }) as HTMLInputElement;
-  const pickProfile = (name: string) => fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Profile for this game' })).getByRole('radio', { name }));
+  const pickProfile = (name: string) =>
+    fireEvent.click(
+      within(screen.getByRole('radiogroup', { name: 'Profile for this game' })).getByRole('radio', {
+        name,
+      }),
+    );
 
   it('adds a lowercased rule, rejects invalid names and duplicates, and removes rules', async () => {
     render(<Profiles />);
@@ -174,7 +228,9 @@ describe('Profiles page: auto-switch', () => {
     fireEvent.change(exeBox(), { target: { value: '  EldenRing.EXE ' } });
     pickProfile('Profile 2');
     fireEvent.click(screen.getByRole('button', { name: 'Add rule' }));
-    expect(settingsApi.set).toHaveBeenCalledWith({ autoSwitch: [{ exe: 'eldenring.exe', profileId: 'p2' }] });
+    expect(settingsApi.set).toHaveBeenCalledWith({
+      autoSwitch: [{ exe: 'eldenring.exe', profileId: 'p2' }],
+    });
     await waitFor(() => expect(screen.getByRole('row', { name: /eldenring\.exe/ })).toBeTruthy());
     expect(exeBox().value).toBe('');
 
@@ -195,14 +251,20 @@ describe('Profiles page: auto-switch', () => {
   });
 
   it('Pick running game lists processes, filters them and fills the field', async () => {
-    useStore.setState({ settings: { ...defaultSettings(), autoSwitch: [{ exe: 'cs2.exe', profileId: 'p4' }] } });
+    useStore.setState({
+      settings: { ...defaultSettings(), autoSwitch: [{ exe: 'cs2.exe', profileId: 'p4' }] },
+    });
     render(<Profiles />);
     fireEvent.click(screen.getByRole('button', { name: 'Pick running game' }));
     const dlg = within(screen.getByRole('dialog', { name: 'Pick a running game' }));
     await waitFor(() => expect(dlg.getByRole('button', { name: /discord\.exe/ })).toBeTruthy());
     expect(processes).toHaveBeenCalledTimes(1);
-    expect((dlg.getByRole('button', { name: /cs2\.exe/ }) as HTMLButtonElement).disabled).toBe(true);   // already has a rule
-    fireEvent.change(dlg.getByRole('searchbox', { name: 'Search running programs' }), { target: { value: 'ELDEN' } });
+    expect((dlg.getByRole('button', { name: /cs2\.exe/ }) as HTMLButtonElement).disabled).toBe(
+      true,
+    ); // already has a rule
+    fireEvent.change(dlg.getByRole('searchbox', { name: 'Search running programs' }), {
+      target: { value: 'ELDEN' },
+    });
     expect(dlg.queryByRole('button', { name: /discord\.exe/ })).toBeNull();
     fireEvent.click(dlg.getByRole('button', { name: /eldenring\.exe/ }));
     expect(screen.queryByRole('dialog')).toBeNull();
@@ -213,14 +275,23 @@ describe('Profiles page: auto-switch', () => {
     processes.mockRejectedValueOnce(new Error('E_PROCESSES'));
     render(<Profiles />);
     fireEvent.click(screen.getByRole('button', { name: 'Pick running game' }));
-    await waitFor(() => expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toMatch(/Couldn't read the running programs/));
+    await waitFor(() =>
+      expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toMatch(
+        /Couldn't read the running programs/,
+      ),
+    );
   });
 
   it('stops at 32 rules', () => {
-    const rules = Array.from({ length: 32 }, (_, i) => ({ exe: `g${i}.exe`, profileId: 'p2' as const }));
+    const rules = Array.from({ length: 32 }, (_, i) => ({
+      exe: `g${i}.exe`,
+      profileId: 'p2' as const,
+    }));
     useStore.setState({ settings: { ...defaultSettings(), autoSwitch: rules } });
     render(<Profiles />);
-    expect((screen.getByRole('button', { name: 'Add rule' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Add rule' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
     expect(screen.getByText(/32 rules is the limit/)).toBeTruthy();
   });
 });

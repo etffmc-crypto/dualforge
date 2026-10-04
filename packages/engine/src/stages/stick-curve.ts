@@ -4,14 +4,21 @@ export type CurvePoint = [number, number];
 type Preset = Extract<StickConfig['curve'], { kind: 'preset' }>['preset'];
 
 const sample = (f: (t: number) => number): CurvePoint[] =>
-  Array.from({ length: 8 }, (_, i) => { const t = (i + 1) / 8; return [t, Math.min(1, Math.max(0, f(t)))]; });
+  Array.from({ length: 8 }, (_, i) => {
+    const t = (i + 1) / 8;
+    return [t, Math.min(1, Math.max(0, f(t)))];
+  });
 
 export function presetPoints(preset: Preset): CurvePoint[] {
   switch (preset) {
-    case 'linear': return sample((t) => t);
-    case 'aggressive': return sample((t) => Math.pow(t, 0.6));
-    case 'precise': return sample((t) => Math.pow(t, 1.8));
-    case 'scurve': return sample((t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2));
+    case 'linear':
+      return sample((t) => t);
+    case 'aggressive':
+      return sample((t) => Math.pow(t, 0.6));
+    case 'precise':
+      return sample((t) => Math.pow(t, 1.8));
+    case 'scurve':
+      return sample((t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2));
   }
 }
 
@@ -24,12 +31,17 @@ export function evaluateCurve(points: readonly CurvePoint[], input: number): num
       if (x === px) return Math.max(0, Math.min(1, y));
       return Math.max(0, Math.min(1, py + ((v - px) / (x - px)) * (y - py)));
     }
-    px = x; py = y;
+    px = x;
+    py = y;
   }
   return Math.max(0, Math.min(1, py)); // past last point: hold
 }
 
-export function applyStickCurve(x: number, y: number, curve: StickConfig['curve']): { x: number; y: number } {
+export function applyStickCurve(
+  x: number,
+  y: number,
+  curve: StickConfig['curve'],
+): { x: number; y: number } {
   const mag = Math.hypot(x, y);
   if (mag === 0) return { x: 0, y: 0 };
   const pts = curve.kind === 'preset' ? presetPoints(curve.preset) : curve.points;

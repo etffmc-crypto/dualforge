@@ -1,10 +1,17 @@
-export interface UpdateResult { available: boolean; version?: string; code?: string }
+export interface UpdateResult {
+  available: boolean;
+  version?: string;
+  code?: string;
+}
 
 /** The part of electron-updater's AppUpdater that DualForge uses. */
 export interface AutoUpdaterLike {
   autoDownload: boolean;
   autoInstallOnAppQuit: boolean;
-  checkForUpdates(): Promise<{ isUpdateAvailable?: boolean; updateInfo: { version: string } } | null>;
+  checkForUpdates(): Promise<{
+    isUpdateAvailable?: boolean;
+    updateInfo: { version: string };
+  } | null>;
 }
 
 export interface UpdaterDeps {
@@ -25,7 +32,7 @@ export function createUpdater(d: UpdaterDeps) {
 
   async function check(): Promise<UpdateResult> {
     if (!d.enabled()) return { available: false, code: 'E_UPDATE_DISABLED' };
-    if (!d.isPackaged) return { available: false, code: 'E_UPDATE_DEV' };   // electron-updater has no app-update.yml in a dev run
+    if (!d.isPackaged) return { available: false, code: 'E_UPDATE_DEV' }; // electron-updater has no app-update.yml in a dev run
     try {
       if (!impl) {
         impl = await d.load();
@@ -35,7 +42,8 @@ export function createUpdater(d: UpdaterDeps) {
       const r = await impl.checkForUpdates();
       const version = r?.updateInfo.version;
       const available = !!r && (r.isUpdateAvailable ?? version !== d.currentVersion);
-      const res: UpdateResult = available && version ? { available: true, version } : { available: false };
+      const res: UpdateResult =
+        available && version ? { available: true, version } : { available: false };
       lastResult = res;
       d.log.info({ code: 'UPDATE_CHECK', available: res.available, version: res.version });
       d.onResult(res);

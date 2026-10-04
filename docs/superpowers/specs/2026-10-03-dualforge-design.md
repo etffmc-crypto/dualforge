@@ -17,6 +17,7 @@ Research inventories for both reference apps live in the agent reports from
 from the research scratchpad).
 
 ### Out of scope for v1
+
 - Bluetooth transport (report layout + CRC differ; USB only).
 - Firmware update (Sony only), polling-rate selection (fixed by firmware),
   stick quantization/bit-depth (DualSense sticks are 8-bit).
@@ -46,6 +47,7 @@ from the research scratchpad).
 Three processes:
 
 ### 3.1 Main process
+
 - Window lifecycle, frameless window chrome, tray icon, single-instance lock.
 - **ProfileStore**: 4 profile slots + settings, JSON files under
   `%APPDATA%\DualForge\profiles\`. Atomic writes (write temp → rename),
@@ -62,6 +64,7 @@ Three processes:
 - **Updater**: `electron-updater` against a GitHub Releases feed (opt-in).
 
 ### 3.2 Input engine (`utilityProcess`)
+
 Single-purpose, no Electron UI imports. Loop driven by `node-hid` async reads
 (~1000 Hz on USB).
 
@@ -81,6 +84,7 @@ rawReport(64B) → parseDualSense() → RawState
 ```
 
 Outputs:
+
 - `xinput` → `vigemclient` target.
 - `keys`/`mouse` → SendInput addon.
 - Feedback: ViGEm rumble callback → scaled by profile intensities → DualSense
@@ -97,6 +101,7 @@ instead of a device, used by integration tests and by the Health page's
 "simulate" button when no pad is attached.
 
 ### 3.3 Renderer (React)
+
 GameSir Connect shell. Zustand store mirroring the active profile; every
 edit is debounced (100 ms) and sent to main → engine, so changes are live.
 Strict IPC schema (zod) in `packages/shared/ipc.ts`; preload exposes only
@@ -105,6 +110,7 @@ typed channels via `contextBridge`.
 ## 4. UI
 
 ### 4.1 Visual language (from GameSir Connect screenshots)
+
 - Frameless window, default 1280×800, min 1000×680. Custom min/max/close.
 - Background: linear gradient 135°, `#3a1f28` → `#0b0b14`.
 - Cards: `rgba(255,255,255,0.06)` fill, 1 px `rgba(255,255,255,0.10)` border,
@@ -118,16 +124,18 @@ typed channels via `contextBridge`.
   lightbar + player LEDs rendered live.
 - Footer legend: `✚ Direction Control  Ⓐ Confirm  Ⓑ Back`. Full gamepad
   navigation: LB/RB switch top tabs, LT/RT switch sub-tabs, A/B confirm/back.
-  Navigation uses the *processed* virtual-pad state only while the window is
+  Navigation uses the _processed_ virtual-pad state only while the window is
   focused; it is disabled when unfocused so it never leaks into games.
 - Light theme toggle exists (HyperStrike-style) but dark is default.
 
 ### 4.2 Header
+
 Wordmark left · centered icon tab strip (Buttons · Sticks · Triggers ·
 Motion · Vibrations · Lights · Macros) · right: Profile 1–4 tabs, Reset,
 Input Test, Health, Home, Settings gear, window controls.
 
 ### 4.3 Pages
+
 1. **Home** — detection status, battery %, USB/none, driver status chips,
    large pad render, "Unable to connect?" → Health.
 2. **Overview** — 2×3 card summary around the pad render.
@@ -201,11 +209,12 @@ Defaults reproduce a stock DualSense → stock Xbox 360 mapping with no shaping.
 Checks (run at startup, every 5 min, and on demand):
 `driver.vigem`, `driver.hidhide`, `device.present`, `device.reportRate`
 (warn < 800 Hz), `engine.alive`, `engine.latency` (p99 pipeline time, warn
+
 > 2 ms), `profiles.integrity`, `disk.logs` (size, rotation), `app.update`.
-Each → `ok | warn | error` + message + optional repair action:
-install/repair ViGEm, enable HidHide, reset profile, restart engine,
-clear logs, open logs folder, export diagnostic bundle (zip of logs,
-crash dumps, profiles, health JSON, system info).
+> Each → `ok | warn | error` + message + optional repair action:
+> install/repair ViGEm, enable HidHide, reset profile, restart engine,
+> clear logs, open logs folder, export diagnostic bundle (zip of logs,
+> crash dumps, profiles, health JSON, system info).
 
 ## 8. Developer pipeline (B)
 
@@ -222,6 +231,7 @@ crash dumps, profiles, health JSON, system info).
 
 A scheduled Claude Code routine (daily) with a prompt file at
 `maintenance/AGENT.md`:
+
 1. `git pull`, `npm ci`, `npm run check`, `npm run audit`.
 2. Read `%APPDATA%\DualForge\logs\*.json` (last 24 h) and `crashes\`.
 3. Group by error `code`; for each new/recurring issue write a short
@@ -229,8 +239,8 @@ A scheduled Claude Code routine (daily) with a prompt file at
    never touch installers/drivers.
 4. Write `maintenance/reports/YYYY-MM-DD.md` summary (what ran, pass/fail,
    issues found, PR/branch names, suggested user actions).
-Guardrails: read-only on profiles; no dependency major bumps without a
-report; stops and leaves a note if tests cannot run.
+   Guardrails: read-only on profiles; no dependency major bumps without a
+   report; stops and leaves a note if tests cannot run.
 
 ## 10. Repository layout
 

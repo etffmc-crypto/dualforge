@@ -10,7 +10,11 @@ export function createEngineHost(opts: { onEvent: (e: EngineEvent) => void; log:
   let restarts: number[] = [];
   let stopping = false;
   // Replayed to a respawned engine so it resumes with the current profile, settings and focus state.
-  const last: { setProfile?: EngineCommand; setSettings?: EngineCommand; uiFocused?: EngineCommand } = {};
+  const last: {
+    setProfile?: EngineCommand;
+    setSettings?: EngineCommand;
+    uiFocused?: EngineCommand;
+  } = {};
   let restartTimer: NodeJS.Timeout | null = null;
   let killTimer: NodeJS.Timeout | null = null;
   // Codes that describe a permanent condition (a missing addon): every respawned engine re-reports them, but the log gets one line per run.
@@ -21,24 +25,34 @@ export function createEngineHost(opts: { onEvent: (e: EngineEvent) => void; log:
 
   function respawn() {
     spawn();
-    for (const c of [last.setSettings, last.uiFocused, last.setProfile]) if (c) child?.postMessage(c);
+    for (const c of [last.setSettings, last.uiFocused, last.setProfile])
+      if (c) child?.postMessage(c);
   }
 
   function spawn() {
-    const thisChild = utilityProcess.fork(join(__dirname, 'engine-process.js'), [], { serviceName: 'dualforge-engine', stdio: 'pipe' });
+    const thisChild = utilityProcess.fork(join(__dirname, 'engine-process.js'), [], {
+      serviceName: 'dualforge-engine',
+      stdio: 'pipe',
+    });
     child = thisChild;
-    child.stderr?.on('data', (d: Buffer) => opts.log.warn({ code: 'ENGINE_STDERR', msg: d.toString().trim() }));
+    child.stderr?.on('data', (d: Buffer) =>
+      opts.log.warn({ code: 'ENGINE_STDERR', msg: d.toString().trim() }),
+    );
     child.on('message', (m: unknown) => {
       const p = EngineEventSchema.safeParse(m);
       if (p.success) {
         if (p.data.type === 'error') {
-          if (!LOG_ONCE.has(p.data.code) || !loggedOnce.has(p.data.code)) opts.log.error({ code: p.data.code, msg: p.data.msg });
+          if (!LOG_ONCE.has(p.data.code) || !loggedOnce.has(p.data.code))
+            opts.log.error({ code: p.data.code, msg: p.data.msg });
           loggedOnce.add(p.data.code);
-        }
-        else if (p.data.type === 'status') opts.log.info({ code: 'ENGINE_STATUS', connected: p.data.connected, vigemReady: p.data.vigemReady });
+        } else if (p.data.type === 'status')
+          opts.log.info({
+            code: 'ENGINE_STATUS',
+            connected: p.data.connected,
+            vigemReady: p.data.vigemReady,
+          });
         opts.onEvent(p.data);
-      }
-      else opts.log.warn({ code: 'E_IPC_EVENT', msg: p.error.message });
+      } else opts.log.warn({ code: 'E_IPC_EVENT', msg: p.error.message });
     });
     child.on('exit', (code) => {
       if (child !== thisChild) return;
@@ -46,13 +60,17 @@ export function createEngineHost(opts: { onEvent: (e: EngineEvent) => void; log:
       child = null;
       opts.onEvent({ type: 'status', connected: false, vigemReady: false });
       if (stopping) return;
-      if (intentional.has(thisChild)) { respawn(); return; }
+      if (intentional.has(thisChild)) {
+        respawn();
+        return;
+      }
       const now = Date.now();
       exits = exits.filter((t) => now - t < 3_600_000);
       exits.push(now);
       restarts = restarts.filter((t) => now - t < 60_000);
       restarts.push(now);
-      if (restarts.length >= 5) {   // the 5th crash within 60 s trips the limit
+      if (restarts.length >= 5) {
+        // the 5th crash within 60 s trips the limit
         const msg = 'engine crashed 5× in 60 s';
         opts.log.error({ code: 'E_ENGINE_RESTART_LIMIT', msg });
         opts.onEvent({ type: 'error', code: 'E_ENGINE_RESTART_LIMIT', msg });
@@ -69,35 +87,56 @@ export function createEngineHost(opts: { onEvent: (e: EngineEvent) => void; log:
   return {
     start() {
       stopping = false;
-      if (killTimer) { clearTimeout(killTimer); killTimer = null; }
+      if (killTimer) {
+        clearTimeout(killTimer);
+        killTimer = null;
+      }
       spawn();
     },
     send(cmd: EngineCommand) {
-      if (cmd.type === 'setProfile' || cmd.type === 'setSettings' || cmd.type === 'uiFocused') last[cmd.type] = cmd;
+      if (cmd.type === 'setProfile' || cmd.type === 'setSettings' || cmd.type === 'uiFocused')
+        last[cmd.type] = cmd;
       child?.postMessage(cmd);
     },
     /** Health snapshot: is a child running, and how many unplanned exits in the last hour. */
     stats() {
       const now = Date.now();
-      return { alive: child !== null, restartsLastHour: exits.filter((t) => now - t < 3_600_000).length };
+      return {
+        alive: child !== null,
+        restartsLastHour: exits.filter((t) => now - t < 3_600_000).length,
+      };
     },
     /** User-requested restart: clears the crash window (so the restart limit can be left) and respawns at once. */
     restart() {
       stopping = false;
-      if (restartTimer) { clearTimeout(restartTimer); restartTimer = null; }
-      if (killTimer) { clearTimeout(killTimer); killTimer = null; }
+      if (restartTimer) {
+        clearTimeout(restartTimer);
+        restartTimer = null;
+      }
+      if (killTimer) {
+        clearTimeout(killTimer);
+        killTimer = null;
+      }
       restarts = [];
       const old = child;
-      if (old) { intentional.add(old); old.kill(); }
-      else respawn();
+      if (old) {
+        intentional.add(old);
+        old.kill();
+      } else respawn();
     },
     stop() {
       stopping = true;
-      if (restartTimer) { clearTimeout(restartTimer); restartTimer = null; }
+      if (restartTimer) {
+        clearTimeout(restartTimer);
+        restartTimer = null;
+      }
       if (killTimer) clearTimeout(killTimer);
       const c = child;
       c?.postMessage({ type: 'shutdown' } satisfies EngineCommand);
-      killTimer = setTimeout(() => { killTimer = null; c?.kill(); }, 500);
+      killTimer = setTimeout(() => {
+        killTimer = null;
+        c?.kill();
+      }, 500);
     },
   };
 }

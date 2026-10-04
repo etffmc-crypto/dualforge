@@ -8,10 +8,15 @@ afterEach(cleanup);
 
 function Harness({ onClose }: { onClose?: () => void }) {
   const [open, setOpen] = useState(false);
-  const close = () => { onClose?.(); setOpen(false); };
+  const close = () => {
+    onClose?.();
+    setOpen(false);
+  };
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)}>Open</button>
+      <button type="button" onClick={() => setOpen(true)}>
+        Open
+      </button>
       <Modal open={open} title="Rename profile" onClose={close}>
         <button type="button">First</button>
         <input aria-label="Middle" />
@@ -23,7 +28,11 @@ function Harness({ onClose }: { onClose?: () => void }) {
 
 describe('Modal', () => {
   it('renders nothing while closed', () => {
-    render(<Modal open={false} title="X" onClose={() => {}}><p>hidden</p></Modal>);
+    render(
+      <Modal open={false} title="X" onClose={() => {}}>
+        <p>hidden</p>
+      </Modal>,
+    );
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
@@ -87,11 +96,16 @@ describe('Modal', () => {
   });
 
   it('only the top-most of two open dialogs reacts to Escape', () => {
-    const outer = vi.fn(), inner = vi.fn();
+    const outer = vi.fn(),
+      inner = vi.fn();
     render(
       <>
-        <Modal open title="Outer" onClose={outer}><button type="button">a</button></Modal>
-        <Modal open title="Inner" onClose={inner}><button type="button">b</button></Modal>
+        <Modal open title="Outer" onClose={outer}>
+          <button type="button">a</button>
+        </Modal>
+        <Modal open title="Inner" onClose={inner}>
+          <button type="button">b</button>
+        </Modal>
       </>,
     );
     fireEvent.keyDown(document, { key: 'Escape' });

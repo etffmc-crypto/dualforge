@@ -2,12 +2,14 @@ import { expect, test, type Page } from '@playwright/test';
 import { launchApp } from './launch';
 import { resolve } from 'node:path';
 
-
 /** Sets a React-controlled range input the way a user drag would (native setter + input event). */
 async function setRange(page: Page, name: string, value: number) {
   await page.getByRole('slider', { name, exact: true }).evaluate((el, v) => {
     const input = el as HTMLInputElement;
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, String(v));
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+      input,
+      String(v),
+    );
     input.dispatchEvent(new Event('input', { bubbles: true }));
   }, value);
 }
@@ -31,8 +33,14 @@ test('Triggers page: Left hair trigger Fixed turns a partial L2 pull into a full
   // Default hardware profile is digital triggers; this test exercises the analog path, so switch Left to analog first.
   await page.getByRole('tab', { name: 'Triggers' }).click();
   await page.getByRole('switch', { name: 'Digital (mouse-click) trigger' }).click();
-  await page.getByRole('radiogroup', { name: 'Hair trigger mode' }).getByRole('radio', { name: 'Fixed' }).click();
-  await page.getByRole('radiogroup', { name: 'Adaptive trigger effect' }).getByRole('radio', { name: 'Resistance' }).click();
+  await page
+    .getByRole('radiogroup', { name: 'Hair trigger mode' })
+    .getByRole('radio', { name: 'Fixed' })
+    .click();
+  await page
+    .getByRole('radiogroup', { name: 'Adaptive trigger effect' })
+    .getByRole('radio', { name: 'Resistance' })
+    .click();
   await setRange(page, 'Force', 8);
   await page.waitForTimeout(200);
   const p = await page.evaluate(() => window.dualforge.getProfile());
@@ -41,12 +49,32 @@ test('Triggers page: Left hair trigger Fixed turns a partial L2 pull into a full
   expect(p.triggers.right.hairTrigger).toEqual({ mode: 'off' });
 
   await page.getByRole('tab', { name: 'Input Test' }).click();
-  await page.evaluate((f) => window.dualforge.replay(f), resolve(import.meta.dirname, '../../../packages/engine/test/fixtures/stick-sweep.hidlog'));
-  const bars = () => page.locator('.trigger-bar').evaluateAll((els) =>
-    Object.fromEntries(els.map((e) => [e.firstElementChild!.textContent, Number(e.lastElementChild!.textContent)])));
+  await page.evaluate(
+    (f) => window.dualforge.replay(f),
+    resolve(import.meta.dirname, '../../../packages/engine/test/fixtures/stick-sweep.hidlog'),
+  );
+  const bars = () =>
+    page
+      .locator('.trigger-bar')
+      .evaluateAll((els) =>
+        Object.fromEntries(
+          els.map((e) => [
+            e.firstElementChild!.textContent,
+            Number(e.lastElementChild!.textContent),
+          ]),
+        ),
+      );
   await expect.poll(async () => (await bars())['LT out'], { timeout: 500 }).toBe(1);
   // discriminating: the fixture ramps L2 0 → 1 in a loop, so catch a mid-ramp frame and require a full LT on it
-  await expect.poll(async () => { const b = await bars(); return b['L2 raw']! > 0.1 && b['L2 raw']! < 0.9 ? b['LT out'] : -1; }, { timeout: 5000 }).toBe(1);
+  await expect
+    .poll(
+      async () => {
+        const b = await bars();
+        return b['L2 raw']! > 0.1 && b['L2 raw']! < 0.9 ? b['LT out'] : -1;
+      },
+      { timeout: 5000 },
+    )
+    .toBe(1);
   await app.close();
 });
 
@@ -61,11 +89,23 @@ test('Triggers page: the Digital toggle hides the analog sections and reaches th
   await sw.click();
   await expect(page.getByRole('radiogroup', { name: 'Hair trigger mode' })).toBeVisible();
   await expect(page.getByRole('radiogroup', { name: 'Adaptive trigger effect' })).toBeVisible();
-  await expect.poll(async () => (await page.evaluate(() => window.dualforge.getProfile())).triggers.left.digital, { timeout: 2000 }).toBe(false);
-  expect((await page.evaluate(() => window.dualforge.getProfile())).triggers.right.digital).toBe(true);
+  await expect
+    .poll(
+      async () => (await page.evaluate(() => window.dualforge.getProfile())).triggers.left.digital,
+      { timeout: 2000 },
+    )
+    .toBe(false);
+  expect((await page.evaluate(() => window.dualforge.getProfile())).triggers.right.digital).toBe(
+    true,
+  );
   await sw.click();
   await expect(page.getByRole('radiogroup', { name: 'Hair trigger mode' })).toHaveCount(0);
-  await expect.poll(async () => (await page.evaluate(() => window.dualforge.getProfile())).triggers.left.digital, { timeout: 2000 }).toBe(true);
+  await expect
+    .poll(
+      async () => (await page.evaluate(() => window.dualforge.getProfile())).triggers.left.digital,
+      { timeout: 2000 },
+    )
+    .toBe(true);
   await page.getByRole('button', { name: 'Remap on the Buttons page' }).click();
   await expect(page.getByRole('tab', { name: 'Buttons' })).toHaveAttribute('aria-selected', 'true');
   await app.close();
@@ -78,7 +118,10 @@ test('Input Test: a REPLAY badge shows while a recording plays, and goes away ba
   await expect(page.getByRole('meter', { name: 'Yaw' })).toBeVisible();
   await expect(page.getByRole('img', { name: 'Touchpad' })).toBeVisible();
   await expect(page.getByText('REPLAY', { exact: true })).toHaveCount(0);
-  await page.evaluate((f) => window.dualforge.replay(f), resolve(import.meta.dirname, '../../../packages/engine/test/fixtures/stick-sweep.hidlog'));
+  await page.evaluate(
+    (f) => window.dualforge.replay(f),
+    resolve(import.meta.dirname, '../../../packages/engine/test/fixtures/stick-sweep.hidlog'),
+  );
   await expect(page.getByText('REPLAY', { exact: true })).toBeVisible({ timeout: 5000 });
   await page.getByRole('tab', { name: 'Home' }).click();
   await expect(page.getByText(/Connected · Replay/)).toBeVisible();
@@ -98,7 +141,10 @@ test('Profiles IPC: rename p2, list, activate, engine profile follows', async ()
   const p = await page.evaluate(() => window.dualforge.getProfile());
   expect(p.id).toBe('p2');
   expect(p.name).toBe('Racing');
-  expect(await page.evaluate(() => window.dualforge.profiles.current())).toEqual({ id: 'p2', source: 'manual' });
+  expect(await page.evaluate(() => window.dualforge.profiles.current())).toEqual({
+    id: 'p2',
+    source: 'manual',
+  });
   await app.close();
 });
 
@@ -130,21 +176,37 @@ test('Profiles page: a copied share code imports into slot 3 through the page', 
     // never touch the real clipboard: capture what Copy code would write
     const w = window as unknown as { copied: string };
     w.copied = '';
-    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t: string) => { w.copied = t; } } });
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: {
+        writeText: async (t: string) => {
+          w.copied = t;
+        },
+      },
+    });
   });
   await page.getByRole('button', { name: 'Open Profiles' }).click();
   await expect(page.getByRole('article')).toHaveCount(4);
-  await expect(page.getByRole('textbox', { name: 'Share code for Profile 1' })).toHaveValue(/^DUALFORGE:/);
+  await expect(page.getByRole('textbox', { name: 'Share code for Profile 1' })).toHaveValue(
+    /^DUALFORGE:/,
+  );
   await page.getByRole('button', { name: 'Copy code' }).click();
   await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible();
   const code = await page.evaluate(() => (window as unknown as { copied: string }).copied);
-  expect(code).toBe(await page.getByRole('textbox', { name: 'Share code for Profile 1' }).inputValue());
+  expect(code).toBe(
+    await page.getByRole('textbox', { name: 'Share code for Profile 1' }).inputValue(),
+  );
 
   await page.getByRole('textbox', { name: 'Paste a share code' }).fill(code);
-  await page.getByRole('radiogroup', { name: 'Import into' }).getByRole('radio', { name: 'Profile 3' }).click();
+  await page
+    .getByRole('radiogroup', { name: 'Import into' })
+    .getByRole('radio', { name: 'Profile 3' })
+    .click();
   await page.getByRole('button', { name: 'Import code' }).click();
   await expect(page.getByText('Imported into slot 3 as Profile 1.')).toBeVisible();
-  await expect(page.getByRole('article', { name: 'Slot 3' }).getByRole('heading', { name: 'Profile 1' })).toBeVisible();
+  await expect(
+    page.getByRole('article', { name: 'Slot 3' }).getByRole('heading', { name: 'Profile 1' }),
+  ).toBeVisible();
   const p3 = await page.evaluate(() => window.dualforge.profiles.get('p3'));
   expect(p3.id).toBe('p3');
   expect(p3.sticks.left.deadzone.anti).toBe(0.25);
@@ -161,19 +223,26 @@ test('Profiles page: an auto-switch rule is saved in settings, survives a reload
   await page.getByRole('button', { name: 'Open Profiles' }).click();
   await page.getByRole('button', { name: 'Pick running game' }).click();
   const pick = page.getByRole('dialog', { name: 'Pick a running game' });
-  await expect(pick.locator('.pick-item').first()).toBeVisible({ timeout: 10_000 });   // real tasklist output, read-only
+  await expect(pick.locator('.pick-item').first()).toBeVisible({ timeout: 10_000 }); // real tasklist output, read-only
   await page.keyboard.press('Escape');
   await expect(pick).toBeHidden();
 
   await page.getByRole('textbox', { name: 'Game executable' }).fill('  EldenRing.EXE ');
-  await page.getByRole('radiogroup', { name: 'Profile for this game' }).getByRole('radio', { name: 'Profile 4' }).click();
+  await page
+    .getByRole('radiogroup', { name: 'Profile for this game' })
+    .getByRole('radio', { name: 'Profile 4' })
+    .click();
   await page.getByRole('button', { name: 'Add rule' }).click();
-  await expect.poll(async () => (await page.evaluate(() => window.dualforge.settings.get())).autoSwitch).toEqual([{ exe: 'eldenring.exe', profileId: 'p4' }]);
+  await expect
+    .poll(async () => (await page.evaluate(() => window.dualforge.settings.get())).autoSwitch)
+    .toEqual([{ exe: 'eldenring.exe', profileId: 'p4' }]);
   await page.reload();
   await page.getByRole('button', { name: 'Open Profiles' }).click();
   await expect(page.getByRole('row', { name: 'eldenring.exe → Profile 4' })).toBeVisible();
   await page.getByRole('button', { name: 'Remove rule for eldenring.exe' }).click();
-  await expect.poll(async () => (await page.evaluate(() => window.dualforge.settings.get())).autoSwitch).toEqual([]);
+  await expect
+    .poll(async () => (await page.evaluate(() => window.dualforge.settings.get())).autoSwitch)
+    .toEqual([]);
   await expect(page.getByText('No games yet. Add one below.')).toBeVisible();
   await app.close();
 });
@@ -189,8 +258,12 @@ test('Header profile tabs: rename Profile 2 inline, reload, the name persists', 
   await input.press('Enter');
   await expect(slots.getByRole('tab', { name: 'Racing' })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('tablist', { name: 'Profiles' }).getByRole('tab', { name: 'Racing' })).toBeVisible();
-  expect((await page.evaluate(() => window.dualforge.profiles.list())).find((s) => s.id === 'p2')?.name).toBe('Racing');
+  await expect(
+    page.getByRole('tablist', { name: 'Profiles' }).getByRole('tab', { name: 'Racing' }),
+  ).toBeVisible();
+  expect(
+    (await page.evaluate(() => window.dualforge.profiles.list())).find((s) => s.id === 'p2')?.name,
+  ).toBe('Racing');
   await app.close();
 });
 
@@ -198,12 +271,19 @@ test('Settings page: Light theme re-themes the app and is saved', async () => {
   const app = await launchApp();
   const page = await app.firstWindow();
   await page.getByRole('button', { name: 'Open Settings' }).click();
-  await page.getByRole('radiogroup', { name: 'Theme' }).getByRole('radio', { name: 'Light' }).click();
+  await page
+    .getByRole('radiogroup', { name: 'Theme' })
+    .getByRole('radio', { name: 'Light' })
+    .click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  expect(await page.locator('header.header').evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgb(255, 255, 255)');
+  expect(
+    await page.locator('header.header').evaluate((e) => getComputedStyle(e).backgroundColor),
+  ).toBe('rgb(255, 255, 255)');
   expect((await page.evaluate(() => window.dualforge.settings.get())).theme).toBe('light');
   await page.getByRole('switch', { name: 'This controller has rumble motors' }).click();
-  await expect.poll(async () => (await page.evaluate(() => window.dualforge.settings.get())).hasRumble).toBe(true);
+  await expect
+    .poll(async () => (await page.evaluate(() => window.dualforge.settings.get())).hasRumble)
+    .toBe(true);
   await app.close();
 });
 
@@ -211,10 +291,18 @@ test('Overview dashboard: five tiles around the pad, Lights animation edits the 
   const app = await launchApp();
   const page = await app.firstWindow();
   await page.getByRole('tab', { name: 'Overview' }).click();
-  for (const name of ['Lights', 'Motion', 'Triggers', 'Sticks', 'Buttons']) await expect(page.getByRole('region', { name })).toBeVisible();
+  for (const name of ['Lights', 'Motion', 'Triggers', 'Sticks', 'Buttons'])
+    await expect(page.getByRole('region', { name })).toBeVisible();
   await expect(page.locator('.ov-stage .ds-art')).toBeVisible();
-  await page.getByRole('radiogroup', { name: 'Light animation' }).getByRole('radio', { name: 'Rainbow' }).click();
-  await expect.poll(async () => (await page.evaluate(() => window.dualforge.getProfile())).lights.mode, { timeout: 2000 }).toBe('rainbow');
+  await page
+    .getByRole('radiogroup', { name: 'Light animation' })
+    .getByRole('radio', { name: 'Rainbow' })
+    .click();
+  await expect
+    .poll(async () => (await page.evaluate(() => window.dualforge.getProfile())).lights.mode, {
+      timeout: 2000,
+    })
+    .toBe('rainbow');
   await page.getByRole('button', { name: 'Open Motion' }).click();
   await expect(page.getByRole('tab', { name: 'Motion' })).toHaveAttribute('aria-selected', 'true');
   await app.close();
@@ -230,14 +318,22 @@ test('Buttons page: map square to B in the mapping dialog; the replayed cross st
   await dialog.getByRole('button', { name: 'B', exact: true }).click();
   await dialog.getByRole('button', { name: 'Done' }).click();
   await expect(page.getByRole('button', { name: 'Map □: B' })).toBeVisible();
-  await expect.poll(async () => (await page.evaluate(() => window.dualforge.getProfile())).mappings.square, { timeout: 2000 })
+  await expect
+    .poll(async () => (await page.evaluate(() => window.dualforge.getProfile())).mappings.square, {
+      timeout: 2000,
+    })
     .toEqual({ targets: [{ type: 'xbutton', button: 'B' }], turboHz: 0, continuous: false });
 
   await page.getByRole('tab', { name: 'Input Test' }).click();
-  await page.evaluate((f) => window.dualforge.replay(f), resolve(import.meta.dirname, '../../../packages/engine/test/fixtures/stick-sweep.hidlog'));
+  await page.evaluate(
+    (f) => window.dualforge.replay(f),
+    resolve(import.meta.dirname, '../../../packages/engine/test/fixtures/stick-sweep.hidlog'),
+  );
   const xA = page.locator('.btn-grid').last().locator('.cell', { hasText: /^A$/ });
   await expect(xA).toHaveClass(/\bon\b/, { timeout: 5000 });
-  expect((await page.evaluate(() => window.dualforge.getProfile())).mappings.cross.targets).toEqual([{ type: 'xbutton', button: 'A' }]);
+  expect((await page.evaluate(() => window.dualforge.getProfile())).mappings.cross.targets).toEqual(
+    [{ type: 'xbutton', button: 'A' }],
+  );
   await app.close();
 });
 
@@ -254,10 +350,22 @@ test('Macros page: a macro built in the editor is saved, listed and can be assig
   const picker = page.getByRole('dialog', { name: 'Step 2 output' });
   await picker.getByRole('button', { name: 'Y', exact: true }).click();
   await ed.getByRole('spinbutton', { name: 'Step 2 hold (ms)' }).fill('120');
-  await ed.getByRole('button', { name: 'Play test' }).click();   // saves, then runs it on the engine
-  await page.getByRole('dialog', { name: 'Edit macro' }).getByRole('button', { name: 'Save' }).click();
+  await ed.getByRole('button', { name: 'Play test' }).click(); // saves, then runs it on the engine
+  await page
+    .getByRole('dialog', { name: 'Edit macro' })
+    .getByRole('button', { name: 'Save' })
+    .click();
   await expect(page.getByRole('article', { name: 'Combo' })).toBeVisible();
-  await expect.poll(async () => (await page.evaluate(() => window.dualforge.getProfile())).macros.map((m) => [m.name, m.steps.length, m.steps[1]?.holdMs]), { timeout: 2000 })
+  await expect
+    .poll(
+      async () =>
+        (await page.evaluate(() => window.dualforge.getProfile())).macros.map((m) => [
+          m.name,
+          m.steps.length,
+          m.steps[1]?.holdMs,
+        ]),
+      { timeout: 2000 },
+    )
     .toEqual([['Combo', 2, 120]]);
 
   await page.getByRole('tab', { name: 'Buttons' }).click();
@@ -267,7 +375,13 @@ test('Macros page: a macro built in the editor is saved, listed and can be assig
   await map.getByRole('button', { name: 'Combo' }).click();
   await map.getByRole('button', { name: 'Done' }).click();
   await expect(page.getByRole('button', { name: 'Map R3: ⟨macro⟩ Combo' })).toBeVisible();
-  await expect.poll(async () => (await page.evaluate(() => window.dualforge.getProfile())).mappings.r3?.targets[0]?.type, { timeout: 2000 }).toBe('macro');
+  await expect
+    .poll(
+      async () =>
+        (await page.evaluate(() => window.dualforge.getProfile())).mappings.r3?.targets[0]?.type,
+      { timeout: 2000 },
+    )
+    .toBe('macro');
   await app.close();
 });
 
@@ -279,25 +393,40 @@ test('Macro Play test drives the virtual pad: a 600 ms B step shows up in the en
   const ed = page.getByRole('dialog', { name: 'New macro' });
   await ed.getByRole('textbox', { name: 'Macro name' }).fill('Tap B');
   await ed.getByRole('button', { name: 'Step 1 output: A' }).click();
-  await page.getByRole('dialog', { name: 'Step 1 output' }).getByRole('button', { name: 'B', exact: true }).click();
+  await page
+    .getByRole('dialog', { name: 'Step 1 output' })
+    .getByRole('button', { name: 'B', exact: true })
+    .click();
   await ed.getByRole('spinbutton', { name: 'Step 1 hold (ms)' }).fill('600');
   await ed.getByRole('spinbutton', { name: 'Step 1 hold (ms)' }).press('Enter');
   // reports must flow for the pipeline to tick; the fixture never presses circle, so B is the macro's alone. Started only
   // now: its cross pulses are the pad's A, which gamepad navigation would turn into clicks on the editor's focused button.
-  await page.evaluate((f) => window.dualforge.replay(f), resolve(import.meta.dirname, '../../../packages/engine/test/fixtures/stick-sweep.hidlog'));
+  await page.evaluate(
+    (f) => window.dualforge.replay(f),
+    resolve(import.meta.dirname, '../../../packages/engine/test/fixtures/stick-sweep.hidlog'),
+  );
 
   type Probe = { sawB: number[]; clickAt: number };
   await page.evaluate(() => {
     const w = window as unknown as Probe;
     w.sawB = [];
-    window.dualforge.onEngineEvent((e) => { if (e.type === 'snapshot' && e.snapshot.out.buttons.B) w.sawB.push(performance.now()); });
+    window.dualforge.onEngineEvent((e) => {
+      if (e.type === 'snapshot' && e.snapshot.out.buttons.B) w.sawB.push(performance.now());
+    });
   });
   await page.waitForTimeout(300);
   expect(await page.evaluate(() => (window as unknown as Probe).sawB.length)).toBe(0);
-  await page.evaluate(() => { (window as unknown as Probe).clickAt = performance.now(); });
+  await page.evaluate(() => {
+    (window as unknown as Probe).clickAt = performance.now();
+  });
   await ed.getByRole('button', { name: 'Play test' }).click();
-  await expect.poll(() => page.evaluate(() => (window as unknown as Probe).sawB.length), { timeout: 1500 }).toBeGreaterThan(0);
-  const lag = await page.evaluate(() => { const w = window as unknown as Probe; return w.sawB[0]! - w.clickAt; });
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as Probe).sawB.length), { timeout: 1500 })
+    .toBeGreaterThan(0);
+  const lag = await page.evaluate(() => {
+    const w = window as unknown as Probe;
+    return w.sawB[0]! - w.clickAt;
+  });
   expect(lag).toBeLessThan(500);
   await app.close();
 });
@@ -306,8 +435,14 @@ test('Motion page: Aim with Mouse output and a horizontal sensitivity reach the 
   const app = await launchApp();
   const page = await app.firstWindow();
   await page.getByRole('tab', { name: 'Motion' }).click();
-  await page.getByRole('radiogroup', { name: 'Motion mode' }).getByRole('radio', { name: 'Aim' }).click();
-  await page.getByRole('radiogroup', { name: 'Output' }).getByRole('radio', { name: 'Mouse' }).click();
+  await page
+    .getByRole('radiogroup', { name: 'Motion mode' })
+    .getByRole('radio', { name: 'Aim' })
+    .click();
+  await page
+    .getByRole('radiogroup', { name: 'Output' })
+    .getByRole('radio', { name: 'Mouse' })
+    .click();
   await setRange(page, 'Horizontal sensitivity', 3.5);
   await page.waitForTimeout(200);
   const p = await page.evaluate(() => window.dualforge.getProfile());
@@ -325,11 +460,15 @@ test('Vibrations page: the rumble motors switch is saved in settings, on and off
   await expect(sw).toHaveAttribute('aria-checked', 'false');
   await expect(page.getByRole('slider', { name: 'Left motor strength' })).toBeDisabled();
   await sw.click();
-  await expect.poll(() => page.evaluate(async () => (await window.dualforge.settings.get()).hasRumble)).toBe(true);
+  await expect
+    .poll(() => page.evaluate(async () => (await window.dualforge.settings.get()).hasRumble))
+    .toBe(true);
   await expect(page.getByRole('slider', { name: 'Left motor strength' })).toBeEnabled();
   await page.getByRole('button', { name: 'Test left motor' }).click();
   await sw.click();
-  await expect.poll(() => page.evaluate(async () => (await window.dualforge.settings.get()).hasRumble)).toBe(false);
+  await expect
+    .poll(() => page.evaluate(async () => (await window.dualforge.settings.get()).hasRumble))
+    .toBe(false);
   await app.close();
 });
 
@@ -337,9 +476,14 @@ test('Lights page: Rainbow animation and player LEDs reach the engine profile', 
   const app = await launchApp();
   const page = await app.firstWindow();
   await page.getByRole('tab', { name: 'Lights' }).click();
-  await page.getByRole('radiogroup', { name: 'Light animation' }).getByRole('radio', { name: 'Rainbow' }).click();
+  await page
+    .getByRole('radiogroup', { name: 'Light animation' })
+    .getByRole('radio', { name: 'Rainbow' })
+    .click();
   await page.getByRole('tab', { name: 'Player LEDs' }).click();
-  const before = await page.evaluate(async () => (await window.dualforge.getProfile()).lights.playerLeds);
+  const before = await page.evaluate(
+    async () => (await window.dualforge.getProfile()).lights.playerLeds,
+  );
   await page.getByRole('switch', { name: 'Player LED 1' }).click();
   await page.waitForTimeout(200);
   const p = await page.evaluate(() => window.dualforge.getProfile());
@@ -352,36 +496,51 @@ test('Health page: the attached DualSense is OK, HidHide (not installed) warns, 
   const app = await launchApp();
   const page = await app.firstWindow();
   // the first connected snapshot routes Home → Overview: the real pad is up before the checks run
-  await expect(page.getByRole('tablist', { name: 'Sections' }).getByRole('tab', { name: 'Overview', exact: true }))
-    .toHaveAttribute('aria-selected', 'true', { timeout: 15_000 });
+  await expect(
+    page
+      .getByRole('tablist', { name: 'Sections' })
+      .getByRole('tab', { name: 'Overview', exact: true }),
+  ).toHaveAttribute('aria-selected', 'true', { timeout: 15_000 });
   await page.getByRole('button', { name: 'Open Health' }).click();
   await expect(page.getByRole('heading', { name: 'Health', exact: true })).toBeVisible();
   const before = (await page.evaluate(() => window.dualforge.health.get())).ranAt;
   await page.getByRole('button', { name: 'Run checks now' }).click();
-  await expect.poll(async () => (await page.evaluate(() => window.dualforge.health.get())).ranAt, { timeout: 15_000 }).toBeGreaterThan(before);
+  await expect
+    .poll(async () => (await page.evaluate(() => window.dualforge.health.get())).ranAt, {
+      timeout: 15_000,
+    })
+    .toBeGreaterThan(before);
 
   const device = page.getByRole('article', { name: 'DualSense connected' });
   await expect(device.getByRole('img', { name: 'OK' })).toBeVisible({ timeout: 10_000 });
   const hid = page.getByRole('article', { name: 'HidHide not installed' });
   await expect(hid.getByRole('img', { name: 'Warning' })).toBeVisible();
-  await expect(hid.getByRole('button', { name: 'Install HidHide' })).toBeEnabled();   // offered, never clicked here
+  await expect(hid.getByRole('button', { name: 'Install HidHide' })).toBeEnabled(); // offered, never clicked here
   await expect(page.getByTestId('health-lamp')).toHaveClass(/warn|error/);
-  await expect(page.getByRole('region', { name: 'Recent log lines' }).getByRole('listitem').first()).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Recent log lines' }).getByRole('listitem').first(),
+  ).toBeVisible();
   await app.close();
 });
 
-const FIXTURE = resolve(import.meta.dirname, '../../../packages/engine/test/fixtures/stick-sweep.hidlog');
+const FIXTURE = resolve(
+  import.meta.dirname,
+  '../../../packages/engine/test/fixtures/stick-sweep.hidlog',
+);
 
 test('Home: the first connected controller routes to Overview once; Home stays reachable afterwards', async () => {
   const app = await launchApp();
   const page = await app.firstWindow();
-  const tab = (name: string) => page.getByRole('tablist', { name: 'Sections' }).getByRole('tab', { name, exact: true });
-  expect(await page.evaluate(() => window.dualforge.flags.navReplay)).toBe(false);   // replay cannot drive navigation here
+  const tab = (name: string) =>
+    page.getByRole('tablist', { name: 'Sections' }).getByRole('tab', { name, exact: true });
+  expect(await page.evaluate(() => window.dualforge.flags.navReplay)).toBe(false); // replay cannot drive navigation here
   await page.evaluate((f) => window.dualforge.replay(f), FIXTURE);
   await expect(tab('Overview')).toHaveAttribute('aria-selected', 'true', { timeout: 5000 });
   await tab('Home').click();
-  await expect(page.getByText(/^Connected · Replay · Battery \d+%$/)).toBeVisible({ timeout: 5000 });
-  await page.waitForTimeout(500);   // snapshots keep arriving: the auto-route must not fire again
+  await expect(page.getByText(/^Connected · Replay · Battery \d+%$/)).toBeVisible({
+    timeout: 5000,
+  });
+  await page.waitForTimeout(500); // snapshots keep arriving: the auto-route must not fire again
   await expect(tab('Home')).toHaveAttribute('aria-selected', 'true');
   await app.close();
 });
@@ -393,12 +552,13 @@ test('Gamepad navigation: the replayed raw cross clicks the focused tab', async 
   expect(await page.evaluate(() => window.dualforge.flags.navReplay)).toBe(true);
   // navigation only listens while the window has focus (it never reacts to a game's input)
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.focus());
-  const tab = (name: string) => page.getByRole('tablist', { name: 'Sections' }).getByRole('tab', { name, exact: true });
+  const tab = (name: string) =>
+    page.getByRole('tablist', { name: 'Sections' }).getByRole('tab', { name, exact: true });
   await tab('Buttons').click();
   await expect(tab('Buttons')).toHaveAttribute('aria-selected', 'true');
   await tab('Overview').focus();
   await page.waitForTimeout(300);
-  await expect(tab('Buttons')).toHaveAttribute('aria-selected', 'true');   // focus alone does not switch
+  await expect(tab('Buttons')).toHaveAttribute('aria-selected', 'true'); // focus alone does not switch
   await page.evaluate((f) => window.dualforge.replay(f), FIXTURE);
   await expect(tab('Overview')).toHaveAttribute('aria-selected', 'true', { timeout: 5000 });
   expect(await page.evaluate(() => document.activeElement?.textContent)).toBe('Overview');

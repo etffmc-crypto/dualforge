@@ -1,4 +1,8 @@
-import { HealthRepairRequestSchema, type HealthRepairResult, type HealthState } from '@dualforge/shared';
+import {
+  HealthRepairRequestSchema,
+  type HealthRepairResult,
+  type HealthState,
+} from '@dualforge/shared';
 import type { HealthService } from './service.js';
 import type { BundleSummary } from '../bundle.js';
 
@@ -15,10 +19,20 @@ export function registerHealthIpc(d: {
   d.ipc.handle('health:get', (): Promise<HealthState> => d.service.get());
   d.ipc.handle('health:run', (): Promise<HealthState> => d.service.run());
   const exportBundle = d.exportBundle;
-  if (exportBundle) d.ipc.handle('health:exportBundle', () => exportBundle().catch((e: unknown) => { throw new Error((e as Error).message === 'E_BUNDLE_WRITE' ? 'E_BUNDLE_WRITE' : 'E_BUNDLE_EXPORT'); }));
+  if (exportBundle)
+    d.ipc.handle('health:exportBundle', () =>
+      exportBundle().catch((e: unknown) => {
+        throw new Error(
+          (e as Error).message === 'E_BUNDLE_WRITE' ? 'E_BUNDLE_WRITE' : 'E_BUNDLE_EXPORT',
+        );
+      }),
+    );
   d.ipc.handle('health:repair', (_e, raw): Promise<HealthRepairResult> => {
     const parsed = HealthRepairRequestSchema.safeParse(raw);
-    if (!parsed.success) { d.log.error({ code: 'E_HEALTH_REQUEST', msg: 'health:repair rejected' }); throw new Error('E_HEALTH_REQUEST'); }
+    if (!parsed.success) {
+      d.log.error({ code: 'E_HEALTH_REQUEST', msg: 'health:repair rejected' });
+      throw new Error('E_HEALTH_REQUEST');
+    }
     return d.service.repair(parsed.data);
   });
 }

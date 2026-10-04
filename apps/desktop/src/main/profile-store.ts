@@ -1,7 +1,21 @@
 import { readFileSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { defaultProfile, ensureDenseMappings, PROFILE_IDS, ProfileSchema, type Profile, type ProfileSummary } from '@dualforge/shared';
-import { nodeIo, quarantine, readJsonFile, writeJsonAtomic, type FileIo, type StoreLog } from './json-file.js';
+import {
+  defaultProfile,
+  ensureDenseMappings,
+  PROFILE_IDS,
+  ProfileSchema,
+  type Profile,
+  type ProfileSummary,
+} from '@dualforge/shared';
+import {
+  nodeIo,
+  quarantine,
+  readJsonFile,
+  writeJsonAtomic,
+  type FileIo,
+  type StoreLog,
+} from './json-file.js';
 
 export { PROFILE_IDS };
 const MAX_IMPORT_BYTES = 256 * 1024;
@@ -18,13 +32,22 @@ export function createProfileStore(dir: string, log: StoreLog, io: FileIo = node
   const cache = new Map<string, Profile>();
   const pending = new Map<string, ReturnType<typeof setTimeout>>();
   const DEBOUNCE_MS = 250;
-  const cancel = (id: string) => { const t = pending.get(id); if (t) { clearTimeout(t); pending.delete(id); } };
+  const cancel = (id: string) => {
+    const t = pending.get(id);
+    if (t) {
+      clearTimeout(t);
+      pending.delete(id);
+    }
+  };
   function persist(id: string) {
     cancel(id);
     const p = cache.get(id);
     if (!p) return;
-    try { writeJsonAtomic(fileOf(id), p, io); }
-    catch (e) { log.error({ code: 'E_PROFILE_WRITE', msg: (e as Error).message }); }
+    try {
+      writeJsonAtomic(fileOf(id), p, io);
+    } catch (e) {
+      log.error({ code: 'E_PROFILE_WRITE', msg: (e as Error).message });
+    }
   }
 
   function load(id: string): Profile {
@@ -45,7 +68,10 @@ export function createProfileStore(dir: string, log: StoreLog, io: FileIo = node
   function get(id: string): Profile {
     slotOf(id);
     let p = cache.get(id);
-    if (!p) { p = load(id); cache.set(id, p); }
+    if (!p) {
+      p = load(id);
+      cache.set(id, p);
+    }
     return structuredClone(p);
   }
   function validated(profile: Profile): Profile {
@@ -65,13 +91,19 @@ export function createProfileStore(dir: string, log: StoreLog, io: FileIo = node
     const p = validated(profile);
     cache.set(p.id, structuredClone(p));
     cancel(p.id);
-    pending.set(p.id, setTimeout(() => persist(p.id), DEBOUNCE_MS));
+    pending.set(
+      p.id,
+      setTimeout(() => persist(p.id), DEBOUNCE_MS),
+    );
   }
-  function flush(): void { for (const id of [...pending.keys()]) persist(id); }
+  function flush(): void {
+    for (const id of [...pending.keys()]) persist(id);
+  }
   /** Validates untrusted JSON text/object as a profile placed into `toSlot` (never throws raw zod errors); missing button mappings get their defaults. */
   function adopt(raw: unknown, toSlot: string): Profile {
     slotOf(toSlot);
-    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new Error('E_PROFILE_SCHEMA');
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw))
+      throw new Error('E_PROFILE_SCHEMA');
     const r = ProfileSchema.safeParse({ ...raw, id: toSlot });
     if (!r.success) throw new Error('E_PROFILE_SCHEMA');
     set(ensureDenseMappings(r.data));
@@ -79,12 +111,16 @@ export function createProfileStore(dir: string, log: StoreLog, io: FileIo = node
   }
 
   return {
-    list(): ProfileSummary[] { return PROFILE_IDS.map((id, i) => ({ id, name: get(id).name, slot: i + 1 })); },
+    list(): ProfileSummary[] {
+      return PROFILE_IDS.map((id, i) => ({ id, name: get(id).name, slot: i + 1 }));
+    },
     get,
     set,
     setDeferred,
     flush,
-    rename(id: string, name: string): void { set({ ...get(id), name }); },
+    rename(id: string, name: string): void {
+      set({ ...get(id), name });
+    },
     duplicate(fromId: string, toSlot: string): Profile {
       const src = get(fromId);
       return adopt({ ...src, name: `${src.name} copy`.slice(0, 40) }, toSlot);
@@ -103,7 +139,11 @@ export function createProfileStore(dir: string, log: StoreLog, io: FileIo = node
     importFrom(filePath: string, toSlot: string): Profile {
       if (statSync(filePath).size > MAX_IMPORT_BYTES) throw new Error('E_PROFILE_SCHEMA');
       let raw: unknown;
-      try { raw = JSON.parse(readFileSync(filePath, 'utf8')); } catch { throw new Error('E_PROFILE_SCHEMA'); }
+      try {
+        raw = JSON.parse(readFileSync(filePath, 'utf8'));
+      } catch {
+        throw new Error('E_PROFILE_SCHEMA');
+      }
       return adopt(raw, toSlot);
     },
     /** For share-code import: profile from a decoded share code (fresh id is replaced by the slot id). */

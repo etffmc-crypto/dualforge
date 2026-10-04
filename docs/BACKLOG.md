@@ -3,6 +3,7 @@
 Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 
 ## From Plan 2 (2026-10-04)
+
 - Tasks 1-6 minor (deferred): buildOutputReport allocates per report (cache until feedback changes); triggers.test.ts repeated buildCurveLut; trigger-effect tests slice prefixes only; section.start<end not enforced in schema.
 - Deferred minors (re-review): vigem-sink pad object orphaned if p.connect() fails (add try/catch disconnect+null); redundant status event after failed connect.
 - Tasks 7-9 minor (deferred): points.slice(0,pointCount) truncation; no memo on 60 Hz path (DualSenseTop re-renders per tick); tabs lack roving tabindex/arrow nav/aria-controls; Toggle/Segmented/RangeSlider without label lack accessible name; test gaps (drag stop, keyboard nudge, document.fonts.check); hover/transition hard-coded colours.
@@ -12,9 +13,11 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 - USER HANDS-ON CHECKS pending (user will run after merge): L2 stiffens with Resistance; calibration wizard → full-right X ≈ 1.0.
 
 ## From Plan 1 (2026-10-03/04)
+
 - vitest workspace deprecation (done in Plan 2); tests not typechecked (done); parser button-bit coverage all-at-once; buildOutputReport doesn't mask micLed/brightness at runtime; prettier not enforced in check; dense formatting > printWidth; MouseEvent export shadows DOM name; hidlog hex length (done); E_VIGEM_TARGET folded into E_VIGEM_INIT; sink.update unwrapped; looped replay unpaced/t backwards; second-instance (done); replay mode not restored after engine restart; profile:set error not logged; a11y gaps; smoke test satisfiable by real pad; renderer bundle 772 kB; setProfile state reset (done in Plan 2); stage order (done in Plan 2); 2 s grace (done in Plan 2).
 
 ## From Plan 3A (2026-10-04)
+
 - Hot path at 8 kHz: ~30 allocations/report (anti-deadzone objects, lightbar compute per report, buildOutputReport per report) → gate maybeWriteOutput on dirty flag/keepalive; anti<=0 fast path.
 - Gyro: coalesce mouse SendInput to ~1 kHz; clamp dt (~20 ms) after stalls; reset toggle on profile swap; activation button also fires its own mapping (3B decides).
 - Macros: catch-up after long stall (resync untilMs); zero-cycle loop comment wrong.
@@ -25,7 +28,8 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 - Misc: battery lightbar red until first report; e2e temp dirs not removed; settings-store.set uses this.get; E_INJECT_LOAD logged twice; legacy profile:get/set fixed in F6; renderer must use profiles.current()+onActive (3B).
 
 ## From Plan 3B (2026-10-04)
-- Plan 4 hand-off: preload surface (flags.navReplay, profiles.*, settings.*, system.{openDataDir,processes}, engine.{runMacro,testRumble}); env DUALFORGE_DATA_DIR (logs ignore it — fix), DUALFORGE_NO_INJECT, DUALFORGE_NAV_REPLAY; e2e temp dirs never cleaned; nav e2e needs real window focus; Home auto-routes to Overview on first connected snapshot.
+
+- Plan 4 hand-off: preload surface (flags.navReplay, profiles._, settings._, system.{openDataDir,processes}, engine.{runMacro,testRumble}); env DUALFORGE_DATA_DIR (logs ignore it — fix), DUALFORGE_NO_INJECT, DUALFORGE_NAV_REPLAY; e2e temp dirs never cleaned; nav e2e needs real window focus; Home auto-routes to Overview on first connected snapshot.
 - stopMacro command + stop play-test on editor close/blur (keys can inject into another app after alt-tab).
 - Store races: edits during profile switch lost (sequence counter); rename vs in-flight save (flushPending before rename); overlapping optimistic settings updates.
 - system:openDataDir ignores shell.openPath error string; handler not in registerIpc (untested).

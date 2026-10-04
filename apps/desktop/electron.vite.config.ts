@@ -6,7 +6,9 @@ import { resolve } from 'node:path';
 // Workspace packages ship TypeScript sources, so they must be bundled, not externalized.
 const bundled = ['@dualforge/engine', '@dualforge/shared'];
 // Single source of truth for the version shown in the footer.
-const rootPkg = JSON.parse(readFileSync(resolve(__dirname, '../../package.json'), 'utf8')) as { version: string };
+const rootPkg = JSON.parse(readFileSync(resolve(__dirname, '../../package.json'), 'utf8')) as {
+  version: string;
+};
 
 export default defineConfig({
   main: {

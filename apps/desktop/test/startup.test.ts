@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { defaultSettings } from '@dualforge/shared';
-import { applyLoginItem, loginItemOptions, parseStartupArgs, shouldStartHidden, shouldHideOnClose, START_ARG } from '../src/main/startup.js';
+import {
+  applyLoginItem,
+  loginItemOptions,
+  parseStartupArgs,
+  shouldStartHidden,
+  shouldHideOnClose,
+  START_ARG,
+} from '../src/main/startup.js';
 
 describe('startup args', () => {
   it('detects --minimized anywhere in argv', () => {
@@ -15,23 +22,39 @@ describe('startup args', () => {
     expect(shouldStartHidden(['x'], { ...s, startMinimized: true }, true)).toBe(true);
   });
   it('never starts hidden without a tray (the window could not be recovered)', () => {
-    expect(shouldStartHidden(['x', START_ARG], { ...defaultSettings(), startMinimized: true }, false)).toBe(false);
+    expect(
+      shouldStartHidden(['x', START_ARG], { ...defaultSettings(), startMinimized: true }, false),
+    ).toBe(false);
   });
 });
 
 describe('login item', () => {
   it('mirrors startWithWindows and always passes --minimized', () => {
-    expect(loginItemOptions({ ...defaultSettings(), startWithWindows: true })).toEqual({ openAtLogin: true, args: ['--minimized'] });
-    expect(loginItemOptions(defaultSettings())).toEqual({ openAtLogin: false, args: ['--minimized'] });
+    expect(loginItemOptions({ ...defaultSettings(), startWithWindows: true })).toEqual({
+      openAtLogin: true,
+      args: ['--minimized'],
+    });
+    expect(loginItemOptions(defaultSettings())).toEqual({
+      openAtLogin: false,
+      args: ['--minimized'],
+    });
   });
   it('applies through app.setLoginItemSettings in a packaged app', () => {
     const set = vi.fn();
-    applyLoginItem({ isPackaged: true, setLoginItemSettings: set }, { ...defaultSettings(), startWithWindows: true }, { info: vi.fn() });
+    applyLoginItem(
+      { isPackaged: true, setLoginItemSettings: set },
+      { ...defaultSettings(), startWithWindows: true },
+      { info: vi.fn() },
+    );
     expect(set).toHaveBeenCalledWith({ openAtLogin: true, args: ['--minimized'] });
   });
   it('leaves the registry alone in a dev run (it would register the bare Electron exe)', () => {
     const set = vi.fn();
-    applyLoginItem({ isPackaged: false, setLoginItemSettings: set }, { ...defaultSettings(), startWithWindows: true }, { info: vi.fn() });
+    applyLoginItem(
+      { isPackaged: false, setLoginItemSettings: set },
+      { ...defaultSettings(), startWithWindows: true },
+      { info: vi.fn() },
+    );
     expect(set).not.toHaveBeenCalled();
   });
 });

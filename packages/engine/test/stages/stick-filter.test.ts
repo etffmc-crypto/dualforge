@@ -2,7 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { applyStickFilter, createFilterState } from '../../src/stages/stick-filter.js';
 
 const basic = (enabled: boolean, strength: number) => ({
-  enabled, mode: 'basic' as const, strength, curve: [[0, 0], [0.1, 0], [0.25, 0], [0.5, 0], [1, 0]] as [number, number][],
+  enabled,
+  mode: 'basic' as const,
+  strength,
+  curve: [
+    [0, 0],
+    [0.1, 0],
+    [0.25, 0],
+    [0.5, 0],
+    [1, 0],
+  ] as [number, number][],
 });
 
 describe('applyStickFilter', () => {
@@ -19,20 +28,34 @@ describe('applyStickFilter', () => {
     const cfg = basic(true, 100);
     applyStickFilter(0, 0, cfg, s, 1);
     const first = applyStickFilter(1, 0, cfg, s, 1).x;
-    expect(first).toBeGreaterThan(0); expect(first).toBeLessThan(0.1);
+    expect(first).toBeGreaterThan(0);
+    expect(first).toBeLessThan(0.1);
     let v = first;
     for (let i = 0; i < 1000; i++) v = applyStickFilter(1, 0, cfg, s, 1).x;
     expect(v).toBeCloseTo(1, 3);
   });
   it('lower strength smooths less', () => {
-    const a = createFilterState(), b = createFilterState();
+    const a = createFilterState(),
+      b = createFilterState();
     applyStickFilter(0, 0, basic(true, 20), a, 1);
     applyStickFilter(0, 0, basic(true, 80), b, 1);
-    expect(applyStickFilter(1, 0, basic(true, 20), a, 1).x)
-      .toBeGreaterThan(applyStickFilter(1, 0, basic(true, 80), b, 1).x);
+    expect(applyStickFilter(1, 0, basic(true, 20), a, 1).x).toBeGreaterThan(
+      applyStickFilter(1, 0, basic(true, 80), b, 1).x,
+    );
   });
   it('advanced mode uses curve strength by speed: slow moves heavily smoothed, fast moves pass', () => {
-    const cfg = { enabled: true, mode: 'advanced' as const, strength: 0, curve: [[0, 100], [0.1, 100], [0.25, 0], [0.5, 0], [1, 0]] as [number, number][] };
+    const cfg = {
+      enabled: true,
+      mode: 'advanced' as const,
+      strength: 0,
+      curve: [
+        [0, 100],
+        [0.1, 100],
+        [0.25, 0],
+        [0.5, 0],
+        [1, 0],
+      ] as [number, number][],
+    };
     const s2 = createFilterState();
     applyStickFilter(0, 0, cfg, s2, 100);
     const vSlow2 = applyStickFilter(0.01, 0, cfg, s2, 100).x; // speedNorm 0.01 -> strength 100 -> heavy smoothing
@@ -42,10 +65,22 @@ describe('applyStickFilter', () => {
     expect(vSlow2).toBeLessThan(0.01);
     expect(vFast).toBe(1);
   });
-  const adv = { enabled: true, mode: 'advanced' as const, strength: 0, curve: [[0, 100], [0.1, 100], [0.25, 0], [0.5, 0], [1, 0]] as [number, number][] };
+  const adv = {
+    enabled: true,
+    mode: 'advanced' as const,
+    strength: 0,
+    curve: [
+      [0, 100],
+      [0.1, 100],
+      [0.25, 0],
+      [0.5, 0],
+      [1, 0],
+    ] as [number, number][],
+  };
   it('advanced mode: 1 LSB jitter (every report) at 1 ms stays heavily smoothed', () => {
     const s = createFilterState();
-    let out = 0, worst = 0;
+    let out = 0,
+      worst = 0;
     for (let i = 0; i < 300; i++) {
       out = applyStickFilter(0.3 + (i % 2 ? 0.0078 : -0.0078), 0, adv, s, 1).x;
       if (i >= 150) worst = Math.max(worst, Math.abs(out - 0.3));

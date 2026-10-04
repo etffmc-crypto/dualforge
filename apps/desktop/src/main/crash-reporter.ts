@@ -4,7 +4,9 @@
  */
 export function startCrashReporter(
   app: { setPath(name: 'crashDumps', path: string): void },
-  crashReporter: { start(opts: { submitURL: string; uploadToServer: boolean; compress: boolean }): void },
+  crashReporter: {
+    start(opts: { submitURL: string; uploadToServer: boolean; compress: boolean }): void;
+  },
   crashDir: string,
 ): void {
   app.setPath('crashDumps', crashDir);

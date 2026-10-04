@@ -10,7 +10,14 @@ export const logger = pino(
   { level: 'info', base: { pid: process.pid } },
   pino.transport({
     target: 'pino-roll',
-    options: { file: join(dir, 'app'), extension: '.log', frequency: 'daily', size: '10m', limit: { count: 14 }, mkdir: true },
+    options: {
+      file: join(dir, 'app'),
+      extension: '.log',
+      frequency: 'daily',
+      size: '10m',
+      limit: { count: 14 },
+      mkdir: true,
+    },
   }),
 );
 export const LOG_DIR = dir;

@@ -12,18 +12,31 @@ export interface SubTabsProps<T extends string> {
 export function SubTabs<T extends string>({ tabs, value, onChange, pills }: SubTabsProps<T>) {
   return (
     <div className="subtabs">
-      {pills && <span className="pill" aria-hidden="true">{pills[0]}</span>}
+      {pills && (
+        <span className="pill" aria-hidden="true">
+          {pills[0]}
+        </span>
+      )}
       <div className="subtabs-list" role="tablist" data-subtabs>
         {tabs.map((t) => (
-          <button data-nav
-            key={t.value} type="button" role="tab" aria-selected={t.value === value}
-            className={`subtab${t.value === value ? ' active' : ''}`} onClick={() => onChange(t.value)}
+          <button
+            data-nav
+            key={t.value}
+            type="button"
+            role="tab"
+            aria-selected={t.value === value}
+            className={`subtab${t.value === value ? ' active' : ''}`}
+            onClick={() => onChange(t.value)}
           >
             {t.label}
           </button>
         ))}
       </div>
-      {pills && <span className="pill" aria-hidden="true">{pills[1]}</span>}
+      {pills && (
+        <span className="pill" aria-hidden="true">
+          {pills[1]}
+        </span>
+      )}
     </div>
   );
 }

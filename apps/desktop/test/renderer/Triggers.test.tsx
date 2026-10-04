@@ -10,7 +10,8 @@ const group = (name: string) => within(screen.getByRole('radiogroup', { name }))
 /** Analog triggers on both sides, so the deadzone / hair / curve / effect sections are shown. */
 function analog() {
   const p = defaultProfile('p1', 'Profile 1');
-  p.triggers.left.digital = false; p.triggers.right.digital = false;
+  p.triggers.left.digital = false;
+  p.triggers.right.digital = false;
   return p;
 }
 const digitalSwitch = () => screen.getByRole('switch', { name: 'Digital (mouse-click) trigger' });
@@ -18,7 +19,13 @@ const digitalSwitch = () => screen.getByRole('switch', { name: 'Digital (mouse-c
 beforeEach(() => {
   vi.useFakeTimers();
   vi.stubGlobal('dualforge', { profiles: { set: vi.fn(async () => true) } });
-  useStore.setState({ profile: analog(), snapshot: null, lastError: null, page: 'triggers', subTab: { sticks: 'left', triggers: 'left' } });
+  useStore.setState({
+    profile: analog(),
+    snapshot: null,
+    lastError: null,
+    page: 'triggers',
+    subTab: { sticks: 'left', triggers: 'left' },
+  });
 });
 afterEach(() => {
   cleanup();
@@ -43,11 +50,15 @@ describe('Triggers page', () => {
     const fx = group('Adaptive trigger effect');
     fireEvent.click(fx.getByRole('radio', { name: 'Section' }));
     expect(profile().triggers.left.effect).toEqual({ mode: 'section', start: 2, end: 6, force: 8 });
-    fireEvent.change(screen.getByRole('slider', { name: 'Section Start' }), { target: { value: '9' } });
+    fireEvent.change(screen.getByRole('slider', { name: 'Section Start' }), {
+      target: { value: '9' },
+    });
     expect(profile().triggers.left.effect).toMatchObject({ start: 5, end: 6 });
     fireEvent.click(fx.getByRole('radio', { name: 'Vibration' }));
     expect(profile().triggers.left.effect).toEqual({ mode: 'vibration', frequency: 20, force: 5 });
-    fireEvent.change(screen.getByRole('slider', { name: 'Frequency' }), { target: { value: '120' } });
+    fireEvent.change(screen.getByRole('slider', { name: 'Frequency' }), {
+      target: { value: '120' },
+    });
     expect(profile().triggers.left.effect).toEqual({ mode: 'vibration', frequency: 120, force: 5 });
     fireEvent.click(fx.getByRole('radio', { name: 'Off' }));
     expect(profile().triggers.left.effect).toEqual({ mode: 'off' });
@@ -56,11 +67,15 @@ describe('Triggers page', () => {
   it('wires deadzone, hair trigger and curve for the selected side', () => {
     render(<Triggers />);
     fireEvent.click(screen.getByRole('tab', { name: 'Right' }));
-    fireEvent.change(screen.getByRole('slider', { name: 'Deadzone Initial' }), { target: { value: '0.99' } });
+    fireEvent.change(screen.getByRole('slider', { name: 'Deadzone Initial' }), {
+      target: { value: '0.99' },
+    });
     expect(profile().triggers.right.deadzone).toEqual({ initial: 0.93, max: 0.98 }); // min gap keeps initial < max
     fireEvent.click(group('Hair trigger mode').getByRole('radio', { name: 'Adaptive' }));
     expect(profile().triggers.right.hairTrigger).toEqual({ mode: 'adaptive', value: 30 });
-    fireEvent.change(screen.getByRole('slider', { name: 'Hair trigger threshold' }), { target: { value: '55' } });
+    fireEvent.change(screen.getByRole('slider', { name: 'Hair trigger threshold' }), {
+      target: { value: '55' },
+    });
     expect(profile().triggers.right.hairTrigger).toEqual({ mode: 'adaptive', value: 55 });
     fireEvent.click(group('Hair trigger mode').getByRole('radio', { name: 'Fixed' }));
     expect(profile().triggers.right.hairTrigger).toEqual({ mode: 'fixed' });
@@ -71,10 +86,11 @@ describe('Triggers page', () => {
   });
 
   it('Digital (mouse-click) trigger hides the analog sections and points to the Buttons page', () => {
-    useStore.setState({ profile: defaultProfile('p1', 'Profile 1') });   // the default hardware: digital triggers
+    useStore.setState({ profile: defaultProfile('p1', 'Profile 1') }); // the default hardware: digital triggers
     render(<Triggers />);
     expect(digitalSwitch().getAttribute('aria-checked')).toBe('true');
-    for (const name of ['Hair trigger mode', 'Response curve', 'Adaptive trigger effect']) expect(screen.queryByRole('radiogroup', { name })).toBeNull();
+    for (const name of ['Hair trigger mode', 'Response curve', 'Adaptive trigger effect'])
+      expect(screen.queryByRole('radiogroup', { name })).toBeNull();
     expect(screen.queryByRole('slider', { name: 'Deadzone Initial' })).toBeNull();
     expect(screen.getByText(/Output: full pull on click/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Remap on the Buttons page' }));

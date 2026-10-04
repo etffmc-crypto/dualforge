@@ -6,7 +6,14 @@ export type HealthStatus = z.infer<typeof HealthStatusSchema>;
 
 /** One-click fixes the Health page can offer. */
 export const REPAIR_IDS = [
-  'installViGEm', 'installHidHide', 'enableHidHide', 'restartEngine', 'resetProfile', 'clearLogs', 'openLogs', 'exportBundle',
+  'installViGEm',
+  'installHidHide',
+  'enableHidHide',
+  'restartEngine',
+  'resetProfile',
+  'clearLogs',
+  'openLogs',
+  'exportBundle',
 ] as const;
 export const RepairIdSchema = z.enum(REPAIR_IDS);
 export type RepairId = z.infer<typeof RepairIdSchema>;
@@ -22,11 +29,20 @@ export const HealthResultSchema = z.object({
 });
 export type HealthResult = z.infer<typeof HealthResultSchema>;
 
-export const HealthStateSchema = z.object({ results: z.array(HealthResultSchema), ranAt: z.number() });
+export const HealthStateSchema = z.object({
+  results: z.array(HealthResultSchema),
+  ranAt: z.number(),
+});
 export type HealthState = z.infer<typeof HealthStateSchema>;
 
-export const HealthRepairRequestSchema = z.object({ id: RepairIdSchema, arg: z.string().max(64).optional() }).strict();
+export const HealthRepairRequestSchema = z
+  .object({ id: RepairIdSchema, arg: z.string().max(64).optional() })
+  .strict();
 export type HealthRepairRequest = z.infer<typeof HealthRepairRequestSchema>;
 
-export const HealthRepairResultSchema = z.object({ ok: z.boolean(), code: z.string().optional(), msg: z.string().optional() });
+export const HealthRepairResultSchema = z.object({
+  ok: z.boolean(),
+  code: z.string().optional(),
+  msg: z.string().optional(),
+});
 export type HealthRepairResult = z.infer<typeof HealthRepairResultSchema>;

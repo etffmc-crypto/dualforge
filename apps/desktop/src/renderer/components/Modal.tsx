@@ -12,9 +12,13 @@ export interface ModalProps {
   initialFocus?: RefObject<HTMLElement | null>;
 }
 
-const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-interface Open { close(): void; panel: HTMLDivElement | null }
+interface Open {
+  close(): void;
+  panel: HTMLDivElement | null;
+}
 /** Open dialogs, innermost last: only the top one answers Escape (or B on the pad) and traps Tab. */
 const stack: Open[] = [];
 
@@ -32,7 +36,15 @@ export function closeTopModal(): boolean {
 }
 
 /** Shared dialog: focus moves in on open, Tab / Shift+Tab loop inside, Escape or a backdrop click closes, focus returns to the opener. */
-export function Modal({ open, title, onClose, width, className = '', initialFocus, children }: PropsWithChildren<ModalProps>) {
+export function Modal({
+  open,
+  title,
+  onClose,
+  width,
+  className = '',
+  initialFocus,
+  children,
+}: PropsWithChildren<ModalProps>) {
   const titleId = useId();
   const panel = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
@@ -51,15 +63,29 @@ export function Modal({ open, title, onClose, width, className = '', initialFocu
     else panel.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (stack.at(-1) !== me || !panel.current) return;
-      if (e.key === 'Escape') { e.preventDefault(); close.current(); return; }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        close.current();
+        return;
+      }
       if (e.key !== 'Tab') return;
       const items = [...panel.current.querySelectorAll<HTMLElement>(FOCUSABLE)];
-      if (items.length === 0) { e.preventDefault(); panel.current.focus(); return; }
-      const first = items[0]!, last = items.at(-1)!;
+      if (items.length === 0) {
+        e.preventDefault();
+        panel.current.focus();
+        return;
+      }
+      const first = items[0]!,
+        last = items.at(-1)!;
       const active = document.activeElement as HTMLElement | null;
       const inside = !!active && panel.current.contains(active) && active !== panel.current;
-      if (e.shiftKey && (!inside || active === first)) { e.preventDefault(); last.focus(); }
-      else if (!e.shiftKey && (!inside || active === last)) { e.preventDefault(); first.focus(); }
+      if (e.shiftKey && (!inside || active === first)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && (!inside || active === last)) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => {
@@ -74,14 +100,26 @@ export function Modal({ open, title, onClose, width, className = '', initialFocu
   return createPortal(
     <div
       className="modal-backdrop"
-      onMouseDown={(e) => { downOnBackdrop.current = e.target === e.currentTarget; }}
-      onClick={(e) => { if (downOnBackdrop.current && e.target === e.currentTarget) onClose(); downOnBackdrop.current = false; }}
+      onMouseDown={(e) => {
+        downOnBackdrop.current = e.target === e.currentTarget;
+      }}
+      onClick={(e) => {
+        if (downOnBackdrop.current && e.target === e.currentTarget) onClose();
+        downOnBackdrop.current = false;
+      }}
     >
       <div
-        className={`modal ${className}`} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} ref={panel}
+        className={`modal ${className}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        ref={panel}
         style={width ? { width: `min(${width}px, 100%)` } : undefined}
       >
-        <h2 className="modal-title" id={titleId}>{title}</h2>
+        <h2 className="modal-title" id={titleId}>
+          {title}
+        </h2>
         {children}
       </div>
     </div>,

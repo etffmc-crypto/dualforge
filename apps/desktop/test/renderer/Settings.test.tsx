@@ -10,25 +10,49 @@ import { bootTheme, THEME_KEY } from '../../src/renderer/theme';
 let stored: S;
 const settingsApi = {
   get: vi.fn(async () => stored),
-  set: vi.fn(async (patch: Partial<S>) => { stored = { ...stored, ...patch }; return stored; }),
+  set: vi.fn(async (patch: Partial<S>) => {
+    stored = { ...stored, ...patch };
+    return stored;
+  }),
 };
 const openDataDir = vi.fn(async () => '');
-const updatesApi = { check: vi.fn(async (): Promise<{ available: boolean; version?: string; code?: string }> => ({ available: false })) };
-let healthState: HealthState = { results: [{ id: 'hidhide', status: 'ok', title: 'HidHide active', detail: '' }], ranAt: 0 };
+const updatesApi = {
+  check: vi.fn(async (): Promise<{ available: boolean; version?: string; code?: string }> => ({
+    available: false,
+  })),
+};
+let healthState: HealthState = {
+  results: [{ id: 'hidhide', status: 'ok', title: 'HidHide active', detail: '' }],
+  ranAt: 0,
+};
 const healthApi = { get: vi.fn(async () => healthState), onChanged: vi.fn(() => () => undefined) };
 
-function ThemeProbe() { useThemeSync(); return null; }
+function ThemeProbe() {
+  useThemeSync();
+  return null;
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
   stored = defaultSettings();
-  healthState = { results: [{ id: 'hidhide', status: 'ok', title: 'HidHide active', detail: '' }], ranAt: 0 };
-  vi.stubGlobal('dualforge', { settings: settingsApi, system: { openDataDir }, health: healthApi, updates: updatesApi });
+  healthState = {
+    results: [{ id: 'hidhide', status: 'ok', title: 'HidHide active', detail: '' }],
+    ranAt: 0,
+  };
+  vi.stubGlobal('dualforge', {
+    settings: settingsApi,
+    system: { openDataDir },
+    health: healthApi,
+    updates: updatesApi,
+  });
   useStore.setState({ settings: defaultSettings(), lastError: null });
   delete document.documentElement.dataset.theme;
   localStorage.clear();
 });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const sw = (name: string) => screen.getByRole('switch', { name }) as HTMLButtonElement;
 
@@ -45,7 +69,9 @@ describe('Settings page', () => {
     fireEvent.click(sw('Start with Windows'));
     fireEvent.click(sw('Start minimized'));
     fireEvent.click(sw('Check for updates'));
-    await waitFor(() => expect(stored).toMatchObject({ startWithWindows: true, startMinimized: true, updates: true }));
+    await waitFor(() =>
+      expect(stored).toMatchObject({ startWithWindows: true, startMinimized: true, updates: true }),
+    );
   });
 
   it('the HidHide switch saves hidHide when the driver is installed', async () => {
@@ -60,9 +86,22 @@ describe('Settings page', () => {
   });
 
   it('HidHide stays disabled with an install hint while the driver is missing', async () => {
-    healthState = { results: [{ id: 'hidhide', status: 'warn', title: 'HidHide not installed', detail: '', repair: 'installHidHide' }], ranAt: 0 };
+    healthState = {
+      results: [
+        {
+          id: 'hidhide',
+          status: 'warn',
+          title: 'HidHide not installed',
+          detail: '',
+          repair: 'installHidHide',
+        },
+      ],
+      ranAt: 0,
+    };
     render(<Settings />);
-    await waitFor(() => expect(screen.getByText('Driver not installed — install from Health')).toBeTruthy());
+    await waitFor(() =>
+      expect(screen.getByText('Driver not installed — install from Health')).toBeTruthy(),
+    );
     const hid = sw('Hide the DualSense from games');
     expect(hid.disabled).toBe(true);
     fireEvent.click(hid);
@@ -78,7 +117,12 @@ describe('Settings page', () => {
   });
 
   it('switching to Light saves the theme and re-themes the document', async () => {
-    render(<><Settings /><ThemeProbe /></>);
+    render(
+      <>
+        <Settings />
+        <ThemeProbe />
+      </>,
+    );
     expect(document.documentElement.dataset.theme).toBe('dark');
     fireEvent.click(screen.getByRole('radio', { name: 'Light' }));
     expect(settingsApi.set).toHaveBeenCalledWith({ theme: 'light' });
@@ -112,7 +156,12 @@ describe('Settings page', () => {
   });
 
   it('remembers the theme for the next boot and applies it before React mounts', async () => {
-    render(<><Settings /><ThemeProbe /></>);
+    render(
+      <>
+        <Settings />
+        <ThemeProbe />
+      </>,
+    );
     fireEvent.click(screen.getByRole('radio', { name: 'Light' }));
     await waitFor(() => expect(localStorage.getItem(THEME_KEY)).toBe('light'));
     cleanup();
@@ -135,7 +184,9 @@ describe('Settings page', () => {
   it('boots dark when storage is empty or throws', () => {
     bootTheme();
     expect(document.documentElement.dataset.theme).toBe('dark');
-    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked'); });
+    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
     localStorage.setItem(THEME_KEY, 'light');
     bootTheme();
     expect(document.documentElement.dataset.theme).toBe('dark');

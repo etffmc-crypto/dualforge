@@ -10,7 +10,13 @@ const setProfile = vi.fn(async () => true); // profiles.set
 
 function snap(lx: number, ly: number): EngineSnapshot {
   return {
-    t: 0, connected: true, source: 'device', vigemReady: true, reportHz: 250, pipelineP99Ms: 0, battery: { percent: 50, state: 'discharging' },
+    t: 0,
+    connected: true,
+    source: 'device',
+    vigemReady: true,
+    reportHz: 250,
+    pipelineP99Ms: 0,
+    battery: { percent: 50, state: 'discharging' },
     raw: { lx, ly, rx: 0, ry: 0, l2: 0, r2: 0, buttons: {}, gyro: { x: 0, y: 0, z: 0 }, touch: [] },
     out: { lx, ly, rx: 0, ry: 0, lt: 0, rt: 0, buttons: {} },
   };
@@ -21,9 +27,17 @@ const next = () => screen.getByRole('button', { name: 'Next' }) as HTMLButtonEle
 beforeEach(() => {
   setProfile.mockClear();
   vi.stubGlobal('dualforge', { profiles: { set: setProfile } });
-  useStore.setState({ profile: defaultProfile('p1', 'Profile 1'), snapshot: null, lastError: null, subTab: { sticks: 'left', triggers: 'left' } });
+  useStore.setState({
+    profile: defaultProfile('p1', 'Profile 1'),
+    snapshot: null,
+    lastError: null,
+    subTab: { sticks: 'left', triggers: 'left' },
+  });
 });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe('CalibrationWizard', () => {
   it('measures center, then radius, then applies and flushes', () => {
@@ -37,9 +51,15 @@ describe('CalibrationWizard', () => {
     expect(next().disabled).toBe(false);
     fireEvent.click(next());
 
-    for (let i = 0; i < 150; i++) { const a = (i / 150) * 4 * Math.PI; feed(0.1 + 0.8 * Math.cos(a), -0.05 + 0.8 * Math.sin(a)); }
+    for (let i = 0; i < 150; i++) {
+      const a = (i / 150) * 4 * Math.PI;
+      feed(0.1 + 0.8 * Math.cos(a), -0.05 + 0.8 * Math.sin(a));
+    }
     expect(next().disabled).toBe(true); // fewer than 200 samples
-    for (let i = 0; i < 100; i++) { const a = (i / 100) * 2 * Math.PI; feed(0.1 + 0.8 * Math.cos(a), -0.05 + 0.8 * Math.sin(a)); }
+    for (let i = 0; i < 100; i++) {
+      const a = (i / 100) * 2 * Math.PI;
+      feed(0.1 + 0.8 * Math.cos(a), -0.05 + 0.8 * Math.sin(a));
+    }
     expect(next().disabled).toBe(false);
     fireEvent.click(next());
 
@@ -50,7 +70,11 @@ describe('CalibrationWizard', () => {
     expect(cal.cy).toBeCloseTo(-0.05, 3);
     expect(cal.radius).toBeCloseTo(0.8, 3);
     expect(setProfile).toHaveBeenCalledTimes(1); // flushed, not waiting for the debounce
-    expect(useStore.getState().profile!.sticks.right.calibration).toEqual({ cx: 0, cy: 0, radius: 1 });
+    expect(useStore.getState().profile!.sticks.right.calibration).toEqual({
+      cx: 0,
+      cy: 0,
+      radius: 1,
+    });
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -89,12 +113,15 @@ describe('CalibrationWizard', () => {
     fireEvent.click(next());
     // octagonal gate: 0.95 on the cardinals, 1.2 on the diagonals
     for (let i = 0; i < 360; i++) {
-      const a = (i / 360) * 2 * Math.PI, k = Math.abs(Math.sin(2 * a)); const r = 0.95 + 0.25 * k ** 16;
+      const a = (i / 360) * 2 * Math.PI,
+        k = Math.abs(Math.sin(2 * a));
+      const r = 0.95 + 0.25 * k ** 16;
       feed(r * Math.cos(a), r * Math.sin(a));
     }
     fireEvent.click(next());
     const r = Number(screen.getByTestId('cal-radius').textContent);
-    expect(r).toBeGreaterThan(0.94); expect(r).toBeLessThan(1.05);
+    expect(r).toBeGreaterThan(0.94);
+    expect(r).toBeLessThan(1.05);
   });
 
   it('Escape and Cancel close without touching the profile', () => {

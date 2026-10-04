@@ -25,13 +25,13 @@ Plan 3B of 4. Done so far: engine (button mappings, macros, gyro, lights), key/m
 
 While the DualForge window has focus the pad drives the UI (it is ignored when a game has focus, and while a macro is being recorded or play-tested):
 
-| Pad | Action |
-| --- | --- |
-| LB / RB | previous / next page (inside a dialog: its tabs) |
-| LT / RT | previous / next sub-tab on the page (e.g. Left / Right stick) |
-| D-pad | move focus to the nearest control in that direction (repeats every 150 ms while held); left / right on a slider changes its value |
-| A | press the focused control |
-| B | close the open dialog, otherwise go back to Overview |
+| Pad     | Action                                                                                                                            |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| LB / RB | previous / next page (inside a dialog: its tabs)                                                                                  |
+| LT / RT | previous / next sub-tab on the page (e.g. Left / Right stick)                                                                     |
+| D-pad   | move focus to the nearest control in that direction (repeats every 150 ms while held); left / right on a slider changes its value |
+| A       | press the focused control                                                                                                         |
+| B       | close the open dialog, otherwise go back to Overview                                                                              |
 
 Navigation reads the processed virtual-pad output, so it follows your button mappings.
 

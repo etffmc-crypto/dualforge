@@ -1,18 +1,58 @@
-* { box-sizing: border-box; }
-html, body, #root { height: 100%; margin: 0; }
-body {
-  font-family: var(--font); font-weight: 400; font-size: 14px; color: var(--text);
-  background: var(--glow), var(--bg); background-attachment: fixed;
-  overflow: hidden; user-select: none; -webkit-font-smoothing: antialiased;
+* {
+  box-sizing: border-box;
 }
-button { font: inherit; color: inherit; }
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  font-family: var(--font);
+  font-weight: 400;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--glow), var(--bg);
+  background-attachment: fixed;
+  overflow: hidden;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+button {
+  font: inherit;
+  color: inherit;
+}
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
 /* gamepad navigation focuses programmatically; this fallback ring matches :focus-visible where the browser skips it */
-[data-nav-focus]:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
-.tab[data-nav-focus]:focus { outline-offset: -2px; }
-.slider[data-nav-focus]:focus { outline: none; }
-.slider[data-nav-focus]:focus::-webkit-slider-thumb { box-shadow: 0 0 0 2px var(--focus); }
-.pf-code[data-nav-focus]:focus, .pf-input[data-nav-focus]:focus, .ptab-input[data-nav-focus]:focus,
-.me-name input[data-nav-focus]:focus, .ms-cell input[data-nav-focus]:focus { outline: none; border-color: var(--focus); }
-.app { height: 100%; display: flex; flex-direction: column; }
-.muted { color: var(--muted); }
+[data-nav-focus]:focus {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.tab[data-nav-focus]:focus {
+  outline-offset: -2px;
+}
+.slider[data-nav-focus]:focus {
+  outline: none;
+}
+.slider[data-nav-focus]:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 2px var(--focus);
+}
+.pf-code[data-nav-focus]:focus,
+.pf-input[data-nav-focus]:focus,
+.ptab-input[data-nav-focus]:focus,
+.me-name input[data-nav-focus]:focus,
+.ms-cell input[data-nav-focus]:focus {
+  outline: none;
+  border-color: var(--focus);
+}
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.muted {
+  color: var(--muted);
+}

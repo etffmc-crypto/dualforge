@@ -12,5 +12,7 @@
     "./gyro": "./src/stages/gyro.ts",
     "./lights": "./src/lights.ts"
   },
-  "dependencies": { "@dualforge/shared": "*" }
+  "dependencies": {
+    "@dualforge/shared": "*"
+  }
 }

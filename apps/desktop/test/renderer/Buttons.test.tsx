@@ -1,22 +1,56 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DS_BUTTONS, VK_NAMES, defaultProfile, type EngineSnapshot, type Profile } from '@dualforge/shared';
+import {
+  DS_BUTTONS,
+  VK_NAMES,
+  defaultProfile,
+  type EngineSnapshot,
+  type Profile,
+} from '@dualforge/shared';
 import { useStore } from '../../src/renderer/store';
 import { Buttons } from '../../src/renderer/pages/Buttons';
 import { MappingModal } from '../../src/renderer/pages/buttons/MappingModal';
-import { KEY_LABELS, pickTarget, summarize, summaryLine } from '../../src/renderer/pages/buttons/targets';
+import {
+  KEY_LABELS,
+  pickTarget,
+  summarize,
+  summaryLine,
+} from '../../src/renderer/pages/buttons/targets';
 import { MAIN_ROWS, NAV_ROWS, NUMPAD, OFF_BOARD } from '../../src/renderer/pages/buttons/keyboard';
 
 function stubProfile(): Profile {
   const p = defaultProfile('p1', 'Profile 1');
-  p.macros = [{ id: 'm1', name: 'Reload', steps: [{ target: { type: 'xbutton', button: 'X' }, holdMs: 50, delayMs: 0 }], loop: false }];
+  p.macros = [
+    {
+      id: 'm1',
+      name: 'Reload',
+      steps: [{ target: { type: 'xbutton', button: 'X' }, holdMs: 50, delayMs: 0 }],
+      loop: false,
+    },
+  ];
   return p;
 }
 function snap(buttons: Record<string, boolean> = {}): EngineSnapshot {
   return {
-    t: 0, connected: true, source: 'device', vigemReady: true, reportHz: 250, pipelineP99Ms: 0, battery: { percent: 50, state: 'discharging' },
-    raw: { lx: 0, ly: 0, rx: 0, ry: 0, l2: 0, r2: 0, buttons, gyro: { x: 0, y: 0, z: 0 }, touch: [] },
+    t: 0,
+    connected: true,
+    source: 'device',
+    vigemReady: true,
+    reportHz: 250,
+    pipelineP99Ms: 0,
+    battery: { percent: 50, state: 'discharging' },
+    raw: {
+      lx: 0,
+      ly: 0,
+      rx: 0,
+      ry: 0,
+      l2: 0,
+      r2: 0,
+      buttons,
+      gyro: { x: 0, y: 0, z: 0 },
+      touch: [],
+    },
     out: { lx: 0, ly: 0, rx: 0, ry: 0, lt: 0, rt: 0, buttons: {} },
   };
 }
@@ -26,9 +60,17 @@ beforeEach(() => {
   vi.stubGlobal('dualforge', { profiles: { set: vi.fn(async () => true) } });
   useStore.setState({ profile: stubProfile(), snapshot: snap(), lastError: null, page: 'buttons' });
 });
-afterEach(() => { cleanup(); vi.runOnlyPendingTimers(); vi.useRealTimers(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  cleanup();
+  vi.runOnlyPendingTimers();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
+});
 
-const pill = (label: string) => screen.getByRole('button', { name: new RegExp(`^Map ${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}:`) });
+const pill = (label: string) =>
+  screen.getByRole('button', {
+    name: new RegExp(`^Map ${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}:`),
+  });
 const mapping = (b: keyof Profile['mappings']) => useStore.getState().profile!.mappings[b]!;
 const dialog = () => within(screen.getByRole('dialog'));
 const tab = (name: string) => fireEvent.click(dialog().getByRole('tab', { name }));
@@ -51,7 +93,9 @@ describe('Buttons page', () => {
     tab('Keyboard');
     fireEvent.click(dialog().getByRole('button', { name: 'Space' }));
     expect(mapping('cross').targets).toEqual([{ type: 'key', code: 'VK_SPACE' }]);
-    expect(dialog().getByRole('button', { name: 'Space' }).getAttribute('aria-pressed')).toBe('true');
+    expect(dialog().getByRole('button', { name: 'Space' }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
     // single select replaces
     fireEvent.click(dialog().getByRole('button', { name: 'Num 7' }));
     expect(mapping('cross').targets).toEqual([{ type: 'key', code: 'VK_NUMPAD7' }]);
@@ -67,14 +111,25 @@ describe('Buttons page', () => {
     fireEvent.click(dialog().getByRole('button', { name: 'B' }));
     tab('Mouse');
     fireEvent.click(dialog().getByRole('button', { name: 'Mouse L' }));
-    expect(mapping('square').targets).toEqual([{ type: 'xbutton', button: 'X' }, { type: 'xbutton', button: 'B' }, { type: 'mouse', button: 'left' }]);
-    expect((dialog().getByRole('button', { name: 'Mouse R' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(mapping('square').targets).toEqual([
+      { type: 'xbutton', button: 'X' },
+      { type: 'xbutton', button: 'B' },
+      { type: 'mouse', button: 'left' },
+    ]);
+    expect((dialog().getByRole('button', { name: 'Mouse R' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
     tab('Controller');
     expect((dialog().getByRole('button', { name: 'Y' }) as HTMLButtonElement).disabled).toBe(true);
     const chips = within(dialog().getByRole('list', { name: 'Selected outputs' }));
-    expect(chips.getAllByRole('listitem').map((li) => li.textContent?.replace('×', '').trim())).toEqual(['X', 'B', 'Mouse L']);
+    expect(
+      chips.getAllByRole('listitem').map((li) => li.textContent?.replace('×', '').trim()),
+    ).toEqual(['X', 'B', 'Mouse L']);
     fireEvent.click(chips.getByRole('button', { name: 'Remove B' }));
-    expect(mapping('square').targets).toEqual([{ type: 'xbutton', button: 'X' }, { type: 'mouse', button: 'left' }]);
+    expect(mapping('square').targets).toEqual([
+      { type: 'xbutton', button: 'X' },
+      { type: 'mouse', button: 'left' },
+    ]);
     expect((dialog().getByRole('button', { name: 'Y' }) as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(dialog().getByRole('button', { name: 'Done' }));
     expect(pill('□').textContent).toContain('+1');
@@ -91,7 +146,9 @@ describe('Buttons page', () => {
     fireEvent.click(pill('R1'));
     expect((dialog().getByRole('slider', { name: 'Turbo' }) as HTMLInputElement).value).toBe('15');
     expect(document.querySelector('.turbo-value')!.textContent).toBe('15 Hz');
-    expect(dialog().getByRole('switch', { name: 'Continuous trigger' }).getAttribute('aria-checked')).toBe('true');
+    expect(
+      dialog().getByRole('switch', { name: 'Continuous trigger' }).getAttribute('aria-checked'),
+    ).toBe('true');
     fireEvent.click(dialog().getByRole('button', { name: 'Clear' }));
     expect(mapping('r1')).toEqual({ targets: [{ type: 'none' }], turboHz: 0, continuous: false });
     expect(document.querySelector('.turbo-value')!.textContent).toBe('Off');
@@ -144,8 +201,10 @@ describe('button target helpers', () => {
   });
 
   it('pickTarget: single replaces, multi toggles up to 3, No output replaces all', () => {
-    const A = { type: 'xbutton', button: 'A' } as const, B = { type: 'xbutton', button: 'B' } as const;
-    const sp = { type: 'key', code: 'VK_SPACE' } as const, ml = { type: 'mouse', button: 'left' } as const;
+    const A = { type: 'xbutton', button: 'A' } as const,
+      B = { type: 'xbutton', button: 'B' } as const;
+    const sp = { type: 'key', code: 'VK_SPACE' } as const,
+      ml = { type: 'mouse', button: 'left' } as const;
     expect(pickTarget([A], B, false)).toEqual([B]);
     expect(pickTarget([A], B, true)).toEqual([A, B]);
     expect(pickTarget([A, B, sp], ml, true)).toEqual([A, B, sp]);
@@ -156,7 +215,17 @@ describe('button target helpers', () => {
   });
 
   it('summaryLine marks multi, turbo and continuous', () => {
-    const s = summarize({ targets: [{ type: 'key', code: 'VK_SPACE' }, { type: 'mouse', button: 'left' }], turboHz: 10, continuous: true }, []);
+    const s = summarize(
+      {
+        targets: [
+          { type: 'key', code: 'VK_SPACE' },
+          { type: 'mouse', button: 'left' },
+        ],
+        turboHz: 10,
+        continuous: true,
+      },
+      [],
+    );
     expect(summaryLine(s)).toBe('Space +1 ⟳ ∞');
   });
 });
