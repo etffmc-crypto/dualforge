@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fileURLToPath } from 'node:url';
-import { defaultProfile, defaultSettings, type XInputState } from '@dualforge/shared';
+import { EngineSnapshotSchema, defaultProfile, defaultSettings, type EngineEvent, type XInputState } from '@dualforge/shared';
 import { createEngineLoop, GRACE_MS, type InputSource, type PadSink } from '../src/main/engine-loop.js';
 import { createReplaySource } from '../src/main/replay-source.js';
 
@@ -493,6 +493,168 @@ describe('engine loop final review: replay never injects, macros survive profile
     await vi.advanceTimersByTimeAsync(5);
     report(usbReport(true), performance.now());
     expect(injector.calls.slice(-2).sort()).toEqual(['key VK_B up', 'key VK_D down']);
+    await loop.stop(); vi.useRealTimers();
+  });
+});
+
+describe('engine loop plan 3b: runMacro', () => {
+  async function macroRig() {
+    let report!: (b: Uint8Array, t: number) => void;
+    const sink = fakeSink();
+    const src: InputSource = { kind: 'device', start(r, st) { report = r; st(true); }, async write() {}, async stop() {} };
+    let now = 0;
+    const loop = createEngineLoop({ source: src, sink, emit: () => {}, now: () => now });
+    const p = defaultProfile('p', 'p');
+    p.macros = [{ id: 'm1', name: 'Tap B', loop: false, steps: [
+      { target: { type: 'xbutton', button: 'B' }, holdMs: 50, delayMs: 20 },
+      { target: { type: 'xbutton', button: 'Y' }, holdMs: 30, delayMs: 0 },
+    ] }];
+    loop.setProfile(p);
+    await loop.start();
+    const at = (t: number) => { now = t; report(usbReport(false), t); return sink.frames.at(-1)!; };
+    return { loop, at };
+  }
+  it('starts the macro on the running pipeline: its steps reach the virtual pad, then it ends', async () => {
+    vi.useFakeTimers();
+    const { loop, at } = await macroRig();
+    at(1000);
+    loop.runMacro('m1');
+    expect(at(1010).buttons.B).toBe(true);
+    expect(at(1040).buttons.B).toBe(true);
+    const gap = at(1060);
+    expect(gap.buttons.B || gap.buttons.Y).toBe(false);
+    expect(at(1080).buttons.Y).toBe(true);
+    const end = at(1200);
+    expect(end.buttons.B || end.buttons.Y).toBe(false);
+    await loop.stop(); vi.useRealTimers();
+  });
+  it('an unknown macro id is a no-op', async () => {
+    vi.useFakeTimers();
+    const { loop, at } = await macroRig();
+    at(1000);
+    expect(() => loop.runMacro('nope')).not.toThrow();
+    expect(at(1010).buttons.B).toBe(false);
+    await loop.stop(); vi.useRealTimers();
+  });
+});
+
+describe('engine loop plan 3b: runMacro and the focus gate', () => {
+  async function rig(focused: boolean) {
+    const injector = fakeInjector();
+    const sink = fakeSink();
+    let report!: (b: Uint8Array, t: number) => void;
+    const src: InputSource = { kind: 'device', start(r, st) { report = r; st(true); }, async write() {}, async stop() {} };
+    let now = 0;
+    const loop = createEngineLoop({ source: src, sink, emit: () => {}, now: () => now, injector, allowInject: true });
+    const p = defaultProfile('p', 'p');
+    p.macros = [{ id: 'm', name: 'Key then B', loop: false, steps: [
+      { target: { type: 'key', code: 'VK_SPACE' }, holdMs: 40, delayMs: 0 },
+      { target: { type: 'xbutton', button: 'B' }, holdMs: 40, delayMs: 0 },
+    ] }];
+    loop.setProfile(p);
+    await loop.start();
+    loop.setUiFocused(focused);
+    const at = (t: number) => { now = t; report(usbReport(false), t); return sink.frames.at(-1)!; };
+    return { loop, at, injector };
+  }
+  it('while DualForge is focused a play-test drives the virtual pad but injects no key', async () => {
+    vi.useFakeTimers();
+    const { loop, at, injector } = await rig(true);
+    at(1000);
+    loop.runMacro('m');
+    at(1010);                              // key step active
+    expect(at(1060).buttons.B).toBe(true); // xbutton step reaches the sink
+    at(1200);
+    expect(injector.calls).toEqual([]);
+    await loop.stop(); vi.useRealTimers();
+  });
+  it('control: unfocused, the same key step is injected', async () => {
+    vi.useFakeTimers();
+    const { loop, at, injector } = await rig(false);
+    at(1000);
+    loop.runMacro('m');
+    at(1010); at(1060); at(1200);
+    expect(injector.calls).toEqual(['key VK_SPACE down', 'key VK_SPACE up']);
+    await loop.stop(); vi.useRealTimers();
+  });
+});
+
+describe('engine loop plan 3b: testRumble', () => {
+  async function rumbleRig(hasRumble: boolean) {
+    const writes: Uint8Array[] = [];
+    const src: InputSource = { kind: 'device', start(_r, st) { st(true); }, async write(r) { writes.push(r); }, async stop() {} };
+    const loop = createEngineLoop({ source: src, sink: fakeSink(), emit: () => {}, now: () => performance.now() });
+    const p = defaultProfile('p', 'p');
+    p.vibration = { left: 30, right: 30 };   // the test pulse plays its own levels, not scaled again by the profile
+    loop.setProfile(p);
+    loop.setSettings({ ...defaultSettings(), hasRumble });
+    await loop.start();
+    return { loop, writes };
+  }
+  it('plays the requested levels on bytes 4 (left) / 3 (right), then zero after ms', async () => {
+    vi.useFakeTimers();
+    const { loop, writes } = await rumbleRig(true);
+    loop.testRumble(1, 0.5, 300);
+    let last = writes.at(-1)!;
+    expect(last[4]).toBe(255);
+    expect(last[3]).toBe(128);
+    await vi.advanceTimersByTimeAsync(200);
+    last = writes.at(-1)!;
+    expect([last[4], last[3]]).toEqual([255, 128]);
+    await vi.advanceTimersByTimeAsync(150);
+    last = writes.at(-1)!;
+    expect([last[4], last[3]]).toEqual([0, 0]);
+    await loop.stop(); vi.useRealTimers();
+  });
+  it('is ignored when the controller has no rumble motors', async () => {
+    vi.useFakeTimers();
+    const { loop, writes } = await rumbleRig(false);
+    loop.testRumble(1, 1, 500);
+    await vi.advanceTimersByTimeAsync(300);
+    for (const w of writes) { expect(w[3]).toBe(0); expect(w[4]).toBe(0); }
+    await loop.stop(); vi.useRealTimers();
+  });
+  it('turning hasRumble off ends a running test pulse at once', async () => {
+    vi.useFakeTimers();
+    const { loop, writes } = await rumbleRig(true);
+    loop.testRumble(0.8, 0.8, 2000);
+    expect(writes.at(-1)![4]).toBe(204);
+    loop.setSettings({ ...defaultSettings(), hasRumble: false });
+    expect([writes.at(-1)![4], writes.at(-1)![3]]).toEqual([0, 0]);
+    await loop.stop(); vi.useRealTimers();
+  });
+});
+
+describe('engine loop snapshot: input source and touchpad', () => {
+  it.each(['device', 'replay'] as const)('a %s source tags its snapshots and carries the touch points', async (kind) => {
+    vi.useFakeTimers();
+    let t = 1000;
+    const events: EngineEvent[] = [];
+    let report!: (b: Uint8Array, t: number) => void;
+    const src: InputSource = { kind, start(r, st) { report = r; st(true); }, async write() {}, async stop() {} };
+    const loop = createEngineLoop({ source: src, sink: fakeSink(), emit: (e) => events.push(e), now: () => t, allowInject: false });
+    loop.setProfile(defaultProfile('p', 'p'));
+    await loop.start();
+    const b = usbReport(false);
+    b[33] = 0x05; b[34] = 0x7f; b[35] = 0x37; b[36] = 0x21;   // finger id 5 down at (1919, 531)
+    b[37] = 0x80;                                              // second slot: no finger
+    t += 20; report(b, t);
+    const snaps = events.filter((e) => e.type === 'snapshot');
+    const snap = EngineSnapshotSchema.parse(snaps.at(-1)!.snapshot);
+    expect(snap.source).toBe(kind);
+    expect(snap.raw.touch).toEqual([{ active: true, id: 5, x: 1919, y: 531 }, { active: false, id: 0, x: 0, y: 0 }]);
+    await loop.stop(); vi.useRealTimers();
+  });
+  it('a disconnected snapshot has no fingers down', async () => {
+    vi.useFakeTimers();
+    const events: EngineEvent[] = [];
+    const src: InputSource = { kind: 'device', start(_r, st) { st(false); }, async write() {}, async stop() {} };
+    const loop = createEngineLoop({ source: src, sink: fakeSink(), emit: (e) => events.push(e), now: () => 1000, allowInject: false });
+    loop.setProfile(defaultProfile('p', 'p'));
+    await loop.start();
+    const snap = events.filter((e) => e.type === 'snapshot').at(-1)!.snapshot;
+    expect(snap.raw.touch).toEqual([]);
+    expect(snap.source).toBe('device');
     await loop.stop(); vi.useRealTimers();
   });
 });

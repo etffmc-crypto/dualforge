@@ -1,7 +1,6 @@
 import type { PropsWithChildren, ReactNode } from 'react';
 import { SubTabs } from './controls/SubTabs';
 import { SectionLabel } from './controls/SectionLabel';
-import { useGamepadNav } from '../hooks/useGamepadNav';
 import { useStore, type Side, type SubTabPage } from '../store';
 
 /** GameSir-style settings page: 440px scrollable panel on the left, live render stage on the right. */
@@ -26,10 +25,9 @@ export function PanelSection({ title, children }: PropsWithChildren<{ title: str
 
 const SIDES: { value: Side; label: string }[] = [{ value: 'left', label: 'Left' }, { value: 'right', label: 'Right' }];
 
-/** `LT · Left · Right · RT` side switcher bound to `subTab[page]`; LT/RT on the pad switch it too. */
+/** `LT · Left · Right · RT` side switcher bound to `subTab[page]`; LT/RT on the pad switch it too (global gamepad nav). */
 export function SideTabs({ page }: { page: SubTabPage }) {
   const side = useStore((s) => s.subTab[page]);
   const setSubTab = useStore((s) => s.setSubTab);
-  useGamepadNav(page);
-  return <SubTabs tabs={SIDES} value={side} onChange={(v) => setSubTab(page, v)} pills={['LT', 'RT']} />;
+  return <SubTabs tabs={SIDES} value={side} onChange={(v) => setSubTab(page, v)} pills={['L2', 'R2']} />;
 }

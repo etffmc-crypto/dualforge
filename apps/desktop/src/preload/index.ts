@@ -2,6 +2,11 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { EngineEvent, Profile, ProfileSummary, Settings } from '@dualforge/shared';
 
 const api = {
+  /** Fixed at launch from main's environment (the sandboxed preload sees it); no IPC. */
+  flags: {
+    /** DUALFORGE_NAV_REPLAY=1: replayed input may drive gamepad navigation (tests only; off by default). */
+    navReplay: process.env.DUALFORGE_NAV_REPLAY === '1',
+  },
   onEngineEvent(cb: (e: EngineEvent) => void): () => void {
     const h = (_: unknown, e: EngineEvent) => cb(e);
     ipcRenderer.on('engine:event', h);
@@ -34,8 +39,20 @@ const api = {
     get: (): Promise<Settings> => ipcRenderer.invoke('settings:get'),
     set: (patch: Partial<Settings>): Promise<Settings> => ipcRenderer.invoke('settings:set', patch),
   },
+  system: {
+    /** Opens the folder holding profiles, settings and logs in Explorer. */
+    openDataDir: (): Promise<string> => ipcRenderer.invoke('system:openDataDir'),
+    /** Running programs (lowercased exe names, Windows/background processes left out) for the auto-switch picker. */
+    processes: (): Promise<string[]> => ipcRenderer.invoke('system:processes'),
+  },
   replay: (path: string): Promise<void> => ipcRenderer.invoke('engine:replay', path),
   useDevice: (): Promise<void> => ipcRenderer.invoke('engine:useDevice'),
+  engine: {
+    /** Plays a macro of the running profile once on the live pipeline (key/mouse steps are not injected while DualForge is focused). */
+    runMacro: (id: string): Promise<void> => ipcRenderer.invoke('engine:runMacro', id),
+    /** Plays both rumble motors at the given levels (0..1) for `ms` (50..2000); ignored when settings.hasRumble is off. */
+    testRumble: (req: { left: number; right: number; ms: number }): Promise<void> => ipcRenderer.invoke('engine:testRumble', req),
+  },
   window: {
     minimize: () => ipcRenderer.send('window:minimize'),
     toggleMaximize: () => ipcRenderer.send('window:toggleMaximize'),

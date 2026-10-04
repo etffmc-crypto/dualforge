@@ -6,12 +6,12 @@ import { useStore } from '../../src/renderer/store';
 import { CalibrationWizard } from '../../src/renderer/components/CalibrationWizard';
 import { Sticks } from '../../src/renderer/pages/Sticks';
 
-const setProfile = vi.fn(async () => true);
+const setProfile = vi.fn(async () => true); // profiles.set
 
 function snap(lx: number, ly: number): EngineSnapshot {
   return {
-    t: 0, connected: true, vigemReady: true, reportHz: 250, pipelineP99Ms: 0, battery: { percent: 50, state: 'discharging' },
-    raw: { lx, ly, rx: 0, ry: 0, l2: 0, r2: 0, buttons: {}, gyro: { x: 0, y: 0, z: 0 } },
+    t: 0, connected: true, source: 'device', vigemReady: true, reportHz: 250, pipelineP99Ms: 0, battery: { percent: 50, state: 'discharging' },
+    raw: { lx, ly, rx: 0, ry: 0, l2: 0, r2: 0, buttons: {}, gyro: { x: 0, y: 0, z: 0 }, touch: [] },
     out: { lx, ly, rx: 0, ry: 0, lt: 0, rt: 0, buttons: {} },
   };
 }
@@ -20,7 +20,7 @@ const next = () => screen.getByRole('button', { name: 'Next' }) as HTMLButtonEle
 
 beforeEach(() => {
   setProfile.mockClear();
-  vi.stubGlobal('dualforge', { setProfile });
+  vi.stubGlobal('dualforge', { profiles: { set: setProfile } });
   useStore.setState({ profile: defaultProfile('p1', 'Profile 1'), snapshot: null, lastError: null, subTab: { sticks: 'left', triggers: 'left' } });
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });

@@ -7,11 +7,18 @@ import { Triggers } from '../../src/renderer/pages/Triggers';
 
 const profile = () => useStore.getState().profile!;
 const group = (name: string) => within(screen.getByRole('radiogroup', { name }));
+/** Analog triggers on both sides, so the deadzone / hair / curve / effect sections are shown. */
+function analog() {
+  const p = defaultProfile('p1', 'Profile 1');
+  p.triggers.left.digital = false; p.triggers.right.digital = false;
+  return p;
+}
+const digitalSwitch = () => screen.getByRole('switch', { name: 'Digital (mouse-click) trigger' });
 
 beforeEach(() => {
   vi.useFakeTimers();
-  vi.stubGlobal('dualforge', { setProfile: vi.fn(async () => true) });
-  useStore.setState({ profile: defaultProfile('p1', 'Profile 1'), snapshot: null, lastError: null, subTab: { sticks: 'left', triggers: 'left' } });
+  vi.stubGlobal('dualforge', { profiles: { set: vi.fn(async () => true) } });
+  useStore.setState({ profile: analog(), snapshot: null, lastError: null, page: 'triggers', subTab: { sticks: 'left', triggers: 'left' } });
 });
 afterEach(() => {
   cleanup();
@@ -59,7 +66,32 @@ describe('Triggers page', () => {
     expect(profile().triggers.right.hairTrigger).toEqual({ mode: 'fixed' });
     fireEvent.click(group('Response curve').getByRole('radio', { name: 'S-Curve' }));
     expect(profile().triggers.right.curve).toBe('scurve');
-    expect(profile().triggers.left).toEqual(defaultProfile('p1', 'Profile 1').triggers.left);
+    expect(profile().triggers.left).toEqual(analog().triggers.left);
     expect(useStore.getState().lastError).toBeNull();
+  });
+
+  it('Digital (mouse-click) trigger hides the analog sections and points to the Buttons page', () => {
+    useStore.setState({ profile: defaultProfile('p1', 'Profile 1') });   // the default hardware: digital triggers
+    render(<Triggers />);
+    expect(digitalSwitch().getAttribute('aria-checked')).toBe('true');
+    for (const name of ['Hair trigger mode', 'Response curve', 'Adaptive trigger effect']) expect(screen.queryByRole('radiogroup', { name })).toBeNull();
+    expect(screen.queryByRole('slider', { name: 'Deadzone Initial' })).toBeNull();
+    expect(screen.getByText(/Output: full pull on click/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Remap on the Buttons page' }));
+    expect(useStore.getState().page).toBe('buttons');
+  });
+
+  it('turning Digital off for one side shows its analog sections and leaves the other side digital', () => {
+    useStore.setState({ profile: defaultProfile('p1', 'Profile 1') });
+    render(<Triggers />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Right' }));
+    fireEvent.click(digitalSwitch());
+    expect(profile().triggers.right.digital).toBe(false);
+    expect(profile().triggers.left.digital).toBe(true);
+    expect(screen.getByRole('radiogroup', { name: 'Hair trigger mode' })).toBeTruthy();
+    expect(screen.queryByText(/Output: full pull on click/)).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Left' }));
+    expect(digitalSwitch().getAttribute('aria-checked')).toBe('true');
+    expect(screen.queryByRole('radiogroup', { name: 'Hair trigger mode' })).toBeNull();
   });
 });

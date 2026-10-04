@@ -172,3 +172,16 @@ export function defaultProfile(id: string, name: string): Profile {
     macros: [],
   };
 }
+
+/**
+ * `profile` with every DualSense button mapped: buttons missing from `mappings` (older or hand-edited files) get their
+ * default mapping. Pure; returns `profile` itself when nothing is missing.
+ */
+export function ensureDenseMappings(profile: Profile): Profile {
+  const have = profile.mappings as Partial<Record<DsButton, Mapping>>;
+  if (DS_BUTTONS.every((b) => have[b])) return profile;
+  const mappings = Object.fromEntries(
+    DS_BUTTONS.map((b) => [b, have[b] ?? { targets: [{ ...DEFAULT_TARGET[b] }], turboHz: 0, continuous: false }]),
+  ) as Record<DsButton, Mapping>;
+  return { ...profile, mappings };
+}

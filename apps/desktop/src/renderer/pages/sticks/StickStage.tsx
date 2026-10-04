@@ -19,7 +19,7 @@ export function StickStage({ side, cfg }: { side: Side; cfg: StickConfig }) {
     <div className="stage">
       <div className="stage-top">
         <LiveCurve points={points} input={mag(raw.x, raw.y)} output={mag(out.x, out.y)} caption={`${name} response`} />
-        <StickLive raw={raw} out={out} deadzone={cfg.deadzone} size={148} label={`${name} · grey raw, red output`} />
+        <StickLive raw={raw} out={out} deadzone={cfg.deadzone} calibration={cfg.calibration} size={148} label={`${name} · grey raw, red output`} />
       </div>
       <div className="stage-pad">
         <DualSenseTop

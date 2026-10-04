@@ -23,3 +23,17 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 - Native addon (Plan 4): UIPI (elevated games) silently drops SendInput → Health warning via TokenElevation; VK_SNAPSHOT/VK_PAUSE via VK path; pointer acceleration note; bin/<abi> dir never populated; asarUnpack **/*.node; install script needs MSVC; psapi.lib unnecessary.
 - Spec amendments needed: defaults (digital/no rumble) vs 'stock DualSense'; anti-deadzone after curve; share code = deflateRaw+base64url; export ext .dualforge.json; settings.json location.
 - Misc: battery lightbar red until first report; e2e temp dirs not removed; settings-store.set uses this.get; E_INJECT_LOAD logged twice; legacy profile:get/set fixed in F6; renderer must use profiles.current()+onActive (3B).
+
+## From Plan 3B (2026-10-04)
+- Plan 4 hand-off: preload surface (flags.navReplay, profiles.*, settings.*, system.{openDataDir,processes}, engine.{runMacro,testRumble}); env DUALFORGE_DATA_DIR (logs ignore it — fix), DUALFORGE_NO_INJECT, DUALFORGE_NAV_REPLAY; e2e temp dirs never cleaned; nav e2e needs real window focus; Home auto-routes to Overview on first connected snapshot.
+- stopMacro command + stop play-test on editor close/blur (keys can inject into another app after alt-tab).
+- Store races: edits during profile switch lost (sequence counter); rename vs in-flight save (flushPending before rename); overlapping optimistic settings updates.
+- system:openDataDir ignores shell.openPath error string; handler not in registerIpc (untested).
+- Header: Home + Input Test duplicated (tab strip and right icons) — settle when adding Health.
+- Header profile tabs vs active auto-switch semantics (manual activate during a game rule).
+- Spec: .dfprofile vs .dualforge.json; Vibrations trigger-effect strength missing from schema (moot for digital triggers).
+- a11y: ProfileTabs tablist contains pencil buttons/no arrow keys; Modal doesn't inert background; mcard-roll aria-hidden button.
+- Gyro calibration: no stillness check; success shown even if updateProfile returned false; hue slider at red for white; linear sensitivity slider (log later); Motion stage re-renders pad+curve at 60 Hz; calibration unmount test.
+- Settings: exe format refine in schema; >32 rules file quarantines whole settings (per-field salvage); 'Services' session filter locale-dependent (use session number).
+- Macros: play test persists new macro before cancel; recorder timing ~16 ms (document).
+- Stale doc comments mentioning LT/RT in SettingsLayout.tsx and Sticks.tsx; main load() returns sparse mappings (renderer densifies).

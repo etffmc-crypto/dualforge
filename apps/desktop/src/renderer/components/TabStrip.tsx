@@ -1,14 +1,17 @@
 import type { ComponentType } from 'react';
 import { useStore, type Page } from '../store';
-import { FlaskIcon, HomeIcon, LightsIcon, MotionIcon, SticksIcon, TriggersIcon, VibrationsIcon } from './icons';
+import { ButtonsIcon, FlaskIcon, GridIcon, HomeIcon, LightsIcon, MacrosIcon, MotionIcon, SticksIcon, TriggersIcon, VibrationsIcon } from './icons';
 
 export const TABS: { id: Page; label: string; Icon: ComponentType<{ size?: number }> }[] = [
   { id: 'home', label: 'Home', Icon: HomeIcon },
+  { id: 'overview', label: 'Overview', Icon: GridIcon },
+  { id: 'buttons', label: 'Buttons', Icon: ButtonsIcon },
   { id: 'sticks', label: 'Sticks', Icon: SticksIcon },
   { id: 'triggers', label: 'Triggers', Icon: TriggersIcon },
   { id: 'motion', label: 'Motion', Icon: MotionIcon },
   { id: 'vibrations', label: 'Vibrations', Icon: VibrationsIcon },
   { id: 'lights', label: 'Lights', Icon: LightsIcon },
+  { id: 'macros', label: 'Macros', Icon: MacrosIcon },
   { id: 'inputTest', label: 'Input Test', Icon: FlaskIcon },
 ];
 
@@ -17,14 +20,14 @@ export function TabStrip() {
   const setPage = useStore((s) => s.setPage);
   return (
     <nav className="tabstrip" role="tablist" aria-label="Sections">
-      <span className="pill" aria-hidden="true">LB</span>
+      <span className="pill" aria-hidden="true">L1</span>
       {TABS.map(({ id, label, Icon }) => (
-        <button key={id} role="tab" aria-selected={page === id} className={`tab${page === id ? ' active' : ''}`} onClick={() => setPage(id)}>
+        <button data-nav key={id} role="tab" aria-selected={page === id} className={`tab${page === id ? ' active' : ''}`} onClick={() => setPage(id)}>
           <Icon size={24} />
           <span className="tab-label">{label}</span>
         </button>
       ))}
-      <span className="pill" aria-hidden="true">RB</span>
+      <span className="pill" aria-hidden="true">R1</span>
     </nav>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ProfileSchema, defaultProfile, DS_BUTTONS } from '../src/index.js';
+import { ProfileSchema, defaultProfile, DS_BUTTONS, ensureDenseMappings } from '../src/index.js';
 
 describe('profile schema', () => {
   it('default profile validates', () => {
@@ -114,5 +114,22 @@ describe('final-review schema hardening', () => {
     expect(ProfileSchema.safeParse(p).success).toBe(true);
     p.gyro = { ...p.gyro, activate: 'always', activateButton: null };
     expect(ProfileSchema.safeParse(p).success).toBe(true);
+  });
+});
+
+describe('ensureDenseMappings', () => {
+  it('fills every missing button with its default mapping and keeps the ones present', () => {
+    const p = defaultProfile('p1', 'Profile 1');
+    const custom = { targets: [{ type: 'none' as const }], turboHz: 10, continuous: true };
+    const sparse = { ...p, mappings: { cross: custom } as typeof p.mappings };
+    const dense = ensureDenseMappings(sparse);
+    for (const b of DS_BUTTONS) expect(dense.mappings[b]).toBeDefined();
+    expect(dense.mappings.cross).toEqual(custom);
+    expect(dense.mappings.circle).toEqual(defaultProfile('x', 'x').mappings.circle);
+    expect(Object.keys(sparse.mappings)).toEqual(['cross']);   // pure: the input is untouched
+  });
+  it('returns the same object when nothing is missing', () => {
+    const p = defaultProfile('p1', 'Profile 1');
+    expect(ensureDenseMappings(p)).toBe(p);
   });
 });

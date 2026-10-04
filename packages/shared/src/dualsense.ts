@@ -34,3 +34,11 @@ export interface RawState {
 export function emptyButtons(): Record<DsButton, boolean> {
   return Object.fromEntries(DS_BUTTONS.map((b) => [b, false])) as Record<DsButton, boolean>;
 }
+
+/** Display names for UI (pills, chips, pickers). */
+export const BUTTON_LABELS: Record<DsButton, string> = {
+  cross: '✕', circle: '○', square: '□', triangle: '△',
+  l1: 'L1', r1: 'R1', l2: 'L2', r2: 'R2', l3: 'L3', r3: 'R3',
+  create: 'Create', options: 'Options', ps: 'PS', touchpad: 'Touchpad', mic: 'Mic',
+  dpadUp: 'D-Pad ↑', dpadDown: 'D-Pad ↓', dpadLeft: 'D-Pad ←', dpadRight: 'D-Pad →',
+};

@@ -1,0 +1,23 @@
+/* ---------- Lights page (ss5) ---------- */
+.lt-modes .seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 10px; }
+.lt-color { display: grid; grid-template-columns: minmax(0, 1fr) 26px; align-items: center; gap: 14px; padding: 0 2px; }
+.lt-color.disabled .lt-swatch { opacity: 0.35; }
+.lt-swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--handle-ring); box-shadow: 0 0 0 1px var(--card-border); }
+
+/* the five player lamps as a strip of switches, mirroring the bar under the touchpad */
+.led-strip {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; padding: 14px 12px 10px;
+  border-radius: 12px; background: var(--well); border: 1px solid var(--card-border);
+}
+.led-switch {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px 0 4px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--muted); font: inherit; cursor: pointer; transition: background-color 120ms ease;
+}
+.led-switch:hover { background: var(--hover); }
+.led-switch:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.led-lamp { width: 30px; height: 8px; border-radius: 4px; background: var(--toggle-off); transition: background-color 150ms ease, box-shadow 150ms ease; }
+.led-switch.on .led-lamp { background: #fff; box-shadow: 0 0 10px rgba(255, 255, 255, 0.75), 0 0 0 1px rgba(20, 20, 30, 0.25); }
+.led-switch.on { color: var(--text-strong); }
+.led-n { font-size: 12px; font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) { .led-switch, .led-lamp { transition: none; } }

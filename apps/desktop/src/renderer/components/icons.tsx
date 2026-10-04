@@ -66,3 +66,66 @@ export const DpadIcon = (p: IconProps) => (
     <path d="M9 2.5h6v6.5h6.5v6H15v6.5H9V15H2.5V9H9Z" />
   </Svg>
 );
+
+/** 2×2 tiles: the Overview dashboard. */
+export const GridIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3.5" y="3.5" width="7" height="7" rx="1.8" fill="currentColor" stroke="none" />
+    <rect x="13.5" y="3.5" width="7" height="7" rx="1.8" /><rect x="3.5" y="13.5" width="7" height="7" rx="1.8" />
+    <rect x="13.5" y="13.5" width="7" height="7" rx="1.8" fill="currentColor" stroke="none" />
+  </Svg>
+);
+
+/** Four face buttons in a diamond. */
+export const ButtonsIcon = (p: IconProps) => (
+  <Svg {...p} stroke="none" fill="currentColor">
+    <circle cx="12" cy="5.5" r="3" /><circle cx="5.5" cy="12" r="3" /><circle cx="18.5" cy="12" r="3" /><circle cx="12" cy="18.5" r="3" />
+  </Svg>
+);
+
+export const GearIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7" />
+    <circle cx="12" cy="12" r="6.6" />
+  </Svg>
+);
+
+export const PencilIcon = (p: IconProps) => (
+  <Svg {...p}><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16Z" /><path d="m13.5 6.5 4 4" /></Svg>
+);
+
+export const ChevronRightIcon = (p: IconProps) => (
+  <Svg {...p}><path d="m9 5 7 7-7 7" /></Svg>
+);
+
+export const FolderIcon = (p: IconProps) => (
+  <Svg {...p}><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5Z" /></Svg>
+);
+
+/** A sequence of timed bars: the Macros page. */
+export const MacrosIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3 18.5h18" />
+    <rect x="3.5" y="11" width="4" height="5" rx="1" fill="currentColor" stroke="none" />
+    <rect x="10" y="6" width="4" height="10" rx="1" fill="currentColor" stroke="none" />
+    <rect x="16.5" y="9" width="4" height="7" rx="1" fill="currentColor" stroke="none" />
+  </Svg>
+);
+
+/** Stacked slot cards: the Profiles page. */
+export const ProfilesIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3.5" y="8" width="13" height="12" rx="2" />
+    <path d="M7.5 5h11A2 2 0 0 1 20.5 7v9.5" />
+    <path d="M7 12h6M7 15.5h4" />
+  </Svg>
+);
+
+export const CopyIcon = (p: IconProps) => (
+  <Svg {...p}><rect x="8.5" y="8.5" width="11" height="11" rx="2" /><path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5" /></Svg>
+);
+
+export const TrashIcon = (p: IconProps) => (
+  <Svg {...p}><path d="M4.5 7h15M10 7V4.5h4V7M6.5 7l1 12.5h9l1-12.5" /></Svg>
+);
