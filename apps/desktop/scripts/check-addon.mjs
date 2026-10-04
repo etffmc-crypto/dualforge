@@ -1,8 +1,7 @@
 // Fails `npm run dist` early when the Electron-ABI native addon has not been built,
 // or was built against a different Electron than electron-builder.yml targets.
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { basename, resolve } from 'node:path';
 
 /**
  * Compare the `.abi` marker text written by write-addon-marker.mjs with the Electron version
@@ -46,4 +45,4 @@ function main() {
   console.log(`native addon present: ${addon} (${res.reason})`);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) main();
+if (process.argv[1] && basename(process.argv[1]) === 'check-addon.mjs') main();

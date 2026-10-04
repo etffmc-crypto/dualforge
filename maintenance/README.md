@@ -4,13 +4,13 @@ A Claude Code routine that checks DualForge health, triages app logs and crashes
 
 ## Run it manually
 
-From the repo root, either:
+From the repo root, with a restricted tool set (use this exact form, also for the scheduler):
 
 ```powershell
-claude -p "$(Get-Content maintenance/AGENT.md -Raw)"
+claude -p (Get-Content maintenance/AGENT.md -Raw) --permission-mode acceptEdits --allowedTools "Bash(git status:*)" "Bash(git checkout:*)" "Bash(git pull:*)" "Bash(git add:*)" "Bash(git commit:*)" "Bash(git log:*)" "Bash(git diff:*)" "Bash(npm run check:*)" "Bash(npm ci)" "Bash(powershell -File maintenance/run-checks.ps1)" Read Write Edit Grep Glob
 ```
 
-(bash: `claude -p "$(cat maintenance/AGENT.md)"`), or open Claude Code in the repo and paste the contents of `AGENT.md` as the prompt.
+Alternatively open Claude Code in the repo and paste the contents of `AGENT.md` as the prompt.
 
 To run only the checks, without the agent:
 
@@ -20,7 +20,7 @@ powershell -File maintenance/run-checks.ps1
 
 ## Schedule it
 
-Use the Claude Code scheduler (`/schedule`) with the contents of `AGENT.md` as the prompt, repo `F:\DualForge`, daily at 09:00. The machine must be on and the repo checked out; the routine reads the local app logs, so it must run on this PC.
+Use the Claude Code scheduler (`/schedule`) with the contents of `AGENT.md` as the prompt and the same `--permission-mode acceptEdits` and `--allowedTools` list as above (the scheduled task on this PC must use them), repo `F:\DualForge`, daily at 09:00. The machine must be on and the repo checked out; the routine reads the local app logs, so it must run on this PC.
 
 ## Where reports go
 
