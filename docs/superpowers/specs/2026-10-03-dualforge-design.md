@@ -50,9 +50,13 @@ Three processes:
 
 - Window lifecycle, frameless window chrome, tray icon, single-instance lock.
 - **ProfileStore**: 4 profile slots + settings, JSON files under
-  `%APPDATA%\DualForge\profiles\`. Atomic writes (write temp → rename),
-  schema-versioned, validated with **zod** on load. Corrupt file → quarantine
-  to `profiles\corrupt\` and load defaults; surfaced on Health page.
+  `%APPDATA%\DualForge\profiles\`; `settings.json` lives in the data root
+  `%APPDATA%\DualForge\` (override: `DUALFORGE_DATA_DIR`). Atomic writes
+  (write temp → rename, retried 3x on EPERM/EBUSY), schema-versioned,
+  validated with **zod** on load. Corrupt profile → quarantine to
+  `profiles\corrupt\` and load defaults; surfaced on Health page. Invalid
+  `settings.json` → original moved to `%APPDATA%\DualForge\corrupt\`, every
+  individually valid field kept (`E_SETTINGS_SALVAGED`), the rest defaulted.
 - **DriverManager**: detect ViGEmBus / HidHide services, run bundled
   installers (elevated), toggle HidHide whitelist.
 - **EngineHost**: spawns/supervises the input engine `utilityProcess`,
@@ -73,8 +77,9 @@ Pipeline per report (all stages are pure functions in `packages/engine/`):
 ```
 rawReport(64B) → parseDualSense() → RawState
   → applyCalibration()        (center offset, outer radius per stick)
-  → applyStickShaping()       (center/anti/outer deadzone, circular/square, invert)
+  → applyStickShaping()       (center/outer deadzone, circular/square, invert)
   → applyStickCurve()         (preset or 8-point monotone piecewise-linear)
+  → applyAntiDeadzone()       (anti-deadzone lift, after the curve)
   → applyStickFilter()        (RC/smoothing: basic strength or speed-curve)
   → applyTriggers()           (deadzone, hair-trigger Off/Adaptive/Fixed, curve)
   → applyGyro()               (off | right-stick | mouse; always/hold/toggle)
@@ -150,18 +155,19 @@ Input Test, Health, Home, Settings gear, window controls.
    curve), Calibration wizard (center → outer rotation → verify), live circle
    widgets with X/Y readouts and deviation test.
 5. **Triggers** — L/R. Deadzone Initial/Max, Hair-trigger Off/Adaptive(1–100)/
-   Fixed, curve, Adaptive Trigger Effect: Off · Resistance · Trigger · Weapon ·
-   Vibration · Custom (start, end, force).
+   Fixed, curve, Adaptive Trigger Effect: Off · Resistance · Section ·
+   Vibration (start, end, force/amplitude as applicable). Trigger/Weapon/Custom
+   are not implemented; the four modes above are what the engine encodes.
 6. **Motion** — Output Off/Right stick/Mouse; Activate Always/Hold/Toggle +
    button; deadzone; curve preset; X/Y sensitivity; invert; Calibrate (flat,
    2 s sample).
-7. **Vibrations** — L/R intensity 0–100 with Test; trigger-effect strength.
+7. **Vibrations** — L/R intensity 0–100 with Test. (The "trigger-effect strength" control was removed: effect strength is set per effect on the Triggers page.)
 8. **Lights** — lightbar color picker, brightness, animation Off/Static/
    Breathing/Rainbow/Battery, speed; player-LED pattern; mic LED Off/On/Pulse.
 9. **Macros** — list; Record from pad; step editor `[input, hold ms, delay ms]`
    ≤64 steps; loop toggle; assign to button.
-10. **Profiles** — 4 slots, rename, duplicate, reset, export/import `.dfprofile`
-    JSON, share-code (base64 of gzip JSON, prefix `DUALFORGE:`), per-game
+10. **Profiles** — 4 slots, rename, duplicate, reset, export/import `.dualforge.json`
+    files, share-code (`DUALFORGE:` + base64url(deflateRaw(JSON))), per-game
     auto-switch table.
 11. **Health** — see §7.
 12. **Input Test** — every button/axis live, report-rate meter, raw vs
@@ -177,17 +183,22 @@ Profile {
   sticks: { left: StickConfig; right: StickConfig };
   triggers: { left: TriggerConfig; right: TriggerConfig };
   gyro: GyroConfig;
-  vibration: { left: 0..100; right: 0..100; triggerEffects: 0..100 };
+  vibration: { left: 0..100; right: 0..100 };
   lights: LightsConfig;
   mappings: Record<DsButton, Mapping>;   // Mapping = { targets: Target[≤3], turboHz?, continuous? }
   macros: Macro[];
 }
 StickConfig { calibration{cx,cy,radius}; deadzone{center,anti,outer}; circular; invertX; invertY;
               curve: {preset} | {points: [in,out][8]}; filter: {enabled, basic} | {enabled, points[5]} }
-Settings { activeProfile; autoSwitch: {exe,profileId}[]; hidHide; startWithWindows; startMinimized; theme; updates }
+Settings { activeProfile; autoSwitch: {exe,profileId}[]; hasRumble; hidHide; startWithWindows; startMinimized; closeToTray; theme; updates }
 ```
 
-Defaults reproduce a stock DualSense → stock Xbox 360 mapping with no shaping.
+Defaults reproduce the stock DualSense → stock Xbox 360 mapping with no shaping.
+Note: the shipped defaults are tuned for the author's pad, which has digital
+triggers and no rumble motors, so `Settings.hasRumble` defaults to `false` and
+the trigger defaults are the digital-trigger set; a stock DualSense would use
+analog triggers with rumble enabled, and users with one should turn Rumble on
+(Settings) and adjust the trigger settings.
 
 ## 6. Error handling
 
