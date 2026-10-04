@@ -1,21 +1,25 @@
-import { emptyXInput, type RawState } from '@dualforge/shared';
+import { emptyXInput, type RawState, type XInputState } from '@dualforge/shared';
 import { applyAntiDeadzone, applyStickShaping } from './stages/stick-shape.js';
 import { applyStickLut } from './stages/stick-curve.js';
 import { applyStickFilter, createFilterState, MIN_DT_MS, type FilterState } from './stages/stick-filter.js';
 import { applyTrigger, createTriggerState, type TriggerState } from './stages/triggers.js';
 import type { CompiledProfile } from './compile.js';
-import { applyMappings, createMappingState, type MappingState, type OutputFrame } from './stages/mapping.js';
+import { createMacroState, startMacro, tickMacros, type MacroState } from './stages/macros.js';
+import { applyMappings, createMappingState, diffTransitions, type MappingState, type MouseButton, type OutputFrame } from './stages/mapping.js';
 
 export interface PipelineState {
   filterL: FilterState; filterR: FilterState;
   trigL: TriggerState; trigR: TriggerState;
   mapping: MappingState;
+  macros: MacroState;
+  macroOut: { xinput: XInputState; keysWanted: Set<string>; mouseWanted: Set<MouseButton> };
   lastMs: number;
 }
 export const createPipelineState = (): PipelineState => ({
   filterL: createFilterState(), filterR: createFilterState(),
   trigL: createTriggerState(), trigR: createTriggerState(),
-  mapping: createMappingState(), lastMs: -1,
+  mapping: createMappingState(), macros: createMacroState(),
+  macroOut: { xinput: emptyXInput(), keysWanted: new Set(), mouseWanted: new Set() }, lastMs: -1,
 });
 
 export function processReport(raw: RawState, cp: CompiledProfile, s: PipelineState, nowMs: number): OutputFrame {
@@ -36,5 +40,11 @@ export function processReport(raw: RawState, cp: CompiledProfile, s: PipelineSta
 
   const x = emptyXInput();
   x.lx = l.x; x.ly = l.y; x.rx = r.x; x.ry = r.y; x.lt = lt; x.rt = rt;
-  return applyMappings(raw, cp.profile, s.mapping, nowMs, x);
+  const frame = applyMappings(raw, cp.profile, s.mapping, nowMs, x);
+  for (const id of frame.macroStarts) startMacro(s.macros, id, nowMs, cp.macros);
+  const mo = s.macroOut;
+  mo.xinput = frame.xinput; mo.keysWanted = s.mapping.wantKeys; mo.mouseWanted = s.mapping.wantMouse;
+  tickMacros(s.macros, nowMs, cp.macros, mo);
+  diffTransitions(s.mapping.wantKeys, s.mapping.wantMouse, s.mapping, frame);
+  return frame;
 }

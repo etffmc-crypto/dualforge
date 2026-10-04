@@ -1,4 +1,4 @@
-import type { Profile, StickConfig, TriggerConfig } from '@dualforge/shared';
+import type { Macro, Profile, StickConfig, TriggerConfig } from '@dualforge/shared';
 import { buildCurveLut, presetPoints, LUT_SIZE } from './stages/stick-curve.js';
 
 export { LUT_SIZE };
@@ -9,6 +9,7 @@ export interface CompiledProfile {
   profile: Profile;
   left: CompiledStick; right: CompiledStick;
   lt: CompiledTrigger; rt: CompiledTrigger;
+  macros: Map<string, Macro>;
 }
 
 const stick = (cfg: StickConfig): CompiledStick => ({
@@ -21,5 +22,6 @@ export function compileProfile(profile: Profile): CompiledProfile {
     profile,
     left: stick(profile.sticks.left), right: stick(profile.sticks.right),
     lt: trig(profile.triggers.left), rt: trig(profile.triggers.right),
+    macros: new Map(profile.macros.map((m) => [m.id, m])),
   };
 }

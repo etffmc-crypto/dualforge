@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { defaultProfile, emptyButtons, emptyXInput, type RawState } from '@dualforge/shared';
-import { applyMappings, createMappingState } from '../../src/stages/mapping.js';
+import { defaultProfile, emptyButtons, emptyXInput, type Profile, type RawState, type XInputState } from '@dualforge/shared';
+import { applyMappings as applyMappingsRaw, createMappingState, diffTransitions, type MappingState } from '../../src/stages/mapping.js';
+
+// The pipeline diffs transitions after macros; for these tests diff straight away.
+const applyMappings = (r: RawState, p: Profile, s: MappingState, t: number, x: XInputState) => {
+  const o = applyMappingsRaw(r, p, s, t, x);
+  diffTransitions(s.wantKeys, s.wantMouse, s, o);
+  return o;
+};
 
 const raw = (pressed: string[] = []): RawState => {
   const buttons = emptyButtons();

@@ -27,7 +27,8 @@ export const createMappingState = (): MappingState => ({
 
 /**
  * Applies button mappings INTO the passed (already axis/trigger-filled) xinput.
- * Wanted keys/mouse buttons are collected in `s.wantKeys` / `s.wantMouse`; transition events are produced by diffTransitions.
+ * Wanted keys/mouse buttons are collected in `s.wantKeys` / `s.wantMouse`; the pipeline runs macros and then diffTransitions
+ * so macro-driven keys also produce events (frame.keys/mouse are empty until then).
  */
 export function applyMappings(raw: RawState, profile: Profile, s: MappingState, nowMs: number, xinput: XInputState): OutputFrame {
   const frame: OutputFrame = { xinput, keys: [], mouse: [], mouseMove: { dx: 0, dy: 0 }, macroStarts: [] };
@@ -55,7 +56,6 @@ export function applyMappings(raw: RawState, profile: Profile, s: MappingState, 
     for (const t of m.targets) activate(t, xinput, s.wantKeys, s.wantMouse);
   }
 
-  diffTransitions(s.wantKeys, s.wantMouse, s, frame);
   return frame;
 }
 

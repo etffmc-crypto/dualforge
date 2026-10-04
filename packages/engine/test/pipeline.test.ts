@@ -56,4 +56,26 @@ describe('processReport', () => {
     expect(o.xinput.lx).toBeCloseTo(1, 2);
     expect(o.xinput.lt).toBe(1);
   });
+  it('macro-driven key emits down at start and up after the hold, via the pipeline', () => {
+    const p = defaultProfile('p', 'p');
+    p.macros = [{ id: 'm', name: 'm', loop: false, steps: [{ target: { type: 'key', code: 'VK_Q' }, holdMs: 100, delayMs: 0 }] }];
+    p.mappings.triangle = { targets: [{ type: 'macro', macroId: 'm' }], turboHz: 0, continuous: false };
+    const cp = compileProfile(p); const s = createPipelineState();
+    const press = parseDualSenseUsb(report((b) => { b[8] = 0x88; })); // triangle
+    const idle = parseDualSenseUsb(report(() => {}));
+    expect(processReport(press, cp, s, 0).keys).toEqual([{ code: 'VK_Q', down: true }]);
+    expect(processReport(idle, cp, s, 50).keys).toEqual([]);     // button released, macro keeps running
+    expect(processReport(idle, cp, s, 100).keys).toEqual([{ code: 'VK_Q', down: false }]);
+    expect(processReport(press, cp, s, 120).keys).toEqual([{ code: 'VK_Q', down: true }]);
+  });
+  it('holding the macro button does not re-trigger it', () => {
+    const p = defaultProfile('p', 'p');
+    p.macros = [{ id: 'm', name: 'm', loop: false, steps: [{ target: { type: 'key', code: 'VK_Q' }, holdMs: 100, delayMs: 0 }] }];
+    p.mappings.triangle = { targets: [{ type: 'macro', macroId: 'm' }], turboHz: 0, continuous: false };
+    const cp = compileProfile(p); const s = createPipelineState();
+    const press = parseDualSenseUsb(report((b) => { b[8] = 0x88; }));
+    processReport(press, cp, s, 0);
+    expect(processReport(press, cp, s, 100).keys).toEqual([{ code: 'VK_Q', down: false }]);
+    expect(processReport(press, cp, s, 150).keys).toEqual([]);
+  });
 });
