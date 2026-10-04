@@ -1,0 +1,29 @@
+{
+  "name": "dualforge",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "typecheck": "tsc -b packages/shared packages/engine apps/desktop",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run typecheck && npm run lint && npm run test && npm run test:ui",
+    "test:ui": "npm run test:ui -w @dualforge/desktop",
+    "dev": "npm run dev -w @dualforge/desktop",
+    "build": "npm run build -w @dualforge/desktop"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.30.0",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.30.0",
+    "eslint-config-prettier": "^10.1.0",
+    "prettier": "^3.6.0",
+    "typescript": "^5.8.0",
+    "typescript-eslint": "^8.35.0",
+    "vitest": "^3.2.0"
+  },
+  "engines": { "node": ">=24" }
+}

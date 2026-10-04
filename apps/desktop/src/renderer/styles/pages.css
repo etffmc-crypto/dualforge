@@ -1,0 +1,16 @@
+.ds-art .btn { fill: rgba(255,255,255,0.12); stroke: var(--card-border); }
+.ds-art .btn.on { fill: var(--accent); }
+.home { display: grid; grid-template-columns: 1fr 360px; gap: 20px; height: 100%; align-items: start; }
+.status-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.chip { padding: 6px 12px; border-radius: 999px; font-size: 12px; border: 1px solid var(--card-border); }
+.chip.ok { border-color: #22c55e; color: #22c55e; } .chip.bad { border-color: var(--accent); color: var(--accent); }
+.input-test { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.stick-row { display: flex; gap: 24px; justify-content: center; }
+.stick-circle { text-align: center; } .stick-label { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.mono { font-family: var(--mono); font-size: 12px; }
+.trigger-bar { display: grid; grid-template-columns: 40px 1fr 48px; align-items: center; gap: 10px; margin: 8px 0; }
+.track { height: 10px; border-radius: 5px; background: rgba(255,255,255,0.08); overflow: hidden; } .fill { height: 100%; background: var(--accent); }
+.btn-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.btn-grid .cell { padding: 8px; text-align: center; border-radius: 8px; border: 1px solid var(--card-border); font-size: 12px; }
+.btn-grid .cell.on { background: var(--accent); border-color: var(--accent); }
+.span2 { grid-column: 1 / -1; }

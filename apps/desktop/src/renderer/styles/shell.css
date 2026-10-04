@@ -1,0 +1,16 @@
+.header { height: 100px; display: grid; grid-template-columns: 220px 1fr 220px; align-items: center; padding: 0 24px; -webkit-app-region: drag; }
+.header button { -webkit-app-region: no-drag; }
+.brand { font-weight: 700; letter-spacing: 2px; font-size: 20px; }
+.brand-tag { color: var(--accent); margin-left: 6px; font-size: 12px; vertical-align: top; }
+.tabstrip { display: flex; justify-content: center; gap: 8px; align-items: center; }
+.pill { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--card-border); color: var(--muted); }
+.tab { background: transparent; border: 0; color: var(--muted); font: inherit; padding: 10px 18px; border-radius: 12px; cursor: pointer; border-bottom: 2px solid transparent; }
+.tab.active { background: var(--card); color: var(--text); border-bottom-color: var(--focus); }
+.tab:focus-visible, .icon-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.header-right { display: flex; justify-content: flex-end; gap: 6px; }
+.icon-btn { width: 36px; height: 32px; border-radius: 8px; border: 1px solid var(--card-border); background: var(--card); color: var(--text); cursor: pointer; }
+.icon-btn.close:hover { background: var(--accent); }
+.body { flex: 1; padding: 0 24px 16px; overflow: auto; }
+.footer { height: 56px; display: flex; gap: 28px; justify-content: center; align-items: center; color: var(--muted); font-size: 13px; }
+.card { background: var(--card); border: 1px solid var(--card-border); border-radius: var(--radius); padding: 20px; }
+.card-title { margin: 0 0 14px; font-size: 14px; font-weight: 600; padding-left: 10px; border-left: 3px solid var(--accent); }

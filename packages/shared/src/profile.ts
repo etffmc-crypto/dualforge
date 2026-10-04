@@ -1,0 +1,108 @@
+import { z } from 'zod';
+import { DS_BUTTONS, type DsButton } from './dualsense.js';
+import { X_BUTTONS } from './xinput.js';
+
+const unit = z.number().min(0).max(1);
+
+export const CurvePointSchema = z.tuple([unit, unit]);
+export const CURVE_PRESETS = ['linear', 'aggressive', 'precise', 'scurve'] as const;
+export const StickCurveSchema = z.union([
+  z.object({ kind: z.literal('preset'), preset: z.enum(CURVE_PRESETS) }),
+  z.object({ kind: z.literal('custom'), points: z.array(CurvePointSchema).length(8) }),
+]);
+
+export const StickFilterSchema = z.object({
+  enabled: z.boolean(),
+  strength: z.number().min(0).max(100), // 0 = off, 100 = heavy smoothing
+});
+
+export const StickConfigSchema = z.object({
+  calibration: z.object({ cx: z.number().min(-1).max(1), cy: z.number().min(-1).max(1), radius: z.number().min(0.5).max(1.5) }),
+  deadzone: z.object({ center: unit, anti: unit, outer: unit }),
+  circular: z.boolean(),
+  invertX: z.boolean(),
+  invertY: z.boolean(),
+  curve: StickCurveSchema,
+  filter: StickFilterSchema,
+});
+export type StickConfig = z.infer<typeof StickConfigSchema>;
+
+export const TriggerConfigSchema = z.object({
+  deadzone: z.object({ initial: unit, max: unit }),
+  hairTrigger: z.union([
+    z.object({ mode: z.literal('off') }),
+    z.object({ mode: z.literal('fixed') }),              // any press past `initial` = full
+    z.object({ mode: z.literal('adaptive'), value: z.number().min(1).max(100) }),
+  ]),
+  curve: z.enum(CURVE_PRESETS),
+});
+export type TriggerConfig = z.infer<typeof TriggerConfigSchema>;
+
+export const TargetSchema = z.union([
+  z.object({ type: z.literal('none') }),
+  z.object({ type: z.literal('xbutton'), button: z.enum(X_BUTTONS) }),
+  z.object({ type: z.literal('key'), code: z.string().min(1) }),     // Windows VK name, e.g. "VK_SPACE"
+  z.object({ type: z.literal('mouse'), button: z.enum(['left', 'right', 'middle']) }),
+  z.object({ type: z.literal('macro'), macroId: z.string().min(1) }),
+]);
+export type Target = z.infer<typeof TargetSchema>;
+
+export const MappingSchema = z.object({
+  targets: z.array(TargetSchema).min(1).max(3),
+  turboHz: z.number().min(0).max(30),   // 0 = off
+  continuous: z.boolean(),
+});
+export type Mapping = z.infer<typeof MappingSchema>;
+
+export const ProfileSchema = z.object({
+  schemaVersion: z.literal(1),
+  id: z.string().min(1),
+  name: z.string().min(1).max(40),
+  sticks: z.object({ left: StickConfigSchema, right: StickConfigSchema }),
+  triggers: z.object({ left: TriggerConfigSchema, right: TriggerConfigSchema }),
+  vibration: z.object({ left: z.number().min(0).max(100), right: z.number().min(0).max(100) }),
+  lights: z.object({
+    r: z.number().int().min(0).max(255), g: z.number().int().min(0).max(255), b: z.number().int().min(0).max(255),
+    brightness: z.number().int().min(0).max(2), // 0 high, 1 medium, 2 low (DualSense semantics)
+    playerLeds: z.number().int().min(0).max(31),
+  }),
+  mappings: z.record(z.enum(DS_BUTTONS), MappingSchema),
+});
+export type Profile = z.infer<typeof ProfileSchema>;
+
+function defaultStick(): StickConfig {
+  return {
+    calibration: { cx: 0, cy: 0, radius: 1 },
+    deadzone: { center: 0.05, anti: 0, outer: 0.02 },
+    circular: true, invertX: false, invertY: false,
+    curve: { kind: 'preset', preset: 'linear' },
+    filter: { enabled: false, strength: 0 },
+  };
+}
+function defaultTrigger(): TriggerConfig {
+  return { deadzone: { initial: 0.02, max: 0.98 }, hairTrigger: { mode: 'off' }, curve: 'linear' };
+}
+const DEFAULT_TARGET: Record<DsButton, Target> = {
+  cross: { type: 'xbutton', button: 'A' }, circle: { type: 'xbutton', button: 'B' },
+  square: { type: 'xbutton', button: 'X' }, triangle: { type: 'xbutton', button: 'Y' },
+  l1: { type: 'xbutton', button: 'LB' }, r1: { type: 'xbutton', button: 'RB' },
+  l2: { type: 'none' }, r2: { type: 'none' },            // analog triggers pass through
+  l3: { type: 'xbutton', button: 'LS' }, r3: { type: 'xbutton', button: 'RS' },
+  create: { type: 'xbutton', button: 'BACK' }, options: { type: 'xbutton', button: 'START' },
+  ps: { type: 'xbutton', button: 'GUIDE' }, touchpad: { type: 'none' }, mic: { type: 'none' },
+  dpadUp: { type: 'xbutton', button: 'DPAD_UP' }, dpadDown: { type: 'xbutton', button: 'DPAD_DOWN' },
+  dpadLeft: { type: 'xbutton', button: 'DPAD_LEFT' }, dpadRight: { type: 'xbutton', button: 'DPAD_RIGHT' },
+};
+
+export function defaultProfile(id: string, name: string): Profile {
+  return {
+    schemaVersion: 1, id, name,
+    sticks: { left: defaultStick(), right: defaultStick() },
+    triggers: { left: defaultTrigger(), right: defaultTrigger() },
+    vibration: { left: 100, right: 100 },
+    lights: { r: 0, g: 80, b: 255, brightness: 0, playerLeds: 0b00100 },
+    mappings: Object.fromEntries(
+      DS_BUTTONS.map((b) => [b, { targets: [DEFAULT_TARGET[b]], turboHz: 0, continuous: false }]),
+    ) as Record<DsButton, Mapping>,
+  };
+}

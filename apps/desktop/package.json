@@ -1,0 +1,39 @@
+{
+  "name": "@dualforge/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "test:ui": "electron-vite build && playwright test",
+    "rebuild": "electron-rebuild -f -w node-hid,vigemclient"
+  },
+  "dependencies": {
+    "@dualforge/engine": "*",
+    "@dualforge/shared": "*",
+    "node-hid": "^3.4.0",
+    "pino": "^9.7.0",
+    "pino-roll": "^3.1.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "vigemclient": "^1.5.3",
+    "zod": "^3.25.0",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^4.0.0",
+    "@playwright/test": "^1.63.0",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.6.0",
+    "electron": "^44.0.0",
+    "electron-vite": "^4.0.0",
+    "jsdom": "^30.1.1",
+    "vite": "^7.0.0"
+  }
+}
