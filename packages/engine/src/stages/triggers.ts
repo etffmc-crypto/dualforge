@@ -1,10 +1,10 @@
 import type { TriggerConfig } from '@dualforge/shared';
-import { evaluateCurve, presetPoints } from './stick-curve.js';
+import { evaluateLut } from './stick-curve.js';
 
 export interface TriggerState { engaged: boolean }
 export const createTriggerState = (): TriggerState => ({ engaged: false });
 
-export function applyTrigger(v: number, cfg: TriggerConfig, s: TriggerState): number {
+export function applyTrigger(v: number, cfg: TriggerConfig, lut: Float32Array, s: TriggerState): number {
   const { initial, max } = cfg.deadzone;
   let t = v <= initial ? 0 : v >= max ? 1 : (v - initial) / Math.max(1e-6, max - initial);
 
@@ -18,5 +18,5 @@ export function applyTrigger(v: number, cfg: TriggerConfig, s: TriggerState): nu
     else if (t >= thr) s.engaged = true;
     if (s.engaged) t = 1;
   }
-  return evaluateCurve(presetPoints(cfg.curve), t);
+  return evaluateLut(lut, t);
 }

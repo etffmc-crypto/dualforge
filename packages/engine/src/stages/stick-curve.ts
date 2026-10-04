@@ -36,3 +36,28 @@ export function applyStickCurve(x: number, y: number, curve: StickConfig['curve'
   const out = evaluateCurve(pts, Math.min(1, mag));
   return { x: (x / mag) * out, y: (y / mag) * out };
 }
+
+export const LUT_SIZE = 1024;
+
+export function buildCurveLut(points: readonly CurvePoint[]): Float32Array {
+  const lut = new Float32Array(LUT_SIZE + 1);
+  const sorted = [...points].sort((a, b) => a[0] - b[0]);
+  for (let i = 0; i <= LUT_SIZE; i++) lut[i] = evaluateCurve(sorted, i / LUT_SIZE);
+  return lut;
+}
+
+export function evaluateLut(lut: Float32Array, v: number): number {
+  const x = Math.max(0, Math.min(1, v)) * LUT_SIZE;
+  const i = Math.floor(x);
+  const f = x - i;
+  const a = lut[i] ?? 0;
+  const b = lut[Math.min(LUT_SIZE, i + 1)] ?? a;
+  return a + (b - a) * f;
+}
+
+export function applyStickLut(x: number, y: number, lut: Float32Array): { x: number; y: number } {
+  const mag = Math.hypot(x, y);
+  if (mag === 0) return { x: 0, y: 0 };
+  const out = evaluateLut(lut, Math.min(1, mag));
+  return { x: (x / mag) * out, y: (y / mag) * out };
+}

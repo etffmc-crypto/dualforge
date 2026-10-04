@@ -1,4 +1,4 @@
-import { buildOutputReport, createPipelineState, parseDualSenseUsb, processReport, type Feedback } from '@dualforge/engine';
+import { buildOutputReport, compileProfile, createPipelineState, type CompiledProfile, parseDualSenseUsb, processReport, type Feedback } from '@dualforge/engine';
 import { type EngineEvent, type Profile, type RawState, type XInputState, emptyButtons, emptyXInput } from '@dualforge/shared';
 
 export interface InputSource {
@@ -21,6 +21,7 @@ const ERROR_DEDUPE_MS = 30_000;
 
 export function createEngineLoop(d: LoopDeps) {
   let profile: Profile | null = null;
+  let compiled: CompiledProfile | null = null;
   let state = createPipelineState();
   let connected = false;
   const t0 = d.now();
@@ -45,11 +46,11 @@ export function createEngineLoop(d: LoopDeps) {
     if (force || hex !== lastOutHex || now - lastOutWrite >= KEEPALIVE_MS) { d.source.write(rep); lastOutHex = hex; lastOutWrite = now; }
   }
   function onReport(buf: Uint8Array, t: number) {
-    if (!profile) return;
+    if (!profile || !compiled) return;
     const start = d.now();
     let raw: RawState;
     try { raw = parseDualSenseUsb(buf); } catch (e) { d.emit({ type: 'error', code: 'E_REPORT_PARSE', msg: (e as Error).message }); return; }
-    const out = processReport(raw, profile, state, t - t0);
+    const out = processReport(raw, compiled, state, t - t0);
     if (d.sink.ready) d.sink.update(out.xinput);
     lastRaw = raw; lastOut = out.xinput;
     latencies.push(d.now() - start); if (latencies.length > 1000) latencies.shift();
@@ -99,7 +100,7 @@ export function createEngineLoop(d: LoopDeps) {
   let idle: NodeJS.Timeout | null = null;
 
   return {
-    setProfile(p: Profile) { profile = p; state = createPipelineState(); maybeWriteOutput(d.now(), true); },
+    setProfile(p: Profile) { profile = p; compiled = compileProfile(p); state = createPipelineState(); maybeWriteOutput(d.now(), true); },
     async start() {
       try { await d.sink.connect(); } catch (e) { d.emit({ type: 'error', code: 'E_VIGEM_INIT', msg: (e as Error).message }); }
       d.sink.onRumble((large, small) => { rumble = { large, small }; maybeWriteOutput(d.now()); });
