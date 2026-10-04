@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultProfile } from '@dualforge/shared';
-import { applyRadialDeadzone, applyStickShaping } from '../../src/stages/stick-shape.js';
+import { applyAntiDeadzone, applyRadialDeadzone, applyStickShaping } from '../../src/stages/stick-shape.js';
 
 const cfg = () => defaultProfile('p', 'p').sticks.left;
 
@@ -8,12 +8,22 @@ describe('applyRadialDeadzone', () => {
   const dz = { center: 0.1, anti: 0.2, outer: 0.1 };
   it('zero inside center deadzone', () => expect(applyRadialDeadzone(0.05, dz)).toBe(0));
   it('one at/after outer deadzone', () => expect(applyRadialDeadzone(0.95, dz)).toBe(1));
-  it('rescales linearly between, then applies anti', () => {
-    // mag 0.5 → (0.5-0.1)/(0.9-0.1)=0.5 → anti: 0.2+0.5*0.8=0.6
-    expect(applyRadialDeadzone(0.5, dz)).toBeCloseTo(0.6, 6);
+  it('rescales linearly between center and outer (anti is applied later, after the curve)', () => {
+    // mag 0.5 -> (0.5-0.1)/(0.9-0.1)=0.5; anti no longer applied here
+    expect(applyRadialDeadzone(0.5, dz)).toBeCloseTo(0.5, 6);
+    expect(applyRadialDeadzone(0.1001, dz)).toBeCloseTo(0, 2);
   });
-  it('anti-deadzone makes smallest live input jump to anti', () => {
-    expect(applyRadialDeadzone(0.1001, dz)).toBeCloseTo(0.2, 2);
+});
+
+describe('applyAntiDeadzone', () => {
+  it('lifts the smallest live magnitude to anti and keeps direction', () => {
+    const o = applyAntiDeadzone(0.003, 0.004, 0.3); // mag 0.005
+    expect(Math.hypot(o.x, o.y)).toBeCloseTo(0.3 + 0.005 * 0.7, 6);
+    expect(o.x / o.y).toBeCloseTo(0.75, 6);
+  });
+  it('maps full magnitude to 1 and leaves exact zero at zero', () => {
+    expect(Math.hypot(...Object.values(applyAntiDeadzone(1, 0, 0.3)))).toBeCloseTo(1, 6);
+    expect(applyAntiDeadzone(0, 0, 0.3)).toEqual({ x: 0, y: 0 });
   });
 });
 

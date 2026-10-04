@@ -12,7 +12,7 @@ vi.mock('electron', () => ({
 }));
 
 import { createEngineHost } from '../src/main/engine-host.js';
-import { defaultProfile, type EngineEvent } from '@dualforge/shared';
+import { defaultProfile, defaultSettings, type EngineEvent } from '@dualforge/shared';
 
 function setup() {
   const events: EngineEvent[] = [];
@@ -75,5 +75,18 @@ describe('engine host', () => {
     vi.advanceTimersByTime(500);
     expect(children[1]!.postMessage).toHaveBeenCalledWith(b);
     expect(children[1]!.postMessage).not.toHaveBeenCalledWith(a);
+  });
+
+  it('re-sends settings and ui focus (with the profile) after a respawn', () => {
+    const { host } = setup();
+    host.start();
+    const profile = { type: 'setProfile', profile: defaultProfile('p2', 'Two') } as const;
+    const settings = { type: 'setSettings', settings: { ...defaultSettings(), hasRumble: true } } as const;
+    const focus = { type: 'uiFocused', focused: false } as const;
+    host.send(profile); host.send(settings); host.send({ type: 'uiFocused', focused: true }); host.send(focus);
+    children[0]!.emit('exit', 1);
+    vi.advanceTimersByTime(500);
+    const sent = children[1]!.postMessage.mock.calls.map((c) => c[0]);
+    expect(sent).toEqual([settings, focus, profile]);
   });
 });

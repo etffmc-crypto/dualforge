@@ -1,6 +1,6 @@
 import type { StickConfig } from '@dualforge/shared';
 
-export interface Deadzone { center: number; anti: number; outer: number }
+export interface Deadzone { center: number; outer: number; anti?: number }
 
 export function applyRadialDeadzone(mag: number, dz: Deadzone): number {
   const hi = 1 - dz.outer;
@@ -8,7 +8,15 @@ export function applyRadialDeadzone(mag: number, dz: Deadzone): number {
   if (mag >= hi) return 1;
   const span = Math.max(1e-6, hi - dz.center);
   const t = (mag - dz.center) / span;
-  return dz.anti + t * (1 - dz.anti);
+  return t;
+}
+
+/** Anti-deadzone: lifts any live magnitude so the smallest nonzero input starts at `anti`. Applied after the curve. */
+export function applyAntiDeadzone(x: number, y: number, anti: number): { x: number; y: number } {
+  const mag = Math.hypot(x, y);
+  if (anti <= 0 || mag === 0) return { x, y };
+  const k = (anti + mag * (1 - anti)) / mag;
+  return { x: x * k, y: y * k };
 }
 
 const clamp1 = (v: number) => Math.max(-1, Math.min(1, v));

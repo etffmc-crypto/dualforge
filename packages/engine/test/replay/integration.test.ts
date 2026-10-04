@@ -16,7 +16,8 @@ describe('replay: stick-sweep', () => {
     for (const m of mags) expect(m).toBeGreaterThan(0.97);
   });
   it('left trigger ramps monotonically to 1', () => {
-    const p = compileProfile(defaultProfile('p', 'p')); const s = createPipelineState();
+    const prof = defaultProfile('p', 'p'); prof.triggers.left.digital = false; // fixture is an analog ramp
+    const p = compileProfile(prof); const s = createPipelineState();
     let last = -1;
     for (const e of log) { const v = processReport(parseDualSenseUsb(entryBytes(e)), p, s, e.t).xinput.lt; expect(v).toBeGreaterThanOrEqual(last); last = v; }
     expect(last).toBe(1);

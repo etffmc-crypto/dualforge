@@ -44,6 +44,7 @@ export function createDeviceSource(): InputSource {
   }
 
   return {
+    kind: 'device',
     start(onReport, onStatus, onError) {
       stopped = false; report = onError;
       void tryOpen(onReport, onStatus);

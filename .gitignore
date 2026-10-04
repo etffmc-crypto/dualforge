@@ -11,3 +11,5 @@ maintenance/reports/*.tmp
 *.tsbuildinfo
 test-results/
 playwright-report/
+native/sendinput/build/
+native/sendinput/bin/

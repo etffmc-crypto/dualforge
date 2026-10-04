@@ -13,3 +13,13 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 
 ## From Plan 1 (2026-10-03/04)
 - vitest workspace deprecation (done in Plan 2); tests not typechecked (done); parser button-bit coverage all-at-once; buildOutputReport doesn't mask micLed/brightness at runtime; prettier not enforced in check; dense formatting > printWidth; MouseEvent export shadows DOM name; hidlog hex length (done); E_VIGEM_TARGET folded into E_VIGEM_INIT; sink.update unwrapped; looped replay unpaced/t backwards; second-instance (done); replay mode not restored after engine restart; profile:set error not logged; a11y gaps; smoke test satisfiable by real pad; renderer bundle 772 kB; setProfile state reset (done in Plan 2); stage order (done in Plan 2); 2 s grace (done in Plan 2).
+
+## From Plan 3A (2026-10-04)
+- Hot path at 8 kHz: ~30 allocations/report (anti-deadzone objects, lightbar compute per report, buildOutputReport per report) → gate maybeWriteOutput on dirty flag/keepalive; anti<=0 fast path.
+- Gyro: coalesce mouse SendInput to ~1 kHz; clamp dt (~20 ms) after stalls; reset toggle on profile swap; activation button also fires its own mapping (3B decides).
+- Macros: catch-up after long stall (resync untilMs); zero-cycle loop comment wrong.
+- Persistence: settings quarantines whole file for one bad field (salvage per field before Plan 4 adds fields); writeJsonAtomic no fsync/rename retry (EPERM/EBUSY); flush on session-end; set() throws uncoded errors.
+- Security/input: focus gating is window-level (native dialogs blur) → gate on foreground pid ≠ own pid; autoSwitch exe length/count unbounded; watcher current not reset when rules change.
+- Native addon (Plan 4): UIPI (elevated games) silently drops SendInput → Health warning via TokenElevation; VK_SNAPSHOT/VK_PAUSE via VK path; pointer acceleration note; bin/<abi> dir never populated; asarUnpack **/*.node; install script needs MSVC; psapi.lib unnecessary.
+- Spec amendments needed: defaults (digital/no rumble) vs 'stock DualSense'; anti-deadzone after curve; share code = deflateRaw+base64url; export ext .dualforge.json; settings.json location.
+- Misc: battery lightbar red until first report; e2e temp dirs not removed; settings-store.set uses this.get; E_INJECT_LOAD logged twice; legacy profile:get/set fixed in F6; renderer must use profiles.current()+onActive (3B).
