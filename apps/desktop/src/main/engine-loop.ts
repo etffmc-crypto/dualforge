@@ -1,7 +1,9 @@
-import { type OutputFrame, buildOutputReport, compileProfile, computeLightbar, createPipelineState, type CompiledProfile, parseDualSenseUsb, processReport, type Feedback } from '@dualforge/engine';
+import { type OutputFrame, buildOutputReport, reconcileMacros, compileProfile, computeLightbar, createPipelineState, type CompiledProfile, parseDualSenseUsb, processReport, type Feedback } from '@dualforge/engine';
 import { defaultSettings, type EngineEvent, type Profile, type Settings, type RawState, type XInputState, emptyButtons, emptyXInput } from '@dualforge/shared';
 
 export interface InputSource {
+  /** Only a physical device may drive keyboard/mouse injection; replays never do. */
+  readonly kind: 'device' | 'replay';
   start(onReport: (buf: Uint8Array, tMs: number) => void, onStatus: (connected: boolean) => void, onError: (code: string, msg: string) => void): void;
   write(report: Uint8Array): Promise<void>;
   stop(): Promise<void>;
@@ -19,7 +21,9 @@ export interface LoopInjector {
   mouse(btn: 'left' | 'right' | 'middle', down: boolean): void;
   move(dx: number, dy: number): void;
 }
-export interface LoopDeps { source: InputSource; sink: PadSink; emit: (e: EngineEvent) => void; now: () => number; injector?: LoopInjector }
+export interface LoopDeps { source: InputSource; sink: PadSink; emit: (e: EngineEvent) => void; now: () => number; injector?: LoopInjector;
+  /** Master injection switch; defaults to `DUALFORGE_NO_INJECT !== '1'`, read once at creation. */
+  allowInject?: boolean }
 
 const SNAPSHOT_MS = 1000 / 60;
 const IDLE_MS = 100;
@@ -53,6 +57,7 @@ export function createEngineLoop(d: LoopDeps) {
   let settings: Settings = defaultSettings();
   // Safe until main reports otherwise: never type into the DualForge window itself.
   let uiFocused = true;
+  const allowInject = d.allowInject ?? process.env.DUALFORGE_NO_INJECT !== '1';
   const heldKeys = new Set<string>();
   const heldMouse = new Set<'left' | 'right' | 'middle'>();
   let animated = false;
@@ -78,7 +83,7 @@ export function createEngineLoop(d: LoopDeps) {
   }
   function inject(out: OutputFrame) {
     const inj = d.injector;
-    if (!inj) return;
+    if (!inj || !allowInject || d.source.kind !== 'device') return;
     for (const e of out.keys) {
       if (e.down) { if (uiFocused) continue; heldKeys.add(e.code); inj.key(e.code, true); }
       else if (heldKeys.delete(e.code)) inj.key(e.code, false);
@@ -102,9 +107,17 @@ export function createEngineLoop(d: LoopDeps) {
     const start = d.now();
     let raw: RawState;
     try { raw = parseDualSenseUsb(buf); } catch (e) { d.emit({ type: 'error', code: 'E_REPORT_PARSE', msg: (e as Error).message }); return; }
-    const out = processReport(raw, compiled, state, t - t0);
-    if (d.sink.ready) d.sink.update(out.xinput);
-    inject(out);
+    let out: OutputFrame;
+    try {
+      out = processReport(raw, compiled, state, t - t0);
+      if (d.sink.ready) d.sink.update(out.xinput);
+      inject(out);
+    } catch (e) {
+      // Never leave injected keys / a pressed virtual pad behind because of a pipeline fault; keep serving reports.
+      neutralize();
+      onError('E_PIPELINE', (e as Error).message);
+      return;
+    }
     lastRaw = raw; lastOut = out.xinput;
     latencies[latIdx] = d.now() - start; latIdx = (latIdx + 1) % LAT_RING; if (latCount < LAT_RING) latCount++;
     reports++;
@@ -182,7 +195,14 @@ export function createEngineLoop(d: LoopDeps) {
       uiFocused = focused;
       if (focused) releaseInjected();
     },
-    setProfile(p: Profile) { profile = p; compiled = compileProfile(p); maybeWriteOutput(d.now(), true); },
+    setProfile(p: Profile) {
+      const prev = compiled;
+      profile = p; compiled = compileProfile(p);
+      if (prev) reconcileMacros(state.macros, prev.macros, compiled.macros, Math.max(0, state.lastMs));
+      maybeWriteOutput(d.now(), true);
+    },
+    /** Synchronously releases every injected key/mouse button and neutralizes the virtual pad (crash / fault path). */
+    releaseAll() { neutralize(); },
     async start() {
       await ensureConnected();
       d.sink.onRumble((large, small) => { if (!settings.hasRumble) return; rumble = { large, small }; maybeWriteOutput(d.now()); });

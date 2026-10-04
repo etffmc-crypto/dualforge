@@ -32,4 +32,5 @@ port.on('message', (m) => {
   }
 });
 void loop.start();
-process.on('uncaughtException', (e) => { emit({ type: 'error', code: 'E_ENGINE_UNCAUGHT', msg: e.message }); process.exit(1); });
+process.on('uncaughtException', (e) => { try { loop.releaseAll(); } catch { /* best effort */ }
+  emit({ type: 'error', code: 'E_ENGINE_UNCAUGHT', msg: e.message }); process.exit(1); });

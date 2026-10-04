@@ -7,5 +7,5 @@ const MAIN = resolve(import.meta.dirname, '../out/main/index.js');
 
 /** Launches the built app against a throwaway data dir so tests never read or write the real profiles/settings. */
 export function launchApp() {
-  return electron.launch({ args: [MAIN], env: { ...process.env, DUALFORGE_DATA_DIR: mkdtempSync(join(tmpdir(), 'df-e2e-')) } });
+  return electron.launch({ args: [MAIN], env: { ...process.env, DUALFORGE_NO_INJECT: '1', DUALFORGE_DATA_DIR: mkdtempSync(join(tmpdir(), 'df-e2e-')) } });
 }
