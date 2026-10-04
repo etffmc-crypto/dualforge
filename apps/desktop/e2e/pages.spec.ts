@@ -347,3 +347,35 @@ test('Lights page: Rainbow animation and player LEDs reach the engine profile', 
   expect(p.lights.playerLeds).toBe(before ^ 1);
   await app.close();
 });
+
+const FIXTURE = resolve(import.meta.dirname, '../../../packages/engine/test/fixtures/stick-sweep.hidlog');
+
+test('Home: the first connected controller routes to Overview once; Home stays reachable afterwards', async () => {
+  const app = await launchApp();
+  const page = await app.firstWindow();
+  const tab = (name: string) => page.getByRole('tablist', { name: 'Sections' }).getByRole('tab', { name, exact: true });
+  await page.evaluate((f) => window.dualforge.replay(f), FIXTURE);
+  await expect(tab('Overview')).toHaveAttribute('aria-selected', 'true', { timeout: 5000 });
+  await tab('Home').click();
+  await expect(page.getByText(/^Connected · Replay · Battery \d+%$/)).toBeVisible({ timeout: 5000 });
+  await page.waitForTimeout(500);   // snapshots keep arriving: the auto-route must not fire again
+  await expect(tab('Home')).toHaveAttribute('aria-selected', 'true');
+  await app.close();
+});
+
+test('Gamepad navigation: the replayed cross (virtual A) clicks the focused tab', async () => {
+  const app = await launchApp();
+  const page = await app.firstWindow();
+  // navigation only listens while the window has focus (it never reacts to a game's input)
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.focus());
+  const tab = (name: string) => page.getByRole('tablist', { name: 'Sections' }).getByRole('tab', { name, exact: true });
+  await tab('Buttons').click();
+  await expect(tab('Buttons')).toHaveAttribute('aria-selected', 'true');
+  await tab('Overview').focus();
+  await page.waitForTimeout(300);
+  await expect(tab('Buttons')).toHaveAttribute('aria-selected', 'true');   // focus alone does not switch
+  await page.evaluate((f) => window.dualforge.replay(f), FIXTURE);
+  await expect(tab('Overview')).toHaveAttribute('aria-selected', 'true', { timeout: 5000 });
+  expect(await page.evaluate(() => document.activeElement?.textContent)).toBe('Overview');
+  await app.close();
+});

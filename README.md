@@ -4,7 +4,36 @@ DualForge is a Windows desktop app (Electron) that configures a PlayStation 5 Du
 
 ## Status
 
-Plan 3A of 4. Done so far: engine (button mappings, macros, gyro, lights), key/mouse injection, profile storage, share codes, per-game auto-switch, plus the Home, Input Test, Sticks and Triggers pages. The remaining pages are Plan 3B; the health check, installer, HidHide and background agent come in Plan 4.
+Plan 3B of 4. Done so far: engine (button mappings, macros, gyro, lights), key/mouse injection, profile storage, share codes, per-game auto-switch, every page of the UI and gamepad navigation. The health check, installer, HidHide and background agent come in Plan 4.
+
+## Pages
+
+- **Home** - controller status (USB / replay, battery) and driver hints; the first connected controller routes to Overview.
+- **Overview** - dashboard: live pad render with tiles summarising Buttons, Sticks, Triggers, Motion and Lights, with quick edits.
+- **Buttons** - remap any DualSense button to Xbox buttons, keys, mouse buttons or a macro, with turbo.
+- **Sticks** - per-stick deadzones, response curves (presets or custom points), calibration, invert, smoothing.
+- **Triggers** - per-trigger digital (mouse-click) mode, hair trigger, ranges and adaptive trigger effects.
+- **Motion** - gyro aim / steering to the right stick or the mouse, sensitivities and calibration.
+- **Vibrations** - rumble strength and motor tests (greyed out until "This controller has rumble motors" is on).
+- **Lights** - lightbar colour and animation, player LEDs, mic LED.
+- **Macros** - build or record step sequences, play-test them on the virtual pad, assign them on Buttons.
+- **Input Test** - raw DualSense input next to the virtual Xbox output, gyro and touchpad; shows REPLAY during a recording.
+- **Profiles** (header) - four slots: rename, duplicate, reset, share codes, per-game auto-switch rules.
+- **Settings** (header) - theme (dark / light), hardware (rumble motors), startup, updates and data folder.
+
+## Gamepad navigation
+
+While the DualForge window has focus the pad drives the UI (it is ignored when a game has focus, and while a macro is being recorded or play-tested):
+
+| Pad | Action |
+| --- | --- |
+| LB / RB | previous / next page (inside a dialog: its tabs) |
+| LT / RT | previous / next sub-tab on the page (e.g. Left / Right stick) |
+| D-pad | move focus to the nearest control in that direction (repeats every 150 ms while held); left / right on a slider changes its value |
+| A | press the focused control |
+| B | close the open dialog, otherwise go back to Overview |
+
+Navigation reads the processed virtual-pad output, so it follows your button mappings.
 
 ## Prerequisites
 
@@ -41,7 +70,9 @@ Four profile slots live in `%APPDATA%\DualForge\profiles\p1.json` .. `p4.json` (
 
 **Auto-switch:** `settings.autoSwitch` maps process names (e.g. `game.exe`, case-insensitive) to a profile. While that process is in the foreground the profile is applied; otherwise the active profile returns. Needs the native addon.
 
-**Hardware defaults:** triggers default to digital (click) mode and rumble is off (`hasRumble: false`), matching the author's modified pad. Stock DualSense users should set `triggers.*.digital = false` and `hasRumble = true`. The two back paddles are wired to standard buttons, so they are mapped like any other button.
+**Hardware defaults:** triggers default to digital (click) mode and rumble is off (`hasRumble: false`), matching the author's modified pad. Stock DualSense users should turn off **Digital (mouse-click) trigger** on the Triggers page (each side) and turn on **This controller has rumble motors** on the Vibrations or Settings page.
+
+**Back paddles:** the two back paddles are wired to face buttons, so they follow those buttons' mappings; they cannot be remapped separately.
 
 ## Folder map
 
