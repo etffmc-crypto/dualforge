@@ -116,6 +116,20 @@ describe('settings hooks', () => {
     expect(stored.hidHide).toBe(false);
   });
 
+  it('a failed disable keeps hidHide true and rejects with the code', async () => {
+    const r = rig();
+    await r.run({ hidHide: true });
+    r.hidhide.disable.mockResolvedValueOnce({
+      ok: false,
+      code: 'E_HIDHIDE_ELEVATION_DECLINED',
+    } as never);
+    await expect(r.run({ hidHide: false })).rejects.toThrow('E_HIDHIDE_ELEVATION_DECLINED');
+    expect(r.get().hidHide).toBe(true);
+    expect(r.sent).toEqual([
+      { type: 'setSettings', settings: expect.objectContaining({ hidHide: true }) },
+    ]);
+  });
+
   it('does nothing for unrelated changes', async () => {
     const r = rig();
     await r.run({ theme: 'light' });

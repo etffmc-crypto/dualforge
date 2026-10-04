@@ -29,11 +29,11 @@ export function createSettingsHooks(d: SettingsHookDeps) {
     if (prev.hidHide !== next.hidHide) {
       const r = next.hidHide ? await d.hidhide.enable() : await d.hidhide.disable();
       d.refreshHealth?.();
-      if (!r.ok && next.hidHide) {
-        // could not enable: persist hidHide=false so the toggle tells the truth, and tell the renderer why
+      if (!r.ok) {
+        // could not enable/disable: persist the previous value so the toggle tells the truth, and tell the renderer why
         let saved: Settings;
         try {
-          saved = d.settingsStore.set({ hidHide: false });
+          saved = d.settingsStore.set({ hidHide: !next.hidHide });
         } catch (e) {
           d.log.error({ code: 'E_SETTINGS_WRITE', msg: (e as Error).message });
           throw new Error('E_SETTINGS_WRITE');

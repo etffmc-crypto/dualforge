@@ -308,11 +308,11 @@ A `HidHideCLI.exe` call failed or timed out (`msg` names the command). Cause: th
 
 ### E_HIDHIDE_ELEVATION_DECLINED
 
-HidHide refused the unelevated CLI call (access denied), so DualForge wrote `hidhide-setup.cmd` (the `--app-reg`, `--dev-hide`, `--cloak-on` calls) to `%APPDATA%\DualForge` and ran it with a UAC prompt, but the prompt was declined or the script failed. The setting stays off. Fix: enable again and accept the UAC prompt.
+HidHide refused the unelevated CLI call (access denied), so DualForge wrote `hidhide-setup.cmd` (the `--app-reg`, `--dev-hide`, `--cloak-on` calls) to `%APPDATA%\DualForge` and ran it with a UAC prompt, but the prompt was declined or the script failed. A refused disable does the same with a single `--cloak-off` line. The setting keeps its previous value. After a decline, startup and automatic re-applies do not prompt again in that session (they return this code); a click on the switch or the Health repair prompts again. Fix: toggle again and accept the UAC prompt.
 
 ### E_HIDHIDE_CLOAK_STUCK
 
-On quit or logoff, cloak-off was refused for lack of administrator rights, so the DualSense stays hidden from games while DualForge is closed. Health shows a persistent warning until a later cloak-off succeeds. Fix: open the HidHide Configuration Client and untick "Enable device hiding", or turn HidHide off in DualForge and accept the prompt.
+On quit or logoff, cloak-off was refused for lack of administrator rights (or did not finish within 5 s), so the DualSense stays hidden from games while DualForge is closed. When this session had cloaked, Health shows a persistent warning until a later cloak-off succeeds. Fix: open the HidHide Configuration Client and untick "Enable device hiding", or turn HidHide off in DualForge and accept the prompt.
 
 ## Startup, tray and updates
 

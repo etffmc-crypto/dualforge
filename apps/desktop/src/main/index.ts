@@ -71,18 +71,20 @@ const updater = createUpdater({
 });
 ipcMain.handle('updates:check', () => updater.check());
 const stuckMarker = join(dataDir, HIDHIDE_STUCK_MARKER);
+const markCloakStuck = (stuck: boolean) => {
+  try {
+    if (stuck) writeFileSync(stuckMarker, new Date().toISOString());
+    else rmSync(stuckMarker, { force: true });
+  } catch (e) {
+    logger.warn({ code: 'E_HIDHIDE_CLOAK_STUCK', msg: (e as Error).message });
+  }
+};
 const hidhide = createHidHide({
   ownExe: process.execPath,
   dataDir,
   log: logger,
-  onCloakStuck: (stuck) => {
-    try {
-      if (stuck) writeFileSync(stuckMarker, new Date().toISOString());
-      else rmSync(stuckMarker, { force: true });
-    } catch (e) {
-      logger.warn({ code: 'E_HIDHIDE_CLOAK_STUCK', msg: (e as Error).message });
-    }
-  },
+  onCloakStuck: markCloakStuck,
+  cloakedThisSession: () => hidHideQueue.cloakedThisSession(),
 });
 // every HidHide operation (toggle, startup, repair, quit) goes through this one queue and converges on the setting
 const hidHideQueue = createHidHideQueue({
@@ -383,7 +385,7 @@ if (!app.requestSingleInstanceLock()) {
     health.start();
     if (settings.get().hidHide) void startupHidHide(); // cloak is off after a quit/reboot: switch it on again
   });
-  // While DualForge is closed the DualSense must be visible to games again: cloak off first (best effort, 2 s), then
+  // While DualForge is closed the DualSense must be visible to games again: cloak off first (best effort, 5 s), then
   // really quit. Runs whenever this session cloaked, even if the setting was switched off meanwhile.
   let quitCleanup: 'idle' | 'running' | 'done' = 'idle';
   app.on('before-quit', (e) => {
@@ -395,8 +397,15 @@ if (!app.requestSingleInstanceLock()) {
     if (cloakOff) {
       e.preventDefault();
       quitCleanup = 'running';
-      const timeout = new Promise<void>((r) => setTimeout(r, 2000));
-      void Promise.race([cloakOff, timeout])
+      // drain the queue (an op may be in flight) for at most 5 s; if cloak-off never ran, the pad may stay hidden
+      const timeout = new Promise<'timeout'>((r) => setTimeout(() => r('timeout'), 5000));
+      void Promise.race([cloakOff.then(() => 'done' as const), timeout])
+        .then((how) => {
+          if (how === 'timeout' && hidHideQueue.cloakedThisSession()) {
+            logger.error({ code: 'E_HIDHIDE_CLOAK_STUCK', msg: 'quit cloak-off timed out' });
+            markCloakStuck(true);
+          }
+        })
         .catch(() => undefined)
         .finally(() => {
           quitCleanup = 'done';

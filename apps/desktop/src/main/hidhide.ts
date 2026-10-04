@@ -29,6 +29,8 @@ export interface HidHideDeps {
   writeFile?: (p: string, data: string) => void;
   /** true: a quit cloak-off was refused (the pad stays hidden); false: a later cloak-off worked. Drives a persistent Health warning. */
   onCloakStuck?: (stuck: boolean) => void;
+  /** Whether this session cloaked (the queue knows); the stuck marker is written only then. Default: assume yes. */
+  cloakedThisSession?: () => boolean;
   log: { info(o: object): void; warn(o: object): void; error(o: object): void };
 }
 
@@ -88,6 +90,11 @@ export function composeElevatedSetup(cli: string, exe: string, instance: string)
   ].join('\r\n');
 }
 
+/** The elevated cloak-off used when an unelevated disable is refused. */
+export function composeElevatedCloakOff(cli: string): string {
+  return ['@echo off', `${cmdQuote(cli)} --cloak-off || exit /b 1`, ''].join('\r\n');
+}
+
 export function createHidHide(d: HidHideDeps) {
   const exec = d.exec ?? defaultExec;
   const exists = d.exists ?? existsSync;
@@ -135,24 +142,33 @@ export function createHidHide(d: HidHideDeps) {
     return parseDualSenseInstance(out);
   }
 
-  /** Writes the setup script to the data dir and runs it elevated (UAC prompt); any failure means it did not happen. */
-  async function elevatedSetup(cli: string, instance: string): Promise<void> {
+  /** Set when the user declined (or the elevated script failed) this session; automatic ops then never prompt again. */
+  let declined = false;
+
+  /** Writes `content` to the data dir and runs it elevated (UAC prompt); any failure means it did not happen. */
+  async function runElevated(content: string, auto: boolean): Promise<void> {
+    if (auto && declined)
+      throw new HidHideError(
+        'E_HIDHIDE_ELEVATION_DECLINED',
+        'administrator rights were declined earlier this session; not prompting again',
+      );
     if (!d.dataDir)
       throw new HidHideError('E_HIDHIDE_ELEVATION_DECLINED', 'no data folder for the setup script');
     const script = join(d.dataDir, SETUP_SCRIPT);
     try {
-      writeFile(script, composeElevatedSetup(cli, d.ownExe, instance));
+      writeFile(script, content);
       const ps = `$p = Start-Process -FilePath '${script.replace(/'/g, "''")}' -Verb RunAs -Wait -PassThru -WindowStyle Hidden; exit $p.ExitCode`;
       await exec(POWERSHELL_EXE, ['-NoProfile', '-NonInteractive', '-Command', ps], {
         timeoutMs: ELEVATION_TIMEOUT_MS,
       });
     } catch (e) {
+      declined = true;
       throw new HidHideError(
         'E_HIDHIDE_ELEVATION_DECLINED',
-        `elevated HidHide setup did not complete: ${(e as Error).message}`,
+        `elevated HidHide call did not complete: ${(e as Error).message}`,
       );
     }
-    d.log.info({ code: 'HIDHIDE_ELEVATED_SETUP', instance });
+    d.log.info({ code: 'HIDHIDE_ELEVATED_SETUP' });
   }
 
   async function guarded(fn: () => Promise<HidHideResult | void>): Promise<HidHideResult> {
@@ -170,10 +186,11 @@ export function createHidHide(d: HidHideDeps) {
    * same steps run once from an elevated script (UAC). At startup an absent pad is not an error: a pad hidden earlier
    * is cloaked again; one never hidden is skipped until it shows up.
    */
-  const enableFlow = (startup: boolean): Promise<HidHideResult> =>
+  const enableFlow = (startup: boolean, auto: boolean): Promise<HidHideResult> =>
     guarded(async () => {
       const cli = findCli();
       if (!cli) throw new HidHideError('E_HIDHIDE_NOT_INSTALLED', 'HidHide is not installed');
+      if (!auto) declined = false; // the user asked again: a new UAC prompt is fine
       const locate = async (hidden?: string[]): Promise<string | null> => {
         const present = await findDualSenseInstance();
         if (present) return present;
@@ -205,22 +222,31 @@ export function createHidHide(d: HidHideDeps) {
         d.log.warn({ code: 'HIDHIDE_ACCESS_DENIED', msg: e.message });
         inst ??= await locate();
         if (!inst) return skip();
-        await elevatedSetup(cli, inst);
+        await runElevated(composeElevatedSetup(cli, d.ownExe, inst), auto);
       }
       d.log.info({ code: 'HIDHIDE_ENABLED', instance: inst });
     });
 
-  const enable = () => enableFlow(false);
-  const startup = () => enableFlow(true);
+  /** `auto`: started by DualForge itself (converge), not a user click; never re-prompts after a decline. */
+  const enable = (opts: { auto?: boolean } = {}) => enableFlow(false, !!opts.auto);
+  const startup = () => enableFlow(true, true);
 
-  /** Cloak off; the registrations stay. Without HidHide there is nothing to undo. */
-  const disable = (): Promise<HidHideResult> =>
-    findCli()
+  /** Cloak off; the registrations stay. Refused for lack of rights → one elevated --cloak-off. Not installed → nothing to undo. */
+  const disable = (opts: { auto?: boolean } = {}): Promise<HidHideResult> => {
+    const cli = findCli();
+    return cli
       ? guarded(async () => {
-          await cloak(false);
+          try {
+            await cloak(false);
+          } catch (e) {
+            if (!(e instanceof HidHideError && e.accessDenied)) throw e;
+            d.log.warn({ code: 'HIDHIDE_ACCESS_DENIED', msg: e.message });
+            await runElevated(composeElevatedCloakOff(cli), !!opts.auto);
+          }
           d.onCloakStuck?.(false);
         })
       : Promise.resolve({ ok: true });
+  };
 
   /** Quit/logoff: cloak off without ever prompting. Refused for lack of rights → the pad stays hidden (E_HIDHIDE_CLOAK_STUCK). */
   const quitCloakOff = (): Promise<HidHideResult> =>
@@ -230,7 +256,7 @@ export function createHidHide(d: HidHideDeps) {
             await cloak(false);
           } catch (e) {
             if (e instanceof HidHideError && e.accessDenied) {
-              d.onCloakStuck?.(true);
+              if (d.cloakedThisSession?.() ?? true) d.onCloakStuck?.(true);
               throw new HidHideError('E_HIDHIDE_CLOAK_STUCK', e.message);
             }
             throw e;
@@ -291,7 +317,7 @@ export function createHidHideQueue(d: HidHideQueueDeps) {
     onOk?.();
     const want = d.desired();
     if (want !== established) {
-      const c = await (want ? d.hidhide.enable() : d.hidhide.disable());
+      const c = await (want ? d.hidhide.enable({ auto: true }) : d.hidhide.disable({ auto: true }));
       note(want, c);
       d.log.info({ code: 'HIDHIDE_CONVERGE', to: want, ok: c.ok });
     }

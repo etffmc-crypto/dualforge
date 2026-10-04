@@ -28,6 +28,7 @@ function rig(
     failWith?: (args: string[]) => Error | null;
     devList?: string;
     elevation?: 'accept' | 'decline';
+    cloaked?: () => boolean;
   } = {},
 ) {
   const calls: { file: string; args: string[] }[] = [];
@@ -63,6 +64,7 @@ function rig(
     dataDir: DATA,
     writeFile: (path, data) => writes.push({ path, data }),
     onCloakStuck: (s) => stuck.push(s),
+    ...(opts.cloaked ? { cloakedThisSession: opts.cloaked } : {}),
     log,
   });
   return { h, calls, log, exec, writes, stuck };
@@ -243,6 +245,59 @@ describe('hidhide without admin rights', () => {
     const ok = rig();
     expect(await ok.h.quitCloakOff()).toEqual({ ok: true });
     expect(ok.stuck).toEqual([false]);
+  });
+});
+
+describe('hidhide residual: disable elevation, stuck marker, decline latch', () => {
+  const elevatedCalls = (r: ReturnType<typeof rig>) =>
+    r.calls.filter((c) => c.args.join(' ').includes('Start-Process'));
+
+  it('disable: access denied runs an elevated --cloak-off script once', async () => {
+    const r = rig({ failWith: (a) => (a[0] === '--cloak-off' ? denied() : null) });
+    expect(await r.h.disable()).toEqual({ ok: true });
+    expect(r.writes).toHaveLength(1);
+    expect(r.writes[0]!.data.split('\r\n')).toEqual([
+      '@echo off',
+      `"${CLI}" --cloak-off || exit /b 1`,
+      '',
+    ]);
+    expect(elevatedCalls(r)).toHaveLength(1);
+  });
+
+  it('disable: a declined prompt is E_HIDHIDE_ELEVATION_DECLINED', async () => {
+    const r = rig({
+      failWith: (a) => (a[0] === '--cloak-off' ? denied() : null),
+      elevation: 'decline',
+    });
+    expect(await r.h.disable()).toMatchObject({
+      ok: false,
+      code: 'E_HIDHIDE_ELEVATION_DECLINED',
+    });
+  });
+
+  it('quit: the stuck marker is written only when this session cloaked', async () => {
+    const r = rig({
+      failWith: (a) => (a[0] === '--cloak-off' ? denied() : null),
+      cloaked: () => false,
+    });
+    expect(await r.h.quitCloakOff()).toMatchObject({ ok: false, code: 'E_HIDHIDE_CLOAK_STUCK' });
+    expect(r.stuck).toEqual([]);
+  });
+
+  it('after a decline, startup and converge do not prompt again; a user enable does', async () => {
+    const r = rig({
+      failWith: (a) => (a[0] === '--cloak-on' ? denied() : null),
+      elevation: 'decline',
+    });
+    expect(await r.h.enable()).toMatchObject({ code: 'E_HIDHIDE_ELEVATION_DECLINED' });
+    expect(elevatedCalls(r)).toHaveLength(1);
+    expect(await r.h.startup()).toMatchObject({ code: 'E_HIDHIDE_ELEVATION_DECLINED' });
+    expect(await r.h.enable({ auto: true })).toMatchObject({
+      code: 'E_HIDHIDE_ELEVATION_DECLINED',
+    });
+    expect(elevatedCalls(r)).toHaveLength(1); // latched: no new UAC prompt
+    await r.h.enable(); // user-initiated: clears the latch and prompts again
+    expect(elevatedCalls(r)).toHaveLength(2);
   });
 });
 
