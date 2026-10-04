@@ -1,0 +1,6 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "composite": true, "noEmit": true, "types": ["node", "electron-vite/node"], "module": "ESNext", "moduleResolution": "Bundler" },
+  "include": ["electron.vite.config.ts", "vitest.config.ts", "src/main/**/*", "src/preload/**/*", "test/**/*"],
+  "references": [{ "path": "../../packages/shared" }, { "path": "../../packages/engine" }]
+}

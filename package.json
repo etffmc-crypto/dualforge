@@ -5,7 +5,7 @@
   "type": "module",
   "workspaces": ["packages/*", "apps/*"],
   "scripts": {
-    "typecheck": "tsc -b packages/shared packages/engine",
+    "typecheck": "tsc -b packages/shared packages/engine apps/desktop",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "test": "vitest run",
