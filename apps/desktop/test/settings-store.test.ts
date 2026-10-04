@@ -32,4 +32,12 @@ describe('settings store', () => {
     expect(readdirSync(join(dir, 'corrupt'))).toHaveLength(1);
     expect((log.error.mock.calls[0]![0] as { code: string }).code).toBe('E_SETTINGS_SCHEMA');
   });
+  it('quarantines a persisted unknown profile id', () => {
+    writeFileSync(join(dir, 'settings.json'), JSON.stringify({ schemaVersion: 1, activeProfile: 'zzz' }));
+    const s = createSettingsStore(dir, log);
+    expect(s.get().activeProfile).toBe('p1');
+    expect(readdirSync(join(dir, 'corrupt'))).toHaveLength(1);
+    writeFileSync(join(dir, 'settings.json'), JSON.stringify({ schemaVersion: 1, autoSwitch: [{ exe: 'a.exe', profileId: '../x' }] }));
+    expect(createSettingsStore(dir, log).get().autoSwitch).toEqual([]);
+  });
 });

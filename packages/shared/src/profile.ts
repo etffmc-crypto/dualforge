@@ -2,6 +2,10 @@ import { z } from 'zod';
 import { DS_BUTTONS, type DsButton } from './dualsense.js';
 import { X_BUTTONS } from './xinput.js';
 
+/** The four fixed profile slots. */
+export const PROFILE_IDS = ['p1', 'p2', 'p3', 'p4'] as const;
+export const ProfileIdSchema = z.enum(PROFILE_IDS);
+
 const unit = z.number().min(0).max(1);
 
 export const CurvePointSchema = z.tuple([unit, unit]);

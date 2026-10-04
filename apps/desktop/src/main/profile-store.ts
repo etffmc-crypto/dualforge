@@ -1,9 +1,9 @@
 import { readFileSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { defaultProfile, ProfileSchema, type Profile, type ProfileSummary } from '@dualforge/shared';
+import { defaultProfile, PROFILE_IDS, ProfileSchema, type Profile, type ProfileSummary } from '@dualforge/shared';
 import { nodeIo, quarantine, readJsonFile, writeJsonAtomic, type FileIo, type StoreLog } from './json-file.js';
 
-export const PROFILE_IDS = ['p1', 'p2', 'p3', 'p4'] as const;
+export { PROFILE_IDS };
 const MAX_IMPORT_BYTES = 256 * 1024;
 
 function slotOf(id: string): number {
@@ -16,6 +16,16 @@ export function createProfileStore(dir: string, log: StoreLog, io: FileIo = node
   const pdir = join(dir, 'profiles');
   const fileOf = (id: string) => join(pdir, `${id}.json`);
   const cache = new Map<string, Profile>();
+  const pending = new Map<string, ReturnType<typeof setTimeout>>();
+  const DEBOUNCE_MS = 250;
+  const cancel = (id: string) => { const t = pending.get(id); if (t) { clearTimeout(t); pending.delete(id); } };
+  function persist(id: string) {
+    cancel(id);
+    const p = cache.get(id);
+    if (!p) return;
+    try { writeJsonAtomic(fileOf(id), p, io); }
+    catch (e) { log.error({ code: 'E_PROFILE_WRITE', msg: (e as Error).message }); }
+  }
 
   function load(id: string): Profile {
     const n = slotOf(id);
@@ -38,13 +48,26 @@ export function createProfileStore(dir: string, log: StoreLog, io: FileIo = node
     if (!p) { p = load(id); cache.set(id, p); }
     return structuredClone(p);
   }
-  function set(profile: Profile): void {
+  function validated(profile: Profile): Profile {
     slotOf(profile.id);
     const parsed = ProfileSchema.safeParse(profile);
     if (!parsed.success) throw new Error('E_PROFILE_SCHEMA');
-    writeJsonAtomic(fileOf(parsed.data.id), parsed.data, io);
-    cache.set(parsed.data.id, structuredClone(parsed.data));
+    return parsed.data;
   }
+  function set(profile: Profile): void {
+    const p = validated(profile);
+    cancel(p.id);
+    writeJsonAtomic(fileOf(p.id), p, io);
+    cache.set(p.id, structuredClone(p));
+  }
+  /** Updates the in-memory profile now; the disk write is debounced (250 ms trailing per id). Write errors are logged E_PROFILE_WRITE, never thrown. */
+  function setDeferred(profile: Profile): void {
+    const p = validated(profile);
+    cache.set(p.id, structuredClone(p));
+    cancel(p.id);
+    pending.set(p.id, setTimeout(() => persist(p.id), DEBOUNCE_MS));
+  }
+  function flush(): void { for (const id of [...pending.keys()]) persist(id); }
   /** Validates untrusted JSON text/object as a profile placed into `toSlot` (never throws raw zod errors). */
   function adopt(raw: unknown, toSlot: string): Profile {
     slotOf(toSlot);
@@ -59,6 +82,8 @@ export function createProfileStore(dir: string, log: StoreLog, io: FileIo = node
     list(): ProfileSummary[] { return PROFILE_IDS.map((id, i) => ({ id, name: get(id).name, slot: i + 1 })); },
     get,
     set,
+    setDeferred,
+    flush,
     rename(id: string, name: string): void { set({ ...get(id), name }); },
     duplicate(fromId: string, toSlot: string): Profile {
       const src = get(fromId);
@@ -66,6 +91,7 @@ export function createProfileStore(dir: string, log: StoreLog, io: FileIo = node
     },
     reset(id: string): void {
       slotOf(id);
+      cancel(id);
       if (existsSync(fileOf(id))) io.unlinkSync(fileOf(id));
       cache.delete(id);
     },

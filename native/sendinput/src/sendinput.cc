@@ -10,6 +10,7 @@ bool IsExtended(UINT vk) {
     case VK_HOME: case VK_END: case VK_PRIOR: case VK_NEXT:
     case VK_INSERT: case VK_DELETE: case VK_DIVIDE: case VK_NUMLOCK:
     case VK_RCONTROL: case VK_RMENU:
+    case VK_LWIN: case VK_RWIN: case VK_APPS: case VK_SNAPSHOT:
       return true;
     default:
       return false;

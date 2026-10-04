@@ -59,7 +59,7 @@ export function createEngineLoop(d: LoopDeps) {
 
   function feedback(now: number): Feedback {
     const p = profile!;
-    const lb = computeLightbar(p.lights, now - t0, lastRaw?.battery ?? { percent: 0, state: 'unknown' });
+    const lb = computeLightbar(p.lights, Math.floor((now - t0) / ANIM_MS) * ANIM_MS, lastRaw?.battery ?? { percent: 0, state: 'unknown' });
     animated = lb.animated;
     const rl = settings.hasRumble ? rumble.large * (p.vibration.left / 100) : 0;
     const rr = settings.hasRumble ? rumble.small * (p.vibration.right / 100) : 0;

@@ -1,3 +1,4 @@
+import { basename } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultSettings, type Settings } from '@dualforge/shared';
 import { createGameWatcher } from '../src/main/game-watcher.js';
@@ -56,5 +57,25 @@ describe('game watcher', () => {
     w.start(); w.stop();
     vi.advanceTimersByTime(10_000);
     expect(switched).toEqual([]);
+  });
+  it('a throwing onSwitch is logged E_AUTOSWITCH and does not kill the interval', () => {
+    const log = vi.fn(); let n = 0;
+    const seq = ['cod.exe', 'x.exe', 'cod.exe'];
+    const w = createGameWatcher({
+      foreground: () => seq[n++ % 3]!, settings: () => ({ ...defaultSettings(), autoSwitch: [{ exe: 'cod.exe', profileId: 'p2' }] }),
+      onSwitch: () => { throw new Error('boom'); }, log,
+    });
+    w.start();
+    vi.advanceTimersByTime(2000 * 3);
+    expect(log.mock.calls.map((c) => c[0])).toEqual(['E_AUTOSWITCH', 'E_AUTOSWITCH', 'E_AUTOSWITCH']);
+    w.stop();
+  });
+  it('ignores its own executable like an empty name', () => {
+    const self = basename(process.execPath).toUpperCase();
+    const { w, switched } = rig(['cod.exe', self, 'electron.exe', 'cod.exe']);
+    w.start();
+    vi.advanceTimersByTime(2000 * 4);
+    expect(switched).toEqual(['p2']);
+    w.stop();
   });
 });

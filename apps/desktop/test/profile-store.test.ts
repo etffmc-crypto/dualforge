@@ -74,4 +74,26 @@ describe('profile store', () => {
     const bomb = 'DUALFORGE:' + deflateRawSync(Buffer.alloc(8 * 1024 * 1024, 0x20)).toString('base64url');
     expect(() => profileFromShareCode(bomb)).toThrow(/E_SHARE_CODE/);
   });
+  it('setDeferred updates memory at once and coalesces rapid sets into one disk write', () => {
+    vi.useFakeTimers();
+    let renames = 0;
+    const s = createProfileStore(dir, log, { ...nodeIo, renameSync(a, b) { renames++; nodeIo.renameSync(a, b); } });
+    for (let i = 1; i <= 5; i++) s.setDeferred(defaultProfile('p1', `N${i}`));
+    expect(s.get('p1').name).toBe('N5');
+    expect(existsSync(join(dir, 'profiles', 'p1.json'))).toBe(false);
+    vi.advanceTimersByTime(250);
+    expect(renames).toBe(1);
+    expect(createProfileStore(dir, log).get('p1').name).toBe('N5');
+    s.setDeferred(defaultProfile('p2', 'Flushed')); s.flush();
+    expect(createProfileStore(dir, log).get('p2').name).toBe('Flushed');
+    vi.useRealTimers();
+  });
+  it('a failing deferred write is logged E_PROFILE_WRITE and does not throw', () => {
+    vi.useFakeTimers();
+    const s = createProfileStore(dir, log, { ...nodeIo, renameSync() { throw new Error('disk'); } });
+    s.setDeferred(defaultProfile('p1', 'X'));
+    expect(() => vi.advanceTimersByTime(250)).not.toThrow();
+    expect(log.error.mock.calls.some((c) => (c[0] as { code: string }).code === 'E_PROFILE_WRITE')).toBe(true);
+    vi.useRealTimers();
+  });
 });

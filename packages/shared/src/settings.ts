@@ -1,9 +1,10 @@
 import { z } from 'zod';
+import { ProfileIdSchema } from './profile.js';
 
 export const SettingsSchema = z.object({
   schemaVersion: z.literal(1),
-  activeProfile: z.string().default('p1'),
-  autoSwitch: z.array(z.object({ exe: z.string().min(1), profileId: z.string().min(1) })).default([]),
+  activeProfile: ProfileIdSchema.default('p1'),
+  autoSwitch: z.array(z.object({ exe: z.string().min(1), profileId: ProfileIdSchema })).default([]),
   hasRumble: z.boolean().default(false),
   hidHide: z.boolean().default(false),
   startWithWindows: z.boolean().default(false),

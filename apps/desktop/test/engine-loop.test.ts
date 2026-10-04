@@ -401,4 +401,20 @@ describe('engine loop plan 3a: injector gate, rumble setting, lights cadence', (
     expect(colours.size).toBeGreaterThanOrEqual(2);
     await loop.stop(); vi.useRealTimers();
   });
+  it('rate-limits lightbar animation writes under a 1 kHz report stream', async () => {
+    vi.useFakeTimers();
+    const writes: Uint8Array[] = [];
+    let report!: (b: Uint8Array, t: number) => void;
+    const src: InputSource = { start(r, st) { report = r; st(true); }, async write(r) { writes.push(r); }, async stop() {} };
+    const loop = createEngineLoop({ source: src, sink: fakeSink(), emit: () => {}, now: () => performance.now() });
+    const p = defaultProfile('p', 'p');
+    p.lights = { ...p.lights, mode: 'breathing', speed: 100, r: 255, g: 0, b: 255 };
+    loop.setProfile(p);
+    await loop.start();
+    writes.length = 0;
+    for (let i = 0; i < 1000; i++) { report(usbReport(false), performance.now()); await vi.advanceTimersByTimeAsync(1); }
+    expect(writes.length).toBeLessThanOrEqual(35);
+    expect(writes.length).toBeGreaterThan(5);
+    await loop.stop(); vi.useRealTimers();
+  });
 });
