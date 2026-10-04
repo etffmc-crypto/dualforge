@@ -1,4 +1,4 @@
-import { useId, type ComponentType, type PropsWithChildren, type ReactNode } from 'react';
+import { memo, useCallback, useId, useMemo, type ComponentType, type PropsWithChildren, type ReactNode } from 'react';
 import type { Profile, StickConfig, TriggerConfig } from '@dualforge/shared';
 import { DualSenseTop } from '../art/DualSenseTop';
 import { Battery } from '../components/Battery';
@@ -14,6 +14,9 @@ import { useStore, type Page, type Side } from '../store';
 import { DS_LABEL, hueOf, mappingChips, rgbOfHue } from './overview/format';
 
 const MAX_CHIPS = 8;
+
+/** Render counters, read by tests to prove the tiles don't re-render at snapshot rate. */
+export const renderCounts = { lights: 0, livePad: 0 };
 const MIN_LIVE_RANGE = 0.05; // same guard as the Sticks page: keeps `center < 1 - outer`
 const tidy = (v: number) => Math.round(v * 1e6) / 1e6;
 const pct = (v: number) => `${Math.round(v * 100)}%`;
@@ -55,7 +58,10 @@ function Row({ label, children, testId }: { label: string; children: ReactNode; 
   );
 }
 
-function LightsCard({ lights, edit }: { lights: Lights; edit(fn: (l: Lights) => void): void }) {
+const LightsCard = memo(function LightsCard({ lights }: { lights: Lights }) {
+  renderCounts.lights++;
+  const updateProfile = useStore((s) => s.updateProfile);
+  const edit = useCallback((fn: (l: Lights) => void) => updateProfile((d) => fn(d.lights)), [updateProfile]);
   return (
     <OvCard area="lights" title="Lights" Icon={LightsIcon} page="lights">
       <SectionLabel>Animation</SectionLabel>
@@ -68,9 +74,9 @@ function LightsCard({ lights, edit }: { lights: Lights; edit(fn: (l: Lights) => 
       </div>
     </OvCard>
   );
-}
+});
 
-function MotionCard({ gyro }: { gyro: Profile['gyro'] }) {
+const MotionCard = memo(function MotionCard({ gyro }: { gyro: Profile['gyro'] }) {
   const on = gyro.output !== 'off';
   const activate = gyro.activate === 'always' || !gyro.activateButton
     ? 'Always'
@@ -84,7 +90,7 @@ function MotionCard({ gyro }: { gyro: Profile['gyro'] }) {
       <Row label="Curve">{PRESET_LABELS[gyro.curve]}</Row>
     </OvCard>
   );
-}
+});
 
 const HAIR = (t: TriggerConfig) => (t.hairTrigger.mode === 'adaptive' ? `Adaptive ${t.hairTrigger.value}%` : t.hairTrigger.mode === 'fixed' ? 'Fixed' : 'Off');
 const EFFECT: Record<TriggerConfig['effect']['mode'], string> = { off: 'Off', resistance: 'Resistance', section: 'Section', vibration: 'Vibration' };
@@ -111,7 +117,9 @@ function TriggerSummary({ side, t }: { side: Side; t: TriggerConfig }) {
   );
 }
 
-function StickColumn({ side, cfg, edit }: { side: Side; cfg: StickConfig; edit(fn: (c: StickConfig) => void): void }) {
+function StickColumn({ side, cfg }: { side: Side; cfg: StickConfig }) {
+  const updateProfile = useStore((s) => s.updateProfile);
+  const edit = useCallback((fn: (c: StickConfig) => void) => updateProfile((d) => fn(d.sticks[side])), [updateProfile, side]);
   const name = side === 'left' ? 'Left stick' : 'Right stick';
   const dz = cfg.deadzone;
   const points = cfg.curve.kind === 'preset' ? presetPreview(cfg.curve.preset) : previewPoints(cfg.curve.points);
@@ -135,9 +143,30 @@ function StickColumn({ side, cfg, edit }: { side: Side; cfg: StickConfig; edit(f
   );
 }
 
-function ButtonsCard({ profile }: { profile: Profile }) {
+const TriggersCard = memo(function TriggersCard({ triggers }: { triggers: Profile['triggers'] }) {
+  return (
+    <OvCard area="triggers" title="Triggers" Icon={TriggersIcon} page="triggers">
+      <TriggerSummary side="left" t={triggers.left} />
+      <TriggerSummary side="right" t={triggers.right} />
+    </OvCard>
+  );
+});
+
+const SticksCard = memo(function SticksCard({ sticks }: { sticks: Profile['sticks'] }) {
+  return (
+    <OvCard area="sticks" title="Sticks" Icon={SticksIcon} page="sticks">
+      <div className="ov-stick-cols">
+        {(['left', 'right'] as const).map((side) => <StickColumn key={side} side={side} cfg={sticks[side]} />)}
+      </div>
+    </OvCard>
+  );
+});
+
+const ButtonsCard = memo(function ButtonsCard({ profile }: { profile: Profile }) {
   const setPage = useStore((s) => s.setPage);
-  const chips = mappingChips(profile);
+  // the chip text also depends on trigger digital flags and macro names
+  const { mappings, triggers, macros } = profile;
+  const chips = useMemo(() => mappingChips({ ...profile, mappings, triggers, macros }), [mappings, triggers, macros]);
   const shown = chips.slice(0, MAX_CHIPS);
   const more = chips.length - shown.length;
   return (
@@ -164,46 +193,41 @@ function ButtonsCard({ profile }: { profile: Profile }) {
       )}
     </OvCard>
   );
+});
+
+/** The live render: the only part of the Overview that follows the snapshot stream. */
+function LivePad() {
+  renderCounts.livePad++;
+  const s = useStore((st) => st.snapshot);
+  const lights = useStore((st) => st.profile?.lights);
+  const name = useStore((st) => st.profile?.name ?? '');
+  const connected = s?.connected ?? false;
+  return (
+    <div className="ov-stage">
+      <div className="ov-pad">
+        <DualSenseTop
+          pressed={s?.raw.buttons ?? {}} lightbar={lights ?? { r: 0, g: 80, b: 255 }}
+          sticks={s ? { lx: s.raw.lx, ly: s.raw.ly, rx: s.raw.rx, ry: s.raw.ry } : undefined}
+          playerLeds={lights?.playerLeds ?? 0}
+        />
+      </div>
+      <h2 className="home-name ov-name">DUALSENSE {connected && s && <Battery percent={s.battery.percent} charging={s.battery.state === 'charging'} />}</h2>
+      <p className="ov-status">{connected ? `Connected · USB · ${name}` : 'Not connected'}</p>
+    </div>
+  );
 }
 
 /** Landing dashboard (GameSir ss2): five summary tiles around the live pad render. */
 export function Overview() {
   const profile = useStore((s) => s.profile);
-  const s = useStore((st) => st.snapshot);
-  const updateProfile = useStore((st) => st.updateProfile);
   if (!profile) return null; // still loading
-  const connected = s?.connected ?? false;
   return (
     <div className="overview">
-      <LightsCard lights={profile.lights} edit={(fn) => updateProfile((d) => fn(d.lights))} />
-
-      <div className="ov-stage">
-        <div className="ov-pad">
-          <DualSenseTop
-            pressed={s?.raw.buttons ?? {}} lightbar={profile.lights}
-            sticks={s ? { lx: s.raw.lx, ly: s.raw.ly, rx: s.raw.rx, ry: s.raw.ry } : undefined}
-            playerLeds={profile.lights.playerLeds}
-          />
-        </div>
-        <h2 className="home-name ov-name">DUALSENSE {connected && s && <Battery percent={s.battery.percent} charging={s.battery.state === 'charging'} />}</h2>
-        <p className="ov-status">{connected ? `Connected · USB · ${profile.name}` : 'Not connected'}</p>
-      </div>
-
+      <LightsCard lights={profile.lights} />
+      <LivePad />
       <MotionCard gyro={profile.gyro} />
-
-      <OvCard area="triggers" title="Triggers" Icon={TriggersIcon} page="triggers">
-        <TriggerSummary side="left" t={profile.triggers.left} />
-        <TriggerSummary side="right" t={profile.triggers.right} />
-      </OvCard>
-
-      <OvCard area="sticks" title="Sticks" Icon={SticksIcon} page="sticks">
-        <div className="ov-stick-cols">
-          {(['left', 'right'] as const).map((side) => (
-            <StickColumn key={side} side={side} cfg={profile.sticks[side]} edit={(fn) => updateProfile((d) => fn(d.sticks[side]))} />
-          ))}
-        </div>
-      </OvCard>
-
+      <TriggersCard triggers={profile.triggers} />
+      <SticksCard sticks={profile.sticks} />
       <ButtonsCard profile={profile} />
     </div>
   );

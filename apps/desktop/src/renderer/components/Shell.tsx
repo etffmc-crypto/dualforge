@@ -2,11 +2,12 @@ import { useEffect, type PropsWithChildren } from 'react';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { useStore } from '../store';
+import { applyTheme } from '../theme';
 
-/** Mirrors `settings.theme` onto `<html data-theme>`; tokens.css swaps the palette from there. Dark until settings load. */
+/** Mirrors `settings.theme` onto `<html data-theme>` (and remembers it for the next boot). Until settings load, the theme `bootTheme()` set stays. */
 export function useThemeSync(): void {
-  const theme = useStore((s) => s.settings?.theme ?? 'dark');
-  useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
+  const theme = useStore((s) => s.settings?.theme ?? null);
+  useEffect(() => { if (theme) applyTheme(theme); }, [theme]);
 }
 
 export function Shell({ children }: PropsWithChildren) {

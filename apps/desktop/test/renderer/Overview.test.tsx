@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultProfile, type EngineSnapshot, type Profile } from '@dualforge/shared';
 import { useStore } from '../../src/renderer/store';
-import { Overview } from '../../src/renderer/pages/Overview';
+import { Overview, renderCounts } from '../../src/renderer/pages/Overview';
 import { formatTarget, hueOf, mappingChips, rgbOfHue } from '../../src/renderer/pages/overview/format';
 
 function stubProfile(): Profile {
@@ -106,6 +106,21 @@ describe('Overview cards', () => {
     fireEvent.change(within(card('Sticks')).getByRole('slider', { name: 'Left stick anti-deadzone' }), { target: { value: '0.2' } });
     expect(useStore.getState().profile!.sticks.left.deadzone.anti).toBe(0.2);
     expect(useStore.getState().profile!.sticks.right.deadzone.anti).toBe(0);
+  });
+
+  it('a snapshot stream re-renders only the live pad, not the tiles', () => {
+    render(<Overview />);
+    const lights0 = renderCounts.lights, pad0 = renderCounts.livePad;
+    for (let i = 0; i < 10; i++) {
+      const s = snap();
+      s.raw.lx = i / 10; s.raw.buttons = { cross: i % 2 === 0 };
+      act(() => useStore.setState({ snapshot: s }));
+    }
+    expect(renderCounts.lights - lights0).toBe(0);
+    expect(renderCounts.livePad - pad0).toBe(10);
+    // an edit still reaches the tiles
+    act(() => useStore.getState().updateProfile((d) => { d.lights.mode = 'off'; }));
+    expect(renderCounts.lights - lights0).toBe(1);
   });
 
   it('renders nothing until the profile loads', () => {
