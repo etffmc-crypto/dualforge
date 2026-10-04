@@ -43,6 +43,7 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 - Stale doc comments mentioning LT/RT in SettingsLayout.tsx and Sticks.tsx; main load() returns sparse mappings (renderer densifies).
 
 ## From Plan 4 (2026-10-04) — parked at final review
+
 - Native addon: export foregroundPid (removes 2 s blur race + exe-name fallback for the inject gate); re-sample 100-200 ms after blur.
 - HidHide: decline latch is in-memory only (prompts again next launch); verify admin requirement, CompatibleID filter and UAC flow on real install; Bluetooth instance paths not matched; quit drain 5 s untested in index.ts.
 - Maintenance: Claude Code deny-rule matching for ~/AppData and //c/ forms unverified; wildcard looseness on 'git add apps/*'; unstaged report after a dirty run keeps the tree dirty for the next run; stale last-check.json when node missing.
