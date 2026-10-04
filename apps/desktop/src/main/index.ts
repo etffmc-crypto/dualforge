@@ -17,6 +17,7 @@ import { registerIpc } from './register-ipc.js';
 import { createInjector } from './injector.js';
 import { createGameWatcher } from './game-watcher.js';
 import { createProcessLister } from './processes.js';
+import { createDriverInstaller, registerDriverIpc, type DriverStatus } from './driver-installer.js';
 
 let win: BrowserWindow | null = null;
 const engine = createEngineHost({ log: logger, onEvent: (e) => { engineFeed.onEvent(e); if (win && !win.isDestroyed()) win.webContents.send('engine:event', e); } });
@@ -41,6 +42,16 @@ const watcher = createGameWatcher({
   available: injector.available, foregroundElevated: () => injector.foregroundElevated(),
 });
 
+const installer = createDriverInstaller({
+  fetch, openPath: (p) => shell.openPath(p), dir: join(app.getPath('temp'), 'DualForge'), log: logger,
+  emit: (s: DriverStatus) => { if (win && !win.isDestroyed()) win.webContents.send('driver:status', s); },
+});
+registerDriverIpc({ ipc: ipcMain, installer, log: logger });
+const installRepair = (driver: 'vigem' | 'hidhide') => async () => {
+  const s = await installer.install(driver);
+  return s.state === 'done' ? { ok: true } : { ok: false, code: s.code ?? 'E_DRIVER_DOWNLOAD' };
+};
+
 const health = createHealthService({
   gather: () => gatherInput({
     exec: defaultExec, dataDir, logDir: LOG_DIR, ownExe: process.execPath, appVersion: app.getVersion(), engine: () => engineFeed.view(),
@@ -54,6 +65,8 @@ const health = createHealthService({
     resetProfile: (id) => { ipc.resetProfile(id); },
     clearLogs: () => clearLogs(LOG_DIR),
     openLogs: () => shell.openPath(LOG_DIR),
+    installViGEm: installRepair('vigem'),
+    installHidHide: installRepair('hidhide'),
     exportBundle: async () => ((await bundle.exportWithDialog()) ? { ok: true } : { ok: false, code: 'E_BUNDLE_CANCELLED' }),
   },
 });

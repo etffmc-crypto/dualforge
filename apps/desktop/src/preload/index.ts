@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { EngineEvent, HealthRepairRequest, HealthRepairResult, HealthState, Profile, ProfileSummary, Settings } from '@dualforge/shared';
 
+export interface DriverStatus { driver: 'vigem' | 'hidhide'; state: 'idle' | 'downloading' | 'verifying' | 'launching' | 'done' | 'failed'; pct?: number; code?: string; sha256?: string; url?: string }
+
 const api = {
   /** Fixed at launch from main's environment (the sandboxed preload sees it); no IPC. */
   flags: {
@@ -65,6 +67,16 @@ const api = {
       const h = (_: unknown, s: HealthState) => cb(s);
       ipcRenderer.on('health:changed', h);
       return () => ipcRenderer.removeListener('health:changed', h);
+    },
+  },
+  drivers: {
+    /** The consent click: downloads the official installer, checks its signature, then launches it (Windows asks for permission). */
+    install: (driver: 'vigem' | 'hidhide'): Promise<DriverStatus> => ipcRenderer.invoke('driver:install', { driver }),
+    status: (): Promise<Record<'vigem' | 'hidhide', DriverStatus>> => ipcRenderer.invoke('driver:status:get'),
+    onStatus(cb: (s: DriverStatus) => void): () => void {
+      const h = (_: unknown, s: DriverStatus) => cb(s);
+      ipcRenderer.on('driver:status', h);
+      return () => ipcRenderer.removeListener('driver:status', h);
     },
   },
   window: {

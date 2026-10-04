@@ -261,3 +261,16 @@ describe('engine feed', () => {
     expect(feed.view().lastErrorCodes).not.toContain('E_ENGINE_RESTART_LIMIT');
   });
 });
+
+describe('driver repairs', () => {
+  it('route to the installer when wired and stay unavailable otherwise', async () => {
+    const r = rig();
+    expect(await r.svc.repair({ id: 'installHidHide' })).toEqual({ ok: false, code: 'E_HEALTH_REPAIR_UNAVAILABLE' });
+    const installHidHide = vi.fn(async () => ({ ok: true }));
+    const installViGEm = vi.fn(async () => ({ ok: false, code: 'E_DRIVER_SIGNATURE' }));
+    const svc = createHealthService({ gather: async () => GOOD, emit: () => {}, log: r.log, repairs: { ...r.repairs, installHidHide, installViGEm } });
+    expect(await svc.repair({ id: 'installHidHide' })).toEqual({ ok: true });
+    expect(await svc.repair({ id: 'installViGEm' })).toEqual({ ok: false, code: 'E_DRIVER_SIGNATURE' });
+    expect(installHidHide).toHaveBeenCalledTimes(1);
+  });
+});

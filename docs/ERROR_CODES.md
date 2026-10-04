@@ -186,6 +186,32 @@ A repair threw an error (see `msg` in the log). Fix: retry; export a diagnostics
 ### E_HEALTH_OPEN_LOGS
 Explorer could not open the logs folder. Fix: open `%APPDATA%\DualForge\logs` manually.
 
+## Driver installer
+
+### E_DRIVER_REQUEST
+`driver:install` got a payload other than `{ driver: 'vigem' | 'hidhide' }`. Fix: none; this indicates a bug.
+
+### E_DRIVER_FETCH
+The latest-release lookup on GitHub (`api.github.com`) failed: offline, rate limited, or an error status. Fix: check the connection and retry, or install the driver manually from its GitHub releases page.
+
+### E_DRIVER_NO_ASSET
+The latest release has no usable `.exe` asset (none, not served from github.com, or an unsafe file name). Fix: install manually from the project's releases page.
+
+### E_DRIVER_DOWNLOAD
+Downloading the installer failed (network error or bad status). The partial file is deleted. Fix: retry.
+
+### E_DRIVER_TOO_LARGE
+The installer is larger than the 50 MB safety cap, by its declared or its streamed size. Nothing is launched. Fix: install manually.
+
+### E_DRIVER_SIGNATURE
+The installer's Authenticode signature is not Valid (not signed, hash mismatch, not trusted) or could not be checked. The file is deleted and never launched. Fix: retry; if it repeats, do not install the driver from this download.
+
+### E_DRIVER_SIGNER
+The signature is valid but not from Nefarius Software Solutions. The file is deleted and never launched.
+
+### E_DRIVER_LAUNCH
+Windows could not start the installer (for example the UAC prompt was declined). The downloaded file stays in `%TEMP%\DualForge`. Fix: click install again and accept the prompt.
+
 ## Diagnostics bundle
 
 ### E_BUNDLE_WRITE

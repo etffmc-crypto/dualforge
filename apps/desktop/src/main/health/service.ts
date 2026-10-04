@@ -14,6 +14,10 @@ export interface HealthRepairs {
   openLogs(): string | Promise<string>;
   /** Diagnostics bundle (Task 3); leave unset until it exists. */
   exportBundle?(): Promise<HealthRepairResult>;
+  /** Consent-gated driver installs and HidHide enabling; unset means unavailable. */
+  installViGEm?(): Promise<HealthRepairResult>;
+  installHidHide?(): Promise<HealthRepairResult>;
+  enableHidHide?(): Promise<HealthRepairResult>;
 }
 export interface HealthDeps {
   gather: () => Promise<GatheredInput>;
@@ -84,7 +88,9 @@ export function createHealthService(d: HealthDeps) {
           break;
         }
         case 'exportBundle': res = d.repairs.exportBundle ? await d.repairs.exportBundle() : UNAVAILABLE; break;
-        case 'installViGEm': case 'installHidHide': case 'enableHidHide': res = UNAVAILABLE; break;
+        case 'installViGEm': res = d.repairs.installViGEm ? await d.repairs.installViGEm() : UNAVAILABLE; break;
+        case 'installHidHide': res = d.repairs.installHidHide ? await d.repairs.installHidHide() : UNAVAILABLE; break;
+        case 'enableHidHide': res = d.repairs.enableHidHide ? await d.repairs.enableHidHide() : UNAVAILABLE; break;
       }
       if (!res.ok) d.log.warn({ code: res.code, msg: res.msg, repair: req.id });
       else if (req.id !== 'openLogs' && req.id !== 'exportBundle') void rerun();   // re-check so the page reflects the fix
