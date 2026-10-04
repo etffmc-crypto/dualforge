@@ -11,6 +11,7 @@ import { Macros } from './pages/Macros';
 import { Motion } from './pages/Motion';
 import { Vibrations } from './pages/Vibrations';
 import { Lights } from './pages/Lights';
+import { Profiles } from './pages/Profiles';
 import './styles/shell.css';
 import './styles/pages.css';
 import './styles/controls.css';
@@ -29,6 +30,7 @@ function Page() {
     case 'vibrations': return <Vibrations />;
     case 'lights': return <Lights />;
     case 'macros': return <Macros />;
+    case 'profiles': return <Profiles />;
   }
 }
 

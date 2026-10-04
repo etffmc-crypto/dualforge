@@ -3,7 +3,7 @@ import { useStore } from '../store';
 import { TabStrip } from './TabStrip';
 import { ProfileTabs } from './ProfileTabs';
 import { Modal } from './Modal';
-import { FlaskIcon, GearIcon, HomeIcon, ResetIcon } from './icons';
+import { FlaskIcon, GearIcon, HomeIcon, ProfilesIcon, ResetIcon } from './icons';
 
 function ResetDialog({ onClose }: { onClose(): void }) {
   const name = useStore((s) => s.profiles.find((p) => p.id === s.activeProfileId)?.name ?? s.profile?.name ?? 'this profile');
@@ -43,6 +43,7 @@ export function Header() {
       <ProfileTabs />
       <TabStrip />
       <div className="header-actions">
+        <button className={`icon-btn${page === 'profiles' ? ' active' : ''}`} title="Profiles" aria-label="Open Profiles" aria-pressed={page === 'profiles'} onClick={() => setPage('profiles')}><ProfilesIcon size={18} /></button>
         <button className="icon-btn" title="Reset profile" aria-label="Reset profile" onClick={() => setConfirmReset(true)}><ResetIcon size={18} /></button>
         <button className="icon-btn" title="Input Test" aria-label="Open Input Test" onClick={() => setPage('inputTest')}><FlaskIcon size={18} /></button>
         <button className="icon-btn" title="Home" aria-label="Go to Home" onClick={() => setPage('home')}><HomeIcon size={18} /></button>

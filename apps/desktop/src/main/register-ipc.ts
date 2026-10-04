@@ -9,6 +9,7 @@ const NameSchema = z.string().trim().min(1).max(40);
 const CodeSchema = z.string().max(64 * 1024);
 const PatchSchema = SettingsSchema.partial().strict();
 const MacroIdSchema = z.string().min(1).max(64);
+const ProcessListSchema = z.array(z.string());
 
 type Handler = (event: unknown, ...args: unknown[]) => unknown;
 export interface IpcLike { handle(channel: string, fn: Handler): void }
@@ -25,6 +26,8 @@ export interface IpcDeps {
   /** Tells the renderer which profile the engine is now running. */
   notifyActive: (id: string) => void;
   log: { error(o: object): void };
+  /** Running exe basenames for the auto-switch picker (see processes.ts). */
+  processes: () => Promise<string[]>;
 }
 
 /** Every handler validates its input with zod in the main process; renderer data is never trusted. */
@@ -106,6 +109,10 @@ export function registerIpc(d: IpcDeps) {
     d.engine.send({ type: 'setSettings', settings: next });
     if (parsed.data.activeProfile !== undefined) applyProfile(next.activeProfile);
     return next;
+  });
+  h('system:processes', async () => {
+    try { return ProcessListSchema.parse(await d.processes()); }
+    catch (e) { d.log.error({ code: 'E_PROCESSES', msg: (e as Error).message }); throw new Error('E_PROCESSES'); }
   });
   h('engine:runMacro', (id) => d.engine.send({ type: 'runMacro', id: MacroIdSchema.parse(id) }));
   h('engine:testRumble', (req) => d.engine.send({ type: 'testRumble', ...TestRumbleSchema.parse(req) }));

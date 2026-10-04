@@ -1,5 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
-import { join, resolve, extname } from 'node:path';
+import { basename, join, resolve, extname } from 'node:path';
 import { statSync } from 'node:fs';
 import { z } from 'zod';
 import { logger } from './logger.js';
@@ -9,6 +9,7 @@ import { createSettingsStore } from './settings-store.js';
 import { registerIpc } from './register-ipc.js';
 import { createInjector } from './injector.js';
 import { createGameWatcher } from './game-watcher.js';
+import { createProcessLister } from './processes.js';
 
 let win: BrowserWindow | null = null;
 const engine = createEngineHost({ log: logger, onEvent: (e) => { if (win && !win.isDestroyed()) win.webContents.send('engine:event', e); } });
@@ -18,6 +19,7 @@ const store = createProfileStore(dataDir, logger);
 const settings = createSettingsStore(dataDir, logger);
 const ipc = registerIpc({
   ipc: ipcMain, dialog, store, settings, engine, log: logger,
+  processes: createProcessLister(undefined, [basename(process.execPath)]),
   notifyActive: (id) => { if (win && !win.isDestroyed()) win.webContents.send('profiles:active', id); },
 });
 

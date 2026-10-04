@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { ProfileSchema, type EngineSnapshot, type Profile, type ProfileSummary, type Settings } from '@dualforge/shared';
 
 export type Page =
-  | 'home' | 'overview' | 'buttons' | 'sticks' | 'triggers' | 'motion' | 'vibrations' | 'lights' | 'macros' | 'inputTest' | 'settings';
+  | 'home' | 'overview' | 'buttons' | 'sticks' | 'triggers' | 'motion' | 'vibrations' | 'lights' | 'macros' | 'inputTest' | 'settings' | 'profiles';
 export type Side = 'left' | 'right';
 export type SubTabPage = 'sticks' | 'triggers';
 
@@ -32,6 +32,11 @@ interface State {
   renameProfile(id: string, name: string): Promise<void>;
   /** Resets the running profile to defaults, discarding any edit still waiting for the debounce. */
   resetProfile(): Promise<void>;
+  /**
+   * Main rewrote slot `id` (duplicate / reset / import): refreshes the slot names and, when it is the running slot,
+   * drops any edit still waiting for the debounce and reloads the profile so a stale copy is never saved over it.
+   */
+  slotReplaced(id: string): Promise<void>;
   subscribe(): () => void;
   /**
    * Clone → mutate → validate; applies locally at once and sends to the engine after DEBOUNCE_MS.
@@ -40,6 +45,8 @@ interface State {
   updateProfile(mutate: (draft: Profile) => void): boolean;
   /** Sends the current profile now, cancelling any pending debounce. */
   flushProfile(): void;
+  /** Sends the current profile only if an edit is still waiting for the debounce. */
+  flushPending(): void;
 }
 
 let pending: ReturnType<typeof setTimeout> | null = null;
@@ -96,6 +103,11 @@ export const useStore = create<State>((set, get) => {
       await window.dualforge.profiles.reset(id);
       await Promise.all([get().loadProfile(), get().refreshProfiles()]);
     },
+    slotReplaced: async (id) => {
+      const running = id === (get().activeProfileId ?? get().profile?.id);
+      if (running) dropPending();
+      await Promise.all([running ? get().loadProfile() : null, get().refreshProfiles()]);
+    },
     subscribe: () => {
       const offEngine = window.dualforge.onEngineEvent((e) => {
         if (e.type === 'snapshot') {
@@ -131,5 +143,6 @@ export const useStore = create<State>((set, get) => {
       if (pending) clearTimeout(pending);
       send();
     },
+    flushPending,
   };
 });

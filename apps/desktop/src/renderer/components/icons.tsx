@@ -113,7 +113,16 @@ export const MacrosIcon = (p: IconProps) => (
   </Svg>
 );
 
-export const CopyIcon = (p: IconProps) => (
+/** Stacked slot cards: the Profiles page. */
+export const ProfilesIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3.5" y="8" width="13" height="12" rx="2" />
+    <path d="M7.5 5h11A2 2 0 0 1 20.5 7v9.5" />
+    <path d="M7 12h6M7 15.5h4" />
+  </Svg>
+);
+
+export const CopyIcon =(p: IconProps) => (
   <Svg {...p}><rect x="8.5" y="8.5" width="11" height="11" rx="2" /><path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5" /></Svg>
 );
 

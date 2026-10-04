@@ -12,7 +12,7 @@ let dir: string;
 beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'df-ipc-')); });
 afterEach(() => { rmSync(dir, { recursive: true, force: true }); });
 
-function rig(io: FileIo = nodeIo) {
+function rig(io: FileIo = nodeIo, processes: () => Promise<unknown> = async () => ['game.exe']) {
   const log = { error: vi.fn(), warn: vi.fn() };
   const handlers = new Map<string, (...a: unknown[]) => unknown>();
   const sent: EngineCommand[] = [];
@@ -25,6 +25,7 @@ function rig(io: FileIo = nodeIo) {
     ipc: { handle: (ch, fn) => handlers.set(ch, (...a) => fn({}, ...a)) },
     dialog, store: createProfileStore(dir, log, io), settings: createSettingsStore(dir, log),
     engine: { send: (c) => sent.push(c) }, notifyActive: (id) => active.push(id), log,
+    processes: processes as () => Promise<string[]>,
   });
   const call = (ch: string, ...a: unknown[]) => handlers.get(ch)!(...a);
   return { call, sent, active, api, log };
@@ -104,6 +105,28 @@ describe('profile / settings IPC', () => {
     call('profiles:duplicate', 'p1', 'p2');
     expect(sent).toHaveLength(1);
     expect(sent[0]).toMatchObject({ type: 'setProfile', profile: { id: 'p2', name: 'Src copy' } });
+  });
+});
+
+describe('system IPC', () => {
+  it('system:processes returns the running exe names', async () => {
+    const { call } = rig(nodeIo, async () => ['cs2.exe', 'eldenring.exe']);
+    expect(await call('system:processes')).toEqual(['cs2.exe', 'eldenring.exe']);
+  });
+  it('system:processes rejects a malformed listing and reports E_PROCESSES', async () => {
+    const { call, log } = rig(nodeIo, async () => ['ok.exe', 42]);
+    await expect(call('system:processes')).rejects.toThrow('E_PROCESSES');
+    const failing = rig(nodeIo, async () => { throw new Error('tasklist missing'); });
+    await expect(failing.call('system:processes')).rejects.toThrow('E_PROCESSES');
+    expect(log.error).toHaveBeenCalledWith(expect.objectContaining({ code: 'E_PROCESSES' }));
+    expect(failing.log.error).toHaveBeenCalledWith(expect.objectContaining({ code: 'E_PROCESSES', msg: 'tasklist missing' }));
+  });
+  it('settings:set rejects a 33rd auto-switch rule and an over-long exe', () => {
+    const { call } = rig();
+    const rules = Array.from({ length: 33 }, (_, i) => ({ exe: `g${i}.exe`, profileId: 'p2' }));
+    expect(() => call('settings:set', { autoSwitch: rules })).toThrow('E_SETTINGS_SCHEMA');
+    expect(() => call('settings:set', { autoSwitch: [{ exe: `${'x'.repeat(61)}.exe`, profileId: 'p2' }] })).toThrow('E_SETTINGS_SCHEMA');
+    expect(call('settings:set', { autoSwitch: rules.slice(0, 32) })).toMatchObject({ autoSwitch: rules.slice(0, 32) });
   });
 });
 

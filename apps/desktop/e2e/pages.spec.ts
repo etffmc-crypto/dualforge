@@ -82,6 +82,64 @@ test('Share code round-trips a profile into slot 3', async () => {
   await app.close();
 });
 
+test('Profiles page: a copied share code imports into slot 3 through the page', async () => {
+  const app = await launchApp();
+  const page = await app.firstWindow();
+  await page.evaluate(async () => {
+    const p = await window.dualforge.profiles.get('p1');
+    p.sticks.left.deadzone.anti = 0.25;
+    await window.dualforge.profiles.set(p);
+    // never touch the real clipboard: capture what Copy code would write
+    const w = window as unknown as { copied: string };
+    w.copied = '';
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t: string) => { w.copied = t; } } });
+  });
+  await page.getByRole('button', { name: 'Open Profiles' }).click();
+  await expect(page.getByRole('article')).toHaveCount(4);
+  await expect(page.getByRole('textbox', { name: 'Share code for Profile 1' })).toHaveValue(/^DUALFORGE:/);
+  await page.getByRole('button', { name: 'Copy code' }).click();
+  await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible();
+  const code = await page.evaluate(() => (window as unknown as { copied: string }).copied);
+  expect(code).toBe(await page.getByRole('textbox', { name: 'Share code for Profile 1' }).inputValue());
+
+  await page.getByRole('textbox', { name: 'Paste a share code' }).fill(code);
+  await page.getByRole('radiogroup', { name: 'Import into' }).getByRole('radio', { name: 'Profile 3' }).click();
+  await page.getByRole('button', { name: 'Import code' }).click();
+  await expect(page.getByText('Imported into slot 3 as Profile 1.')).toBeVisible();
+  await expect(page.getByRole('article', { name: 'Slot 3' }).getByRole('heading', { name: 'Profile 1' })).toBeVisible();
+  const p3 = await page.evaluate(() => window.dualforge.profiles.get('p3'));
+  expect(p3.id).toBe('p3');
+  expect(p3.sticks.left.deadzone.anti).toBe(0.25);
+
+  await page.getByRole('textbox', { name: 'Paste a share code' }).fill('DUALFORGE:not-a-real-code');
+  await page.getByRole('button', { name: 'Import code' }).click();
+  await expect(page.getByRole('alert')).toContainText('not a DualForge share code');
+  await app.close();
+});
+
+test('Profiles page: an auto-switch rule is saved in settings, survives a reload and can be removed', async () => {
+  const app = await launchApp();
+  const page = await app.firstWindow();
+  await page.getByRole('button', { name: 'Open Profiles' }).click();
+  await page.getByRole('button', { name: 'Pick running game' }).click();
+  const pick = page.getByRole('dialog', { name: 'Pick a running game' });
+  await expect(pick.locator('.pick-item').first()).toBeVisible({ timeout: 10_000 });   // real tasklist output, read-only
+  await page.keyboard.press('Escape');
+  await expect(pick).toBeHidden();
+
+  await page.getByRole('textbox', { name: 'Game executable' }).fill('  EldenRing.EXE ');
+  await page.getByRole('radiogroup', { name: 'Profile for this game' }).getByRole('radio', { name: 'Profile 4' }).click();
+  await page.getByRole('button', { name: 'Add rule' }).click();
+  await expect.poll(async () => (await page.evaluate(() => window.dualforge.settings.get())).autoSwitch).toEqual([{ exe: 'eldenring.exe', profileId: 'p4' }]);
+  await page.reload();
+  await page.getByRole('button', { name: 'Open Profiles' }).click();
+  await expect(page.getByRole('row', { name: 'eldenring.exe → Profile 4' })).toBeVisible();
+  await page.getByRole('button', { name: 'Remove rule for eldenring.exe' }).click();
+  await expect.poll(async () => (await page.evaluate(() => window.dualforge.settings.get())).autoSwitch).toEqual([]);
+  await expect(page.getByText('No games yet. Add one below.')).toBeVisible();
+  await app.close();
+});
+
 test('Header profile tabs: rename Profile 2 inline, reload, the name persists', async () => {
   const app = await launchApp();
   const page = await app.firstWindow();

@@ -37,6 +37,8 @@ const api = {
   system: {
     /** Opens the folder holding profiles, settings and logs in Explorer. */
     openDataDir: (): Promise<string> => ipcRenderer.invoke('system:openDataDir'),
+    /** Running programs (lowercased exe names, Windows/background processes left out) for the auto-switch picker. */
+    processes: (): Promise<string[]> => ipcRenderer.invoke('system:processes'),
   },
   replay: (path: string): Promise<void> => ipcRenderer.invoke('engine:replay', path),
   useDevice: (): Promise<void> => ipcRenderer.invoke('engine:useDevice'),
