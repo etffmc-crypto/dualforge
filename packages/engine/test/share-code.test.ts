@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { defaultProfile } from '@dualforge/shared';
 import { decodeShareCode, encodeShareCode } from '../src/share-code.js';
 
@@ -10,7 +10,7 @@ describe('share code', () => {
     const p = defaultProfile('orig', 'Mine'); p.sticks.left.deadzone.anti = 0.25;
     const code = encodeShareCode(p, id);
     expect(code.startsWith('DUALFORGE:')).toBe(true);
-    expect(JSON.parse(Buffer.from(code.slice(10), 'base64url').toString())).not.toHaveProperty('id');
+    expect(JSON.parse(atob(code.slice(10).replace(/-/g, '+').replace(/_/g, '/')))).not.toHaveProperty('id');
     const q = decodeShareCode(code, id);
     expect(q.id).not.toBe('orig'); expect(q.id.length).toBeGreaterThan(0);
     expect({ ...q, id: 'x' }).toEqual({ ...p, id: 'x' });
@@ -36,5 +36,10 @@ describe('share code', () => {
     const p = defaultProfile('a', 'b');
     const huge = JSON.stringify({ ...p, pad: 'x'.repeat(17 * 1024) });
     expect(bad(enc(huge))).toBe('E_SHARE_CODE');
+  });
+  it('rejects an oversize encoded body before inflating', () => {
+    const spy = vi.fn((b: Uint8Array) => b);
+    expect(() => decodeShareCode('DUALFORGE:' + 'A'.repeat(40 * 1024), spy)).toThrow(/E_SHARE_CODE/);
+    expect(spy).not.toHaveBeenCalled();
   });
 });
