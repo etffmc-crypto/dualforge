@@ -1,9 +1,27 @@
-.ds-art .btn { fill: rgba(255,255,255,0.12); stroke: var(--card-border); }
-.ds-art .btn.on { fill: var(--accent); }
-.home { display: grid; grid-template-columns: 1fr 360px; gap: 20px; height: 100%; align-items: start; }
-.status-row { display: flex; gap: 10px; flex-wrap: wrap; }
-.chip { padding: 6px 12px; border-radius: 999px; font-size: 12px; border: 1px solid var(--card-border); }
-.chip.ok { border-color: #22c55e; color: #22c55e; } .chip.bad { border-color: var(--accent); color: var(--accent); }
+/* ---------- DualSense illustration ---------- */
+.ds-art { display: block; width: 100%; max-width: 900px; height: auto; margin: 0 auto; overflow: visible; }
+.ds-art .btn { transition: fill 60ms linear; }
+.ds-art .btn.on { fill: var(--accent); fill-opacity: 0.9; }
+.ds-art [data-btn='triangle'].on { fill: #2fbf71; }
+.ds-art [data-btn='circle'].on { fill: #ff5a5a; }
+.ds-art [data-btn='cross'].on { fill: #4a90ff; }
+.ds-art [data-btn='square'].on { fill: #ff6fb0; }
+.ds-art [data-stick] { transition: transform 40ms linear; }
+.ds-art .led.on { filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.9)); }
+@media (prefers-reduced-motion: reduce) { .ds-art .btn, .ds-art [data-stick] { transition: none; } }
+
+/* ---------- Home ---------- */
+.home { min-height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 0 12px; }
+.home-stage { width: min(560px, 100%); }
+.home-name { display: flex; align-items: center; gap: 10px; margin: 6px 0 0; font-size: 20px; font-weight: 600; letter-spacing: 1.5px; }
+.home-status { margin: 10px 0 18px; color: #c9c5cc; font-size: 15px; }
+.home-hint { max-width: 520px; margin: 14px 0 0; color: var(--muted); font-size: 13px; text-align: center; }
+.battery { position: relative; width: 34px; height: 18px; padding: 3px; border-radius: 9px; border: 2px solid #8fd14f; display: inline-flex; }
+.battery-fill { height: 100%; border-radius: 5px; background: #8fd14f; }
+.battery-bolt { position: absolute; inset: 0; display: grid; place-items: center; font-size: 10px; line-height: 1; filter: grayscale(1) brightness(0.2); }
+.status-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.chip { padding: 5px 12px; border-radius: 999px; font-size: 12px; background: var(--chip-bg); border: 1px solid var(--card-border); color: #d9d5dc; }
+.chip.ok { border-color: rgba(143, 209, 79, 0.5); color: #8fd14f; } .chip.bad { border-color: rgba(226, 64, 63, 0.6); color: #ff7a79; }
 .input-test { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .stick-row { display: flex; gap: 24px; justify-content: center; }
 .stick-circle { text-align: center; } .stick-label { color: var(--muted); font-size: 12px; margin-top: 4px; }
