@@ -1,5 +1,22 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { EngineEvent, Profile, ProfileSummary, Settings } from '@dualforge/shared';
+import type {
+  EngineEvent,
+  HealthRepairRequest,
+  HealthRepairResult,
+  HealthState,
+  Profile,
+  ProfileSummary,
+  Settings,
+} from '@dualforge/shared';
+
+export interface DriverStatus {
+  driver: 'vigem' | 'hidhide';
+  state: 'idle' | 'downloading' | 'verifying' | 'launching' | 'done' | 'failed';
+  pct?: number;
+  code?: string;
+  sha256?: string;
+  url?: string;
+}
 
 const api = {
   /** Fixed at launch from main's environment (the sandboxed preload sees it); no IPC. */
@@ -18,16 +35,21 @@ const api = {
     list: (): Promise<ProfileSummary[]> => ipcRenderer.invoke('profiles:list'),
     get: (id: string): Promise<Profile> => ipcRenderer.invoke('profiles:get', id),
     set: (p: Profile): Promise<boolean> => ipcRenderer.invoke('profiles:set', p),
-    rename: (id: string, name: string): Promise<void> => ipcRenderer.invoke('profiles:rename', id, name),
-    duplicate: (from: string, toSlot: string): Promise<Profile> => ipcRenderer.invoke('profiles:duplicate', from, toSlot),
+    rename: (id: string, name: string): Promise<void> =>
+      ipcRenderer.invoke('profiles:rename', id, name),
+    duplicate: (from: string, toSlot: string): Promise<Profile> =>
+      ipcRenderer.invoke('profiles:duplicate', from, toSlot),
     reset: (id: string): Promise<void> => ipcRenderer.invoke('profiles:reset', id),
     export: (id: string): Promise<string | null> => ipcRenderer.invoke('profiles:export', id),
-    import: (toSlot: string): Promise<Profile | null> => ipcRenderer.invoke('profiles:import', toSlot),
+    import: (toSlot: string): Promise<Profile | null> =>
+      ipcRenderer.invoke('profiles:import', toSlot),
     shareCode: (id: string): Promise<string> => ipcRenderer.invoke('profiles:shareCode', id),
-    importShareCode: (code: string, toSlot: string): Promise<Profile> => ipcRenderer.invoke('profiles:importShareCode', code, toSlot),
+    importShareCode: (code: string, toSlot: string): Promise<Profile> =>
+      ipcRenderer.invoke('profiles:importShareCode', code, toSlot),
     activate: (id: string): Promise<Profile> => ipcRenderer.invoke('profiles:activate', id),
     /** The profile the engine is actually running, and whether it was chosen manually or by per-game auto-switch. */
-    current: (): Promise<{ id: string; source: 'manual' | 'auto' }> => ipcRenderer.invoke('profiles:current'),
+    current: (): Promise<{ id: string; source: 'manual' | 'auto' }> =>
+      ipcRenderer.invoke('profiles:current'),
     /** Fires when the engine switches profile (manual activation or per-game auto-switch). */
     onActive(cb: (id: string) => void): () => void {
       const h = (_: unknown, id: string) => cb(id);
@@ -51,7 +73,63 @@ const api = {
     /** Plays a macro of the running profile once on the live pipeline (key/mouse steps are not injected while DualForge is focused). */
     runMacro: (id: string): Promise<void> => ipcRenderer.invoke('engine:runMacro', id),
     /** Plays both rumble motors at the given levels (0..1) for `ms` (50..2000); ignored when settings.hasRumble is off. */
-    testRumble: (req: { left: number; right: number; ms: number }): Promise<void> => ipcRenderer.invoke('engine:testRumble', req),
+    testRumble: (req: { left: number; right: number; ms: number }): Promise<void> =>
+      ipcRenderer.invoke('engine:testRumble', req),
+  },
+  health: {
+    /** Cached check results (runs the checks first if none exist yet). */
+    get: (): Promise<HealthState> => ipcRenderer.invoke('health:get'),
+    run: (): Promise<HealthState> => ipcRenderer.invoke('health:run'),
+    /** Asks where to save, then writes the diagnostics zip (logs, crashes, profiles, settings, health, system). Null if cancelled. */
+    exportBundle: (): Promise<{
+      path: string;
+      files: number;
+      bytes: number;
+      skipped: string[];
+    } | null> => ipcRenderer.invoke('health:exportBundle'),
+    repair: (req: HealthRepairRequest): Promise<HealthRepairResult> =>
+      ipcRenderer.invoke('health:repair', req),
+    /** Fires after every check run (startup, every 5 min, on demand, after a repair). */
+    onChanged(cb: (s: HealthState) => void): () => void {
+      const h = (_: unknown, s: HealthState) => cb(s);
+      ipcRenderer.on('health:changed', h);
+      return () => ipcRenderer.removeListener('health:changed', h);
+    },
+  },
+  logs: {
+    /** Last `lines` (1..500) lines of today's log (raw pino JSON lines); `file` is null when there is no log yet. */
+    tail: (lines: number): Promise<{ file: string | null; lines: string[] }> =>
+      ipcRenderer.invoke('logs:tail', { lines }),
+  },
+  updates: {
+    /** Opt-in update check ("Check now"); { available:false, code } when updates are off, in a dev build, or the check failed. */
+    check: (): Promise<{ available: boolean; version?: string; code?: string }> =>
+      ipcRenderer.invoke('updates:check'),
+  },
+  app: {
+    /** Main asks the window to open a page (tray "Health"). */
+    onNavigate(cb: (page: string) => void): () => void {
+      const h = (_: unknown, page: string) => cb(page);
+      ipcRenderer.on('app:navigate', h);
+      return () => ipcRenderer.removeListener('app:navigate', h);
+    },
+  },
+  drivers: {
+    /** The consent click: downloads the official installer, checks its signature, then launches it (Windows asks for permission). */
+    install: (driver: 'vigem' | 'hidhide'): Promise<DriverStatus> =>
+      ipcRenderer.invoke('driver:install', { driver }),
+    status: (): Promise<Record<'vigem' | 'hidhide', DriverStatus>> =>
+      ipcRenderer.invoke('driver:status:get'),
+    /** Latest release's installer (name, URL, byte size or null) for the consent card; metadata only, nothing is downloaded. */
+    release: (
+      driver: 'vigem' | 'hidhide',
+    ): Promise<{ name: string; url: string; size: number | null }> =>
+      ipcRenderer.invoke('drivers:release', { driver }),
+    onStatus(cb: (s: DriverStatus) => void): () => void {
+      const h = (_: unknown, s: DriverStatus) => cb(s);
+      ipcRenderer.on('driver:status', h);
+      return () => ipcRenderer.removeListener('driver:status', h);
+    },
   },
   window: {
     minimize: () => ipcRenderer.send('window:minimize'),

@@ -14,7 +14,11 @@ export function Sticks() {
   // the side is pinned when the wizard opens, so LT/RT sub-tab switching can't retarget a calibration in progress
   const [calibrating, setCalibrating] = useState<Side | null>(null);
   if (!cfg) return null; // profile still loading
-  const calibrate = <button data-nav type="button" className="panel-btn" onClick={() => setCalibrating(side)}>Calibrate…</button>;
+  const calibrate = (
+    <button data-nav type="button" className="panel-btn" onClick={() => setCalibrating(side)}>
+      Calibrate…
+    </button>
+  );
   return (
     <>
       <SettingsLayout

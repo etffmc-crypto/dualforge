@@ -1,6 +1,10 @@
 import type { StickConfig } from '@dualforge/shared';
 
-export interface Deadzone { center: number; outer: number; anti?: number }
+export interface Deadzone {
+  center: number;
+  outer: number;
+  anti?: number;
+}
 
 export function applyRadialDeadzone(mag: number, dz: Deadzone): number {
   const hi = 1 - dz.outer;
@@ -12,7 +16,21 @@ export function applyRadialDeadzone(mag: number, dz: Deadzone): number {
 }
 
 /** Anti-deadzone: lifts any live magnitude so the smallest nonzero input starts at `anti`. Applied after the curve. */
-export function applyAntiDeadzone(x: number, y: number, anti: number): { x: number; y: number } {
+export function applyAntiDeadzone<T extends { x: number; y: number }>(p: T, anti: number): T;
+export function applyAntiDeadzone(x: number, y: number, anti: number): { x: number; y: number };
+export function applyAntiDeadzone(
+  a: number | { x: number; y: number },
+  b: number,
+  c?: number,
+): { x: number; y: number } {
+  if (typeof a === 'object') {
+    // Fast path (hot loop): no anti-deadzone configured -> hand back the same object, no allocation.
+    if (b <= 0) return a;
+    return applyAntiDeadzone(a.x, a.y, b);
+  }
+  const x = a,
+    y = b,
+    anti = c as number;
   const mag = Math.hypot(x, y);
   if (anti <= 0 || mag === 0) return { x, y };
   const k = (anti + mag * (1 - anti)) / mag;
@@ -21,19 +39,29 @@ export function applyAntiDeadzone(x: number, y: number, anti: number): { x: numb
 
 const clamp1 = (v: number) => Math.max(-1, Math.min(1, v));
 
-export function applyStickShaping(x: number, y: number, cfg: StickConfig): { x: number; y: number } {
+export function applyStickShaping(
+  x: number,
+  y: number,
+  cfg: StickConfig,
+): { x: number; y: number } {
   let px = (x - cfg.calibration.cx) / cfg.calibration.radius;
   let py = (y - cfg.calibration.cy) / cfg.calibration.radius;
 
   if (cfg.circular) {
     const mag = Math.hypot(px, py);
     const out = applyRadialDeadzone(Math.min(1, mag), cfg.deadzone);
-    if (out === 0 || mag === 0) { px = 0; py = 0; }
-    else { px = (px / mag) * out; py = (py / mag) * out; }
+    if (out === 0 || mag === 0) {
+      px = 0;
+      py = 0;
+    } else {
+      px = (px / mag) * out;
+      py = (py / mag) * out;
+    }
   } else {
     const sx = applyRadialDeadzone(Math.min(1, Math.abs(px)), cfg.deadzone);
     const sy = applyRadialDeadzone(Math.min(1, Math.abs(py)), cfg.deadzone);
-    px = Math.sign(px) * sx; py = Math.sign(py) * sy;
+    px = Math.sign(px) * sx;
+    py = Math.sign(py) * sy;
   }
 
   if (cfg.invertX) px = -px;

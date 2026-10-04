@@ -14,12 +14,24 @@ export function Profiles() {
     <div className="profiles-page">
       <div className="pf-head">
         <h2 className="pf-title">Profiles</h2>
-        <p className="pf-sub">Four slots on this PC. The active one drives your controller; every page edits it.</p>
+        <p className="pf-sub">
+          Four slots on this PC. The active one drives your controller; every page edits it.
+        </p>
       </div>
       <div className="slot-grid">
-        {slots.map((s) => <SlotCard key={s.id} slot={s} slots={slots} active={s.id === activeId} onNotice={setNotice} />)}
+        {slots.map((s) => (
+          <SlotCard
+            key={s.id}
+            slot={s}
+            slots={slots}
+            active={s.id === activeId}
+            onNotice={setNotice}
+          />
+        ))}
       </div>
-      <p className="pf-notice" role="status">{notice}</p>
+      <p className="pf-notice" role="status">
+        {notice}
+      </p>
       <div className="pf-row">
         <ShareCard slots={slots} />
         <AutoSwitchCard slots={slots} />

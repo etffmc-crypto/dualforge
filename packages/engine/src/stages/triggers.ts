@@ -1,10 +1,17 @@
 import type { TriggerConfig } from '@dualforge/shared';
 import { evaluateLut } from './stick-curve.js';
 
-export interface TriggerState { engaged: boolean }
+export interface TriggerState {
+  engaged: boolean;
+}
 export const createTriggerState = (): TriggerState => ({ engaged: false });
 
-export function applyTrigger(v: number, cfg: TriggerConfig, lut: Float32Array, s: TriggerState): number {
+export function applyTrigger(
+  v: number,
+  cfg: TriggerConfig,
+  lut: Float32Array,
+  s: TriggerState,
+): number {
   if (cfg.digital) return 0; // digital (click) triggers: the L2/R2 button mapping drives output
   const { initial, max } = cfg.deadzone;
   let t = v <= initial ? 0 : v >= max ? 1 : (v - initial) / Math.max(1e-6, max - initial);
@@ -15,8 +22,9 @@ export function applyTrigger(v: number, cfg: TriggerConfig, lut: Float32Array, s
   } else if (ht.mode === 'adaptive') {
     const thr = ht.value / 100;
     const rel = Math.max(0, thr - 0.1);
-    if (s.engaged) { if (t <= rel) s.engaged = false; }
-    else if (t >= thr) s.engaged = true;
+    if (s.engaged) {
+      if (t <= rel) s.engaged = false;
+    } else if (t >= thr) s.engaged = true;
     if (s.engaged) t = 1;
   }
   return evaluateLut(lut, t);

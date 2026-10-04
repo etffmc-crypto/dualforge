@@ -17,31 +17,85 @@ export function MotionSections({ gyro, edit }: { gyro: GyroConfig; edit: GyroEdi
     <>
       <PanelSection title="Deadzone">
         <RangeSlider
-          ariaLabel="Gyro deadzone" min={0} max={50} step={0.5} value={gyro.deadzoneDps} format={(v) => `${v} °/s`}
-          onChange={(v) => edit((g) => { g.deadzoneDps = v; })}
+          ariaLabel="Gyro deadzone"
+          min={0}
+          max={50}
+          step={0.5}
+          value={gyro.deadzoneDps}
+          format={(v) => `${v} °/s`}
+          onChange={(v) =>
+            edit((g) => {
+              g.deadzoneDps = v;
+            })
+          }
         />
-        <p className="psec-hint">Turns slower than this are ignored, so a resting hand doesn't drift the aim.</p>
+        <p className="psec-hint">
+          Turns slower than this are ignored, so a resting hand doesn't drift the aim.
+        </p>
       </PanelSection>
       <PanelSection title="Curve Adjustment">
-        <Segmented label="Motion curve" options={PRESET_OPTIONS} value={gyro.curve} onChange={(c) => edit((g) => { g.curve = c; })} />
+        <Segmented
+          label="Motion curve"
+          options={PRESET_OPTIONS}
+          value={gyro.curve}
+          onChange={(c) =>
+            edit((g) => {
+              g.curve = c;
+            })
+          }
+        />
       </PanelSection>
       <PanelSection title="X/Y Sensitivity Scale">
         <div className="msens">
           <span className="rs-label">Horizontal</span>
           <RangeSlider
-            ariaLabel="Horizontal sensitivity" min={SENS_MIN} max={SENS_MAX} step={0.05} value={gyro.sensitivityX} format={times}
-            onChange={(v) => edit((g) => { g.sensitivityX = tidy(v); })}
+            ariaLabel="Horizontal sensitivity"
+            min={SENS_MIN}
+            max={SENS_MAX}
+            step={0.05}
+            value={gyro.sensitivityX}
+            format={times}
+            onChange={(v) =>
+              edit((g) => {
+                g.sensitivityX = tidy(v);
+              })
+            }
           />
           <span className="rs-label">Vertical</span>
           <RangeSlider
-            ariaLabel="Vertical sensitivity" min={SENS_MIN} max={SENS_MAX} step={0.05} value={gyro.sensitivityY} format={times}
-            onChange={(v) => edit((g) => { g.sensitivityY = tidy(v); })}
+            ariaLabel="Vertical sensitivity"
+            min={SENS_MIN}
+            max={SENS_MAX}
+            step={0.05}
+            value={gyro.sensitivityY}
+            format={times}
+            onChange={(v) =>
+              edit((g) => {
+                g.sensitivityY = tidy(v);
+              })
+            }
           />
         </div>
       </PanelSection>
       <div className="psec-toggles">
-        <Toggle label="Invert X" checked={gyro.invertX} onChange={(v) => edit((g) => { g.invertX = v; })} />
-        <Toggle label="Invert Y" checked={gyro.invertY} onChange={(v) => edit((g) => { g.invertY = v; })} />
+        <Toggle
+          label="Invert X"
+          checked={gyro.invertX}
+          onChange={(v) =>
+            edit((g) => {
+              g.invertX = v;
+            })
+          }
+        />
+        <Toggle
+          label="Invert Y"
+          checked={gyro.invertY}
+          onChange={(v) =>
+            edit((g) => {
+              g.invertY = v;
+            })
+          }
+        />
       </div>
     </>
   );

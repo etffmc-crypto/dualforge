@@ -1,4 +1,8 @@
-export interface StickCalibration { cx: number; cy: number; radius: number }
+export interface StickCalibration {
+  cx: number;
+  cy: number;
+  radius: number;
+}
 
 export interface StickLiveProps {
   raw: { x: number; y: number };
@@ -17,16 +21,22 @@ const r2 = (v: number) => Math.round(v * 100) / 100;
 /** Keeps a wildly off-calibration dot just outside the gate instead of off the drawing. */
 const MAX_REACH = 1.1;
 
-export function calibrated(p: { x: number; y: number }, c: StickCalibration): { x: number; y: number } {
-  const x = (p.x - c.cx) / c.radius, y = (p.y - c.cy) / c.radius;
+export function calibrated(
+  p: { x: number; y: number },
+  c: StickCalibration,
+): { x: number; y: number } {
+  const x = (p.x - c.cx) / c.radius,
+    y = (p.y - c.cy) / c.radius;
   const m = Math.hypot(x, y);
   return m > MAX_REACH ? { x: (x / m) * MAX_REACH, y: (y / m) * MAX_REACH } : { x, y };
 }
 
 /** Live stick view: grey raw dot, accent processed dot, dashed deadzone rings (inner = center, outer = 1 - outer). */
 export function StickLive({ raw, out, deadzone, calibration, size = 160, label }: StickLiveProps) {
-  const C = size / 2, R = (size * 70) / 160;
-  const px = (v: number) => r2(C + v * R), py = (v: number) => r2(C - v * R);
+  const C = size / 2,
+    R = (size * 70) / 160;
+  const px = (v: number) => r2(C + v * R),
+    py = (v: number) => r2(C - v * R);
   const dot = calibration ? calibrated(raw, calibration) : raw;
   return (
     <div className="stick-live">
@@ -34,8 +44,20 @@ export function StickLive({ raw, out, deadzone, calibration, size = 160, label }
         <circle cx={C} cy={C} r={R} className="sl-gate" />
         <line x1={C - R} y1={C} x2={C + R} y2={C} className="sl-axis" />
         <line x1={C} y1={C - R} x2={C} y2={C + R} className="sl-axis" />
-        <circle data-testid="dz-outer" cx={C} cy={C} r={r2((1 - deadzone.outer) * R)} className="sl-dz outer" />
-        <circle data-testid="dz-inner" cx={C} cy={C} r={r2(deadzone.center * R)} className="sl-dz inner" />
+        <circle
+          data-testid="dz-outer"
+          cx={C}
+          cy={C}
+          r={r2((1 - deadzone.outer) * R)}
+          className="sl-dz outer"
+        />
+        <circle
+          data-testid="dz-inner"
+          cx={C}
+          cy={C}
+          r={r2(deadzone.center * R)}
+          className="sl-dz inner"
+        />
         <circle className="dot-raw" cx={px(dot.x)} cy={py(dot.y)} r="4" />
         <circle className="dot-out" cx={px(out.x)} cy={py(out.y)} r="6" />
       </svg>

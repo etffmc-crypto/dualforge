@@ -5,7 +5,9 @@
   "description": "Windows SendInput + foreground process native addon for DualForge",
   "main": "index.js",
   "types": "index.d.ts",
-  "os": ["win32"],
+  "os": [
+    "win32"
+  ],
   "scripts": {
     "install": "node-gyp rebuild"
   },

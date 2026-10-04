@@ -14,17 +14,28 @@ export function TriggerStage({ side, cfg }: { side: Side; cfg: TriggerConfig }) 
   return (
     <div className="stage">
       <div className="stage-top">
-        <LiveCurve points={presetPreview(cfg.curve)} input={raw} output={out} caption={`${L ? 'L2' : 'R2'} response`} />
+        <LiveCurve
+          points={presetPreview(cfg.curve)}
+          input={raw}
+          output={out}
+          caption={`${L ? 'L2' : 'R2'} response`}
+        />
         <div className="stage-bars">
           <TriggerBar label={L ? 'L2 raw' : 'R2 raw'} value={raw} />
           <TriggerBar label={L ? 'LT out' : 'RT out'} value={out} />
-          <div className="stage-caption">{cfg.digital ? `Click ${L ? 'L2' : 'R2'}: ${L ? 'LT' : 'RT'} goes straight to full.` : `Pull ${L ? 'L2' : 'R2'} to see the output after deadzone, hair trigger and curve.`}</div>
+          <div className="stage-caption">
+            {cfg.digital
+              ? `Click ${L ? 'L2' : 'R2'}: ${L ? 'LT' : 'RT'} goes straight to full.`
+              : `Pull ${L ? 'L2' : 'R2'} to see the output after deadzone, hair trigger and curve.`}
+          </div>
         </div>
       </div>
       <div className="stage-pad">
         <DualSenseTop
-          pressed={s?.raw.buttons ?? {}} lightbar={lights ?? { r: 0, g: 80, b: 255 }}
-          sticks={s ? { lx: s.raw.lx, ly: s.raw.ly, rx: s.raw.rx, ry: s.raw.ry } : undefined} playerLeds={lights?.playerLeds ?? 0}
+          pressed={s?.raw.buttons ?? {}}
+          lightbar={lights ?? { r: 0, g: 80, b: 255 }}
+          sticks={s ? { lx: s.raw.lx, ly: s.raw.ly, rx: s.raw.rx, ry: s.raw.ry } : undefined}
+          playerLeds={lights?.playerLeds ?? 0}
         />
       </div>
     </div>

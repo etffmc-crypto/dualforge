@@ -8,11 +8,16 @@ export const SettingsSchema = z.object({
   schemaVersion: z.literal(1),
   activeProfile: ProfileIdSchema.default('p1'),
   /** Per-game rules: while `exe` (case-insensitive basename) is in front, the engine runs `profileId`. */
-  autoSwitch: z.array(z.object({ exe: z.string().min(1).max(MAX_EXE_LENGTH), profileId: ProfileIdSchema })).max(MAX_AUTO_SWITCH_RULES).default([]),
+  autoSwitch: z
+    .array(z.object({ exe: z.string().min(1).max(MAX_EXE_LENGTH), profileId: ProfileIdSchema }))
+    .max(MAX_AUTO_SWITCH_RULES)
+    .default([]),
   hasRumble: z.boolean().default(false),
   hidHide: z.boolean().default(false),
   startWithWindows: z.boolean().default(false),
   startMinimized: z.boolean().default(false),
+  /** Close button hides the window to the tray instead of quitting (Quit from the tray menu really quits). */
+  closeToTray: z.boolean().default(true),
   theme: z.enum(['dark', 'light']).default('dark'),
   updates: z.boolean().default(false),
 });

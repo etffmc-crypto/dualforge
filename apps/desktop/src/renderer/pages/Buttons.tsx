@@ -15,8 +15,12 @@ export function Buttons() {
   if (!mappings || !macros || !lights) return null; // still loading
   return (
     <div className="buttons-page">
-      <div className="pad-wrap"><PadDiagram mappings={mappings} macros={macros} lights={lights} onEdit={onEdit} /></div>
-      <p className="buttons-hint">Select a button to change what it sends. Red pills differ from the standard Xbox layout.</p>
+      <div className="pad-wrap">
+        <PadDiagram mappings={mappings} macros={macros} lights={lights} onEdit={onEdit} />
+      </div>
+      <p className="buttons-hint">
+        Select a button to change what it sends. Red pills differ from the standard Xbox layout.
+      </p>
       <MappingModal key={editing ?? ''} button={editing} onClose={() => setEditing(null)} />
     </div>
   );

@@ -18,11 +18,17 @@ const CSV = [
 
 describe('parseTasklist', () => {
   it('returns lowercased, deduped, sorted exe names without system, background or Services-session processes', () => {
-    expect(parseTasklist(CSV, ['dualforge.exe'])).toEqual(['cs2.exe', 'discord.exe', 'eldenring.exe']);
+    expect(parseTasklist(CSV, ['dualforge.exe'])).toEqual([
+      'cs2.exe',
+      'discord.exe',
+      'eldenring.exe',
+    ]);
   });
   it('ignores malformed lines, non-exe names and names over 64 characters', () => {
     const long = `${'a'.repeat(61)}.exe`;
-    expect(parseTasklist(`garbage\r\n"notes.txt","1"\r\n"${long}","2"\r\n"ok.exe","3"`)).toEqual(['ok.exe']);
+    expect(parseTasklist(`garbage\r\n"notes.txt","1"\r\n"${long}","2"\r\n"ok.exe","3"`)).toEqual([
+      'ok.exe',
+    ]);
   });
 });
 
@@ -33,7 +39,11 @@ describe('createProcessLister', () => {
     expect(await list()).toEqual(['cs2.exe', 'discord.exe', 'eldenring.exe']);
     // by full path from the Windows directory, never a `tasklist` found on PATH or in the working directory
     const sysRoot = process.env.SystemRoot ?? 'C:\\Windows';
-    expect(exec).toHaveBeenCalledWith(join(sysRoot, 'System32', 'tasklist.exe'), ['/fo', 'csv', '/nh']);
+    expect(exec).toHaveBeenCalledWith(join(sysRoot, 'System32', 'tasklist.exe'), [
+      '/fo',
+      'csv',
+      '/nh',
+    ]);
     expect(TASKLIST).toMatch(/[\\/]System32[\\/]tasklist\.exe$/i);
   });
 });

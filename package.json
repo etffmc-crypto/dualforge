@@ -1,9 +1,13 @@
 {
   "name": "dualforge",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
-  "workspaces": ["packages/*", "apps/*", "native/*"],
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "native/*"
+  ],
   "scripts": {
     "typecheck": "tsc -b packages/shared packages/engine apps/desktop",
     "lint": "eslint . --max-warnings 0",
@@ -13,11 +17,19 @@
     "check": "npm run typecheck && npm run lint && npm run test && npm run test:ui",
     "test:ui": "npm run test:ui -w @dualforge/desktop",
     "dev": "npm run dev -w @dualforge/desktop",
-    "build": "npm run build -w @dualforge/desktop"
+    "build": "npm run build -w @dualforge/desktop",
+    "dist": "node apps/desktop/scripts/check-addon.mjs && npm run build -w @dualforge/desktop && npx electron-builder --projectDir apps/desktop --config electron-builder.yml --win --dir",
+    "dist:installer": "node apps/desktop/scripts/check-addon.mjs && npm run build -w @dualforge/desktop && npx electron-builder --projectDir apps/desktop --config electron-builder.yml --win nsis",
+    "test:packaged": "npm run test:packaged -w @dualforge/desktop",
+    "format:check": "prettier --check .",
+    "coverage": "vitest run --coverage --project @dualforge/engine",
+    "audit": "node scripts/audit.mjs",
+    "check:full": "npm run typecheck && npm run lint && npm run format:check && npm run test && npm run coverage && npm run test:ui && npm run audit"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.0",
     "@types/node": "^24.0.0",
+    "@vitest/coverage-v8": "^3.2.7",
     "eslint": "^9.30.0",
     "eslint-config-prettier": "^10.1.0",
     "prettier": "^3.6.0",
@@ -25,5 +37,7 @@
     "typescript-eslint": "^8.35.0",
     "vitest": "^3.2.0"
   },
-  "engines": { "node": ">=24" }
+  "engines": {
+    "node": ">=24"
+  }
 }

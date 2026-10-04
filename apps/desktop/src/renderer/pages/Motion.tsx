@@ -12,7 +12,9 @@ export function Motion() {
   const gyro = useStore((s) => s.profile?.gyro ?? null);
   const updateProfile = useStore((s) => s.updateProfile);
   if (!gyro) return null; // profile still loading
-  const edit = (fn: (g: GyroConfig) => void) => { updateProfile((d) => fn(d.gyro)); };
+  const edit = (fn: (g: GyroConfig) => void) => {
+    updateProfile((d) => fn(d.gyro));
+  };
   const off = gyro.output === 'off';
   return (
     <SettingsLayout

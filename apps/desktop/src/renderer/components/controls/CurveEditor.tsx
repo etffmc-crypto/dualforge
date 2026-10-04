@@ -18,7 +18,13 @@ const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v
 const tidy = (v: number) => Math.round(v * 1e6) / 1e6;
 
 /** Draggable multi-point response curve with a dashed linear reference and per-point numeric inputs. */
-export function CurveEditor({ points, onChange, size = 280, yMax = 1, pointCount = 8 }: CurveEditorProps) {
+export function CurveEditor({
+  points,
+  onChange,
+  size = 280,
+  yMax = 1,
+  pointCount = 8,
+}: CurveEditorProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<number | null>(null);
   const [active, setActive] = useState<number | null>(null);
@@ -41,7 +47,11 @@ export function CurveEditor({ points, onChange, size = 280, yMax = 1, pointCount
     setActive(i);
     const svg = svgRef.current;
     if (svg && typeof svg.setPointerCapture === 'function') {
-      try { svg.setPointerCapture(e.pointerId); } catch { /* pointer already released */ }
+      try {
+        svg.setPointerCapture(e.pointerId);
+      } catch {
+        /* pointer already released */
+      }
     }
   };
   const onMove = (e: PointerEvent<SVGSVGElement>) => {
@@ -53,12 +63,20 @@ export function CurveEditor({ points, onChange, size = 280, yMax = 1, pointCount
     const y = (1 - ((e.clientY - rect.top) / scale - PAD) / plot) * yMax;
     setPoint(i, x, y);
   };
-  const onUp = () => { drag.current = null; setActive(null); };
+  const onUp = () => {
+    drag.current = null;
+    setActive(null);
+  };
 
   const onKey = (i: number) => (e: KeyboardEvent) => {
     const [x, y] = pts[i]!;
     const dy = yMax / 100;
-    const moves: Record<string, [number, number]> = { ArrowLeft: [x - 0.01, y], ArrowRight: [x + 0.01, y], ArrowUp: [x, y + dy], ArrowDown: [x, y - dy] };
+    const moves: Record<string, [number, number]> = {
+      ArrowLeft: [x - 0.01, y],
+      ArrowRight: [x + 0.01, y],
+      ArrowUp: [x, y + dy],
+      ArrowDown: [x, y - dy],
+    };
     const m = moves[e.key];
     if (!m) return;
     e.preventDefault();
@@ -69,33 +87,69 @@ export function CurveEditor({ points, onChange, size = 280, yMax = 1, pointCount
   return (
     <div className="curve-editor">
       <svg
-        ref={svgRef} data-testid="curve-svg" className="ce-svg" width={size} height={size} viewBox={`0 0 ${size} ${size}`}
-        onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+        ref={svgRef}
+        data-testid="curve-svg"
+        className="ce-svg"
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={onUp}
       >
         <rect x={PAD} y={PAD} width={plot} height={plot} className="cp-frame" />
         {grid.map((g) => (
           <g key={g} className="cp-grid">
-            <line x1={sx(g)} y1={PAD} x2={sx(g)} y2={PAD + plot} /><line x1={PAD} y1={sy(g * yMax)} x2={PAD + plot} y2={sy(g * yMax)} />
+            <line x1={sx(g)} y1={PAD} x2={sx(g)} y2={PAD + plot} />
+            <line x1={PAD} y1={sy(g * yMax)} x2={PAD + plot} y2={sy(g * yMax)} />
           </g>
         ))}
         <line className="ce-ref" x1={sx(0)} y1={sy(0)} x2={sx(1)} y2={sy(yMax)} />
-        <polyline className="curve" fill="none" points={pts.map(([x, y]) => `${sx(x)},${sy(y)}`).join(' ')} />
+        <polyline
+          className="curve"
+          fill="none"
+          points={pts.map(([x, y]) => `${sx(x)},${sy(y)}`).join(' ')}
+        />
         {pts.map(([x, y], i) => (
           <circle
-            key={i} data-testid={`handle-${i}`} cx={sx(x)} cy={sy(y)} r={7} tabIndex={0} role="button"
+            key={i}
+            data-testid={`handle-${i}`}
+            cx={sx(x)}
+            cy={sy(y)}
+            r={7}
+            tabIndex={0}
+            role="button"
             aria-label={`Point ${i + 1}: input ${Math.round(x * 100)}, output ${Math.round(y * yScale)}`}
-            className={`ce-handle${active === i ? ' active' : ''}`} onPointerDown={onDown(i)} onKeyDown={onKey(i)}
+            className={`ce-handle${active === i ? ' active' : ''}`}
+            onPointerDown={onDown(i)}
+            onKeyDown={onKey(i)}
           />
         ))}
       </svg>
       <div className="ce-inputs" style={{ gridTemplateColumns: `auto repeat(${pts.length}, 1fr)` }}>
         <span className="ce-axis">In</span>
         {pts.map(([x], i) => (
-          <DraftNumber key={`x${i}`} min={0} max={100} step={1} value={Math.round(x * 100)} label={`Point ${i + 1} input`} onCommit={(v) => setPoint(i, v / 100, pts[i]![1])} />
+          <DraftNumber
+            key={`x${i}`}
+            min={0}
+            max={100}
+            step={1}
+            value={Math.round(x * 100)}
+            label={`Point ${i + 1} input`}
+            onCommit={(v) => setPoint(i, v / 100, pts[i]![1])}
+          />
         ))}
         <span className="ce-axis">Out</span>
         {pts.map(([, y], i) => (
-          <DraftNumber key={`y${i}`} min={0} max={100} step={1} value={Math.round(y * yScale)} label={`Point ${i + 1} output`} onCommit={(v) => setPoint(i, pts[i]![0], v / yScale)} />
+          <DraftNumber
+            key={`y${i}`}
+            min={0}
+            max={100}
+            step={1}
+            value={Math.round(y * yScale)}
+            label={`Point ${i + 1} output`}
+            onCommit={(v) => setPoint(i, pts[i]![0], v / yScale)}
+          />
         ))}
       </div>
     </div>

@@ -12,13 +12,27 @@ describe('compileProfile', () => {
       expect(c.left.lut.length).toBe(LUT_SIZE + 1);
       for (let i = 0; i <= 100; i++) {
         const v = i / 100;
-        expect(Math.abs(evaluateLut(c.left.lut, v) - evaluateCurve(presetPoints(preset), v))).toBeLessThan(1 / 255);
+        expect(
+          Math.abs(evaluateLut(c.left.lut, v) - evaluateCurve(presetPoints(preset), v)),
+        ).toBeLessThan(1 / 255);
       }
     }
   });
   it('custom curve LUT holds past the last point', () => {
     const p = defaultProfile('p', 'p');
-    p.sticks.right.curve = { kind: 'custom', points: [[0.1, 0.1], [0.2, 0.2], [0.3, 0.3], [0.4, 0.4], [0.5, 0.9], [0.5, 0.9], [0.5, 0.9], [0.5, 0.9]] };
+    p.sticks.right.curve = {
+      kind: 'custom',
+      points: [
+        [0.1, 0.1],
+        [0.2, 0.2],
+        [0.3, 0.3],
+        [0.4, 0.4],
+        [0.5, 0.9],
+        [0.5, 0.9],
+        [0.5, 0.9],
+        [0.5, 0.9],
+      ],
+    };
     expect(evaluateLut(compileProfile(p).right.lut, 0.95)).toBeCloseTo(0.9, 3);
   });
   it('trigger LUT follows trigger curve preset', () => {

@@ -4,15 +4,29 @@ type IconProps = SVGProps<SVGSVGElement> & { size?: number };
 
 function Svg({ size = 24, children, ...rest }: IconProps & { children: ReactNode }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}
-      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" {...rest}>
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+      {...rest}
+    >
       {children}
     </svg>
   );
 }
 
 export const HomeIcon = (p: IconProps) => (
-  <Svg {...p}><path d="M3.5 11 12 4l8.5 7" /><path d="M6 9.5V20h4.5v-5.5h3V20H18V9.5" /></Svg>
+  <Svg {...p}>
+    <path d="M3.5 11 12 4l8.5 7" />
+    <path d="M6 9.5V20h4.5v-5.5h3V20H18V9.5" />
+  </Svg>
 );
 
 /** Two stick columns: a cap on a stem, side by side. */
@@ -20,7 +34,8 @@ export const SticksIcon = (p: IconProps) => (
   <Svg {...p}>
     <rect x="3" y="4" width="7" height="4" rx="2" fill="currentColor" stroke="none" />
     <rect x="14" y="4" width="7" height="4" rx="2" fill="currentColor" stroke="none" />
-    <path d="M6.5 8v8M17.5 8v8" /><path d="M3.5 18.5h6M14.5 18.5h6" />
+    <path d="M6.5 8v8M17.5 8v8" />
+    <path d="M3.5 18.5h6M14.5 18.5h6" />
   </Svg>
 );
 
@@ -34,13 +49,18 @@ export const TriggersIcon = (p: IconProps) => (
 
 export const MotionIcon = (p: IconProps) => (
   <Svg {...p}>
-    <path d="M12 3 20 7.5v9L12 21l-8-4.5v-9Z" /><path d="M4 7.5 12 12l8-4.5M12 12v9" />
+    <path d="M12 3 20 7.5v9L12 21l-8-4.5v-9Z" />
+    <path d="M4 7.5 12 12l8-4.5M12 12v9" />
   </Svg>
 );
 
 export const VibrationsIcon = (p: IconProps) => (
   <Svg {...p}>
-    <path d="M7.5 8h9c2 0 3 1.2 3.4 3l.9 4.6c.3 1.6-1.4 2.6-2.6 1.5L16.5 15h-9l-1.7 2.1c-1.2 1.1-2.9.1-2.6-1.5l.9-4.6C4.5 9.2 5.5 8 7.5 8Z" fill="currentColor" stroke="none" />
+    <path
+      d="M7.5 8h9c2 0 3 1.2 3.4 3l.9 4.6c.3 1.6-1.4 2.6-2.6 1.5L16.5 15h-9l-1.7 2.1c-1.2 1.1-2.9.1-2.6-1.5l.9-4.6C4.5 9.2 5.5 8 7.5 8Z"
+      fill="currentColor"
+      stroke="none"
+    />
     <path d="M2 6.5c.6-.9 1.4-1.6 2.3-2M22 6.5c-.6-.9-1.4-1.6-2.3-2" />
   </Svg>
 );
@@ -54,11 +74,17 @@ export const LightsIcon = (p: IconProps) => (
 );
 
 export const FlaskIcon = (p: IconProps) => (
-  <Svg {...p}><path d="M8.5 3h7M10 3v6L4.8 18.2A1.9 1.9 0 0 0 6.5 21h11a1.9 1.9 0 0 0 1.7-2.8L14 9V3" /><path d="M7 15h10" /></Svg>
+  <Svg {...p}>
+    <path d="M8.5 3h7M10 3v6L4.8 18.2A1.9 1.9 0 0 0 6.5 21h11a1.9 1.9 0 0 0 1.7-2.8L14 9V3" />
+    <path d="M7 15h10" />
+  </Svg>
 );
 
 export const ResetIcon = (p: IconProps) => (
-  <Svg {...p}><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" /><path d="M4 3.5v4h4" /></Svg>
+  <Svg {...p}>
+    <path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3" />
+    <path d="M4 3.5v4h4" />
+  </Svg>
 );
 
 export const DpadIcon = (p: IconProps) => (
@@ -71,7 +97,8 @@ export const DpadIcon = (p: IconProps) => (
 export const GridIcon = (p: IconProps) => (
   <Svg {...p}>
     <rect x="3.5" y="3.5" width="7" height="7" rx="1.8" fill="currentColor" stroke="none" />
-    <rect x="13.5" y="3.5" width="7" height="7" rx="1.8" /><rect x="3.5" y="13.5" width="7" height="7" rx="1.8" />
+    <rect x="13.5" y="3.5" width="7" height="7" rx="1.8" />
+    <rect x="3.5" y="13.5" width="7" height="7" rx="1.8" />
     <rect x="13.5" y="13.5" width="7" height="7" rx="1.8" fill="currentColor" stroke="none" />
   </Svg>
 );
@@ -79,7 +106,10 @@ export const GridIcon = (p: IconProps) => (
 /** Four face buttons in a diamond. */
 export const ButtonsIcon = (p: IconProps) => (
   <Svg {...p} stroke="none" fill="currentColor">
-    <circle cx="12" cy="5.5" r="3" /><circle cx="5.5" cy="12" r="3" /><circle cx="18.5" cy="12" r="3" /><circle cx="12" cy="18.5" r="3" />
+    <circle cx="12" cy="5.5" r="3" />
+    <circle cx="5.5" cy="12" r="3" />
+    <circle cx="18.5" cy="12" r="3" />
+    <circle cx="12" cy="18.5" r="3" />
   </Svg>
 );
 
@@ -92,15 +122,22 @@ export const GearIcon = (p: IconProps) => (
 );
 
 export const PencilIcon = (p: IconProps) => (
-  <Svg {...p}><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16Z" /><path d="m13.5 6.5 4 4" /></Svg>
+  <Svg {...p}>
+    <path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16Z" />
+    <path d="m13.5 6.5 4 4" />
+  </Svg>
 );
 
 export const ChevronRightIcon = (p: IconProps) => (
-  <Svg {...p}><path d="m9 5 7 7-7 7" /></Svg>
+  <Svg {...p}>
+    <path d="m9 5 7 7-7 7" />
+  </Svg>
 );
 
 export const FolderIcon = (p: IconProps) => (
-  <Svg {...p}><path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5Z" /></Svg>
+  <Svg {...p}>
+    <path d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5Z" />
+  </Svg>
 );
 
 /** A sequence of timed bars: the Macros page. */
@@ -122,10 +159,23 @@ export const ProfilesIcon = (p: IconProps) => (
   </Svg>
 );
 
+/** A heart with a pulse trace through it: the Health page. */
+export const HeartPulseIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 20.5s-7.8-4.6-8.9-10.1C2.4 6.9 4.6 4 7.7 4c1.9 0 3.3 1 4.3 2.6C13 5 14.4 4 16.3 4c3.1 0 5.3 2.9 4.6 6.4-1.1 5.5-8.9 10.1-8.9 10.1Z" />
+    <path d="M3.5 12.5h4.2l1.6-3 2.6 5.5 1.8-3.6 1.2 1.1h5.6" />
+  </Svg>
+);
+
 export const CopyIcon = (p: IconProps) => (
-  <Svg {...p}><rect x="8.5" y="8.5" width="11" height="11" rx="2" /><path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5" /></Svg>
+  <Svg {...p}>
+    <rect x="8.5" y="8.5" width="11" height="11" rx="2" />
+    <path d="M15.5 8.5V6a1.5 1.5 0 0 0-1.5-1.5H6A1.5 1.5 0 0 0 4.5 6v8A1.5 1.5 0 0 0 6 15.5h2.5" />
+  </Svg>
 );
 
 export const TrashIcon = (p: IconProps) => (
-  <Svg {...p}><path d="M4.5 7h15M10 7V4.5h4V7M6.5 7l1 12.5h9l1-12.5" /></Svg>
+  <Svg {...p}>
+    <path d="M4.5 7h15M10 7V4.5h4V7M6.5 7l1 12.5h9l1-12.5" />
+  </Svg>
 );

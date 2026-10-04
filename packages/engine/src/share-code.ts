@@ -22,7 +22,10 @@ type Codec = (b: Uint8Array) => Uint8Array;
 
 export class ShareCodeError extends Error {
   readonly code = 'E_SHARE_CODE';
-  constructor(msg: string) { super(`E_SHARE_CODE: ${msg}`); this.name = 'ShareCodeError'; }
+  constructor(msg: string) {
+    super(`E_SHARE_CODE: ${msg}`);
+    this.name = 'ShareCodeError';
+  }
 }
 
 /** 'DUALFORGE:' + base64url(deflateRaw(JSON of the profile without its id)). `deflate` is injected (pure module). */
@@ -47,7 +50,8 @@ export function decodeShareCode(code: string, inflate: Codec): Profile {
     const bytes = inflate(fromB64Url(body));
     if (bytes.length > SHARE_MAX_BYTES) throw new ShareCodeError('too large');
     const obj: unknown = JSON.parse(new TextDecoder().decode(bytes));
-    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) throw new ShareCodeError('not an object');
+    if (typeof obj !== 'object' || obj === null || Array.isArray(obj))
+      throw new ShareCodeError('not an object');
     const r = ProfileSchema.safeParse({ ...obj, id: crypto.randomUUID() });
     if (!r.success) throw new ShareCodeError('invalid profile');
     return r.data;

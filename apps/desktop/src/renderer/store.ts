@@ -1,8 +1,33 @@
 import { create } from 'zustand';
-import { ensureDenseMappings, ProfileSchema, type EngineSnapshot, type Profile, type ProfileSummary, type Settings } from '@dualforge/shared';
+import {
+  ensureDenseMappings,
+  ProfileSchema,
+  type EngineSnapshot,
+  type HealthState,
+  type Profile,
+  type ProfileSummary,
+  type Settings,
+} from '@dualforge/shared';
 
-export type Page =
-  | 'home' | 'overview' | 'buttons' | 'sticks' | 'triggers' | 'motion' | 'vibrations' | 'lights' | 'macros' | 'inputTest' | 'settings' | 'profiles';
+export const PAGES = [
+  'home',
+  'overview',
+  'buttons',
+  'sticks',
+  'triggers',
+  'motion',
+  'vibrations',
+  'lights',
+  'macros',
+  'inputTest',
+  'settings',
+  'profiles',
+  'health',
+] as const;
+export type Page = (typeof PAGES)[number];
+/** Whitelist for page ids that arrive from outside the renderer (tray "Health" via `app.onNavigate`). */
+export const isPage = (p: unknown): p is Page =>
+  typeof p === 'string' && (PAGES as readonly string[]).includes(p);
 export type Side = 'left' | 'right';
 export type SubTabPage = 'sticks' | 'triggers';
 
@@ -20,7 +45,11 @@ interface State {
   activeProfileId: string | null;
   profiles: ProfileSummary[];
   settings: Settings | null;
+  /** A hidHide change is in flight in main (enable may wait on a UAC prompt); the switch is disabled meanwhile. */
+  hidHidePending: boolean;
   subTab: Record<SubTabPage, Side>;
+  /** Latest health-check results (header dot, Health page); null until the first answer from main. */
+  health: HealthState | null;
   /**
    * Outstanding gamepad-navigation holds (macro recorder, macro play test): while any is held the pad means something
    * else and navigation ignores it. Use `suspendNav()` / `navSuspended()` rather than this count.
@@ -62,7 +91,8 @@ let pending: ReturnType<typeof setTimeout> | null = null;
 
 /** True while any gamepad-navigation hold is outstanding. */
 export const navSuspended = (): boolean => useStore.getState().navHolds > 0;
-const fail = (code: string) => (err: unknown) => useStore.setState({ lastError: { code, msg: String(err) } });
+const fail = (code: string) => (err: unknown) =>
+  useStore.setState({ lastError: { code, msg: String(err) } });
 
 export const useStore = create<State>((set, get) => {
   const send = () => {
@@ -72,12 +102,28 @@ export const useStore = create<State>((set, get) => {
     // profiles.set saves to p.id's slot, so an edit can never land in a different profile after a switch
     window.dualforge.profiles.set(p).catch(fail('E_PROFILE_SEND'));
   };
-  const flushPending = () => { if (pending) { clearTimeout(pending); send(); } };
-  const dropPending = () => { if (pending) clearTimeout(pending); pending = null; };
+  const flushPending = () => {
+    if (pending) {
+      clearTimeout(pending);
+      send();
+    }
+  };
+  const dropPending = () => {
+    if (pending) clearTimeout(pending);
+    pending = null;
+  };
   return {
-    snapshot: null, lastError: null, page: 'home', autoRouted: false,
-    profile: null, activeProfileId: null, profiles: [], settings: null,
+    snapshot: null,
+    lastError: null,
+    page: 'home',
+    autoRouted: false,
+    profile: null,
+    activeProfileId: null,
+    profiles: [],
+    settings: null,
+    hidHidePending: false,
     subTab: { sticks: 'left', triggers: 'left' },
+    health: null,
     navHolds: 0,
     clearError: () => set({ lastError: null }),
     suspendNav: () => {
@@ -100,11 +146,17 @@ export const useStore = create<State>((set, get) => {
     loadSettings: async () => set({ settings: await window.dualforge.settings.get() }),
     updateSettings: async (patch) => {
       const before = get().settings;
+      const hid = 'hidHide' in patch;
       if (before) set({ settings: { ...before, ...patch } });
+      if (hid) set({ hidHidePending: true });
       try {
         set({ settings: await window.dualforge.settings.set(patch) });
       } catch (err) {
-        set({ settings: before, lastError: { code: 'E_SETTINGS_SEND', msg: String(err) } });
+        // main may have persisted a corrected value (e.g. hidHide forced off after a failed enable), so resync from it; fall back to the old value
+        const actual = await window.dualforge.settings.get().catch(() => before);
+        set({ settings: actual, lastError: { code: 'E_SETTINGS_SEND', msg: String(err) } });
+      } finally {
+        if (hid) set({ hidHidePending: false });
       }
     },
     refreshProfiles: async () => set({ profiles: await window.dualforge.profiles.list() }),
@@ -137,7 +189,12 @@ export const useStore = create<State>((set, get) => {
         if (e.type === 'snapshot') {
           const s = get();
           // Overview is the landing page once a controller shows up; after that Home is only a click away
-          if (e.snapshot.connected && !s.autoRouted) set({ snapshot: e.snapshot, autoRouted: true, page: s.page === 'home' ? 'overview' : s.page });
+          if (e.snapshot.connected && !s.autoRouted)
+            set({
+              snapshot: e.snapshot,
+              autoRouted: true,
+              page: s.page === 'home' ? 'overview' : s.page,
+            });
           else set({ snapshot: e.snapshot });
         } else if (e.type === 'error') set({ lastError: { code: e.code, msg: e.msg } });
       });
@@ -146,7 +203,10 @@ export const useStore = create<State>((set, get) => {
         set({ activeProfileId: id });
         get().loadProfile().catch(fail('E_PROFILE_LOAD'));
       });
-      return () => { offEngine(); offActive(); };
+      return () => {
+        offEngine();
+        offActive();
+      };
     },
     updateProfile: (mutate) => {
       const cur = get().profile;
@@ -155,7 +215,12 @@ export const useStore = create<State>((set, get) => {
       mutate(draft);
       const parsed = ProfileSchema.safeParse(draft);
       if (!parsed.success) {
-        set({ lastError: { code: 'E_PROFILE_INVALID', msg: parsed.error.issues.map((i) => i.message).join('; ') } });
+        set({
+          lastError: {
+            code: 'E_PROFILE_INVALID',
+            msg: parsed.error.issues.map((i) => i.message).join('; '),
+          },
+        });
         return false;
       }
       set({ profile: parsed.data });

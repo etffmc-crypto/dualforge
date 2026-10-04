@@ -13,3 +13,4 @@ test-results/
 playwright-report/
 native/sendinput/build/
 native/sendinput/bin/
+maintenance/reports/last-check.json

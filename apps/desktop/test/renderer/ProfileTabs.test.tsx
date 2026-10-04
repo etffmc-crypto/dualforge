@@ -6,14 +6,23 @@ import { useStore } from '../../src/renderer/store';
 import { ProfileTabs } from '../../src/renderer/components/ProfileTabs';
 import { Header } from '../../src/renderer/components/Header';
 
-const names: Record<string, string> = { p1: 'Profile 1', p2: 'Profile 2', p3: 'Profile 3', p4: 'Profile 4' };
+const names: Record<string, string> = {
+  p1: 'Profile 1',
+  p2: 'Profile 2',
+  p3: 'Profile 3',
+  p4: 'Profile 4',
+};
 const profilesApi = {
   set: vi.fn(async () => true),
   current: vi.fn(async () => ({ id: 'p1', source: 'manual' as const })),
   get: vi.fn(async (id: string) => defaultProfile(id, names[id]!)),
-  list: vi.fn(async () => Object.entries(names).map(([id, name], i) => ({ id, name, slot: i + 1 }))),
+  list: vi.fn(async () =>
+    Object.entries(names).map(([id, name], i) => ({ id, name, slot: i + 1 })),
+  ),
   activate: vi.fn(async (id: string) => defaultProfile(id, names[id]!)),
-  rename: vi.fn(async (id: string, name: string) => { names[id] = name; }),
+  rename: vi.fn(async (id: string, name: string) => {
+    names[id] = name;
+  }),
   reset: vi.fn(async () => {}),
   onActive: vi.fn(() => () => {}),
 };
@@ -27,25 +36,43 @@ beforeEach(() => {
     window: { minimize: vi.fn(), toggleMaximize: vi.fn(), close: vi.fn() },
   });
   useStore.setState({
-    profile: defaultProfile('p1', 'Profile 1'), activeProfileId: 'p1', settings: defaultSettings(), lastError: null, page: 'home',
+    profile: defaultProfile('p1', 'Profile 1'),
+    activeProfileId: 'p1',
+    settings: defaultSettings(),
+    lastError: null,
+    page: 'home',
     profiles: Object.entries(names).map(([id, name], i) => ({ id, name, slot: i + 1 })),
   });
 });
-afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe('ProfileTabs', () => {
   it('shows the four slots with the running one selected', () => {
     render(<ProfileTabs />);
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.map((t) => t.textContent)).toEqual(['Profile 1', 'Profile 2', 'Profile 3', 'Profile 4']);
-    expect(screen.getByRole('tab', { name: 'Profile 1' }).getAttribute('aria-selected')).toBe('true');
+    expect(tabs.map((t) => t.textContent)).toEqual([
+      'Profile 1',
+      'Profile 2',
+      'Profile 3',
+      'Profile 4',
+    ]);
+    expect(screen.getByRole('tab', { name: 'Profile 1' }).getAttribute('aria-selected')).toBe(
+      'true',
+    );
   });
 
   it('clicking a slot activates it in the engine', async () => {
     render(<ProfileTabs />);
     fireEvent.click(screen.getByRole('tab', { name: 'Profile 3' }));
     expect(profilesApi.activate).toHaveBeenCalledWith('p3');
-    await waitFor(() => expect(screen.getByRole('tab', { name: 'Profile 3' }).getAttribute('aria-selected')).toBe('true'));
+    await waitFor(() =>
+      expect(screen.getByRole('tab', { name: 'Profile 3' }).getAttribute('aria-selected')).toBe(
+        'true',
+      ),
+    );
   });
 
   it('right-click renames inline; Enter commits, Escape cancels', async () => {

@@ -12,15 +12,36 @@ export function DeadzoneSections({ cfg, edit }: Omit<StickSectionProps, 'side'>)
     <>
       <PanelSection title="Deadzone">
         <DualRangeSlider
-          label="Deadzone" captions={['Initial', 'Max']} lo={dz.center} hi={tidy(1 - dz.outer)} minGap={MIN_LIVE_RANGE}
-          onChange={(lo, hi) => edit((c) => { c.deadzone.center = lo; c.deadzone.outer = tidy(1 - hi); })}
+          label="Deadzone"
+          captions={['Initial', 'Max']}
+          lo={dz.center}
+          hi={tidy(1 - dz.outer)}
+          minGap={MIN_LIVE_RANGE}
+          onChange={(lo, hi) =>
+            edit((c) => {
+              c.deadzone.center = lo;
+              c.deadzone.outer = tidy(1 - hi);
+            })
+          }
         />
-        <div className="psec-readout"><span>{pct(dz.center)}</span><span>{pct(1 - dz.outer)}</span></div>
+        <div className="psec-readout">
+          <span>{pct(dz.center)}</span>
+          <span>{pct(1 - dz.outer)}</span>
+        </div>
       </PanelSection>
       <PanelSection title="Anti-Deadzone">
         <RangeSlider
-          ariaLabel="Anti-Deadzone" min={0} max={0.5} step={0.01} value={dz.anti} format={pct}
-          onChange={(v) => edit((c) => { c.deadzone.anti = v; })}
+          ariaLabel="Anti-Deadzone"
+          min={0}
+          max={0.5}
+          step={0.01}
+          value={dz.anti}
+          format={pct}
+          onChange={(v) =>
+            edit((c) => {
+              c.deadzone.anti = v;
+            })
+          }
         />
       </PanelSection>
     </>

@@ -14,7 +14,8 @@ const OPTIONS: { value: Choice; label: string }[] = [
   { value: 'custom', label: 'Custom' },
 ];
 
-const copy = (pts: readonly (readonly [number, number])[]): CurvePoints => pts.map(([x, y]) => [x, y]);
+const copy = (pts: readonly (readonly [number, number])[]): CurvePoints =>
+  pts.map(([x, y]) => [x, y]);
 
 /**
  * Preset picker plus the 8-point editor for Custom. Leaving Custom stashes its points here (the profile keeps only
@@ -33,10 +34,15 @@ export function CurveSection({ side, cfg, edit }: StickSectionProps) {
       const from = curve.kind === 'preset' ? curve.preset : 'linear';
       const kept = stash.current[side];
       const points = kept && kept.leftTo === from ? kept.points : copy(presetPoints(from));
-      edit((c) => { c.curve = { kind: 'custom', points: copy(points) }; });
+      edit((c) => {
+        c.curve = { kind: 'custom', points: copy(points) };
+      });
     } else {
-      if (curve.kind === 'custom') stash.current[side] = { points: copy(curve.points), leftTo: next };
-      edit((c) => { c.curve = { kind: 'preset', preset: next }; });
+      if (curve.kind === 'custom')
+        stash.current[side] = { points: copy(curve.points), leftTo: next };
+      edit((c) => {
+        c.curve = { kind: 'preset', preset: next };
+      });
     }
   };
 
@@ -45,8 +51,14 @@ export function CurveSection({ side, cfg, edit }: StickSectionProps) {
       <Segmented label="Response curve" options={OPTIONS} value={value} onChange={choose} />
       {curve.kind === 'custom' && (
         <CurveEditor
-          key={`${side}-${epoch}`} size={248} points={curve.points}
-          onChange={(points) => edit((c) => { c.curve = { kind: 'custom', points }; })}
+          key={`${side}-${epoch}`}
+          size={248}
+          points={curve.points}
+          onChange={(points) =>
+            edit((c) => {
+              c.curve = { kind: 'custom', points };
+            })
+          }
         />
       )}
     </PanelSection>

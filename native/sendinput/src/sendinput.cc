@@ -96,6 +96,51 @@ Napi::Value ForegroundProcessName(const Napi::CallbackInfo& info) {
   return Napi::String::New(env, reinterpret_cast<const char16_t*>(base.c_str()), base.size());
 }
 
+// Whether the token of `proc`'s process is elevated: 1 / 0, or -1 when it cannot be read.
+int TokenElevatedOf(HANDLE proc, DWORD* err) {
+  HANDLE token = nullptr;
+  if (!::OpenProcessToken(proc, TOKEN_QUERY, &token)) { *err = ::GetLastError(); return -1; }
+  TOKEN_ELEVATION elevation = {};
+  DWORD got = 0;
+  BOOL ok = ::GetTokenInformation(token, TokenElevation, &elevation, sizeof(elevation), &got);
+  if (!ok) *err = ::GetLastError();
+  ::CloseHandle(token);
+  return ok ? (elevation.TokenIsElevated != 0 ? 1 : 0) : -1;
+}
+
+// Cached once: is this process itself elevated? (-1 unknown)
+int SelfElevated() {
+  static int cached = -2;
+  if (cached == -2) { DWORD err = 0; cached = TokenElevatedOf(::GetCurrentProcess(), &err); }
+  return cached;
+}
+
+Napi::Value SelfElevatedJs(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  int v = SelfElevated();
+  if (v < 0) return env.Null();
+  return Napi::Boolean::New(env, v == 1);
+}
+
+// true / false: whether the foreground window's process runs elevated (TokenElevation); null when it cannot be determined.
+// Access denied on a non-elevated caller means the target is elevated (a standard-user process cannot open an elevated one's token).
+Napi::Value ForegroundElevated(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  HWND hwnd = ::GetForegroundWindow();
+  if (!hwnd) return env.Null();
+  DWORD pid = 0;
+  ::GetWindowThreadProcessId(hwnd, &pid);
+  if (!pid) return env.Null();
+  DWORD err = 0;
+  HANDLE proc = ::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+  int v = -1;
+  if (proc) { v = TokenElevatedOf(proc, &err); ::CloseHandle(proc); }
+  else err = ::GetLastError();
+  if (v >= 0) return Napi::Boolean::New(env, v == 1);
+  if (err == ERROR_ACCESS_DENIED && SelfElevated() == 0) return Napi::Boolean::New(env, true);
+  return env.Null();
+}
+
 }  // namespace
 
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
@@ -103,6 +148,8 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set("sendMouseButton", Napi::Function::New(env, SendMouseButton));
   exports.Set("sendMouseMove", Napi::Function::New(env, SendMouseMove));
   exports.Set("foregroundProcessName", Napi::Function::New(env, ForegroundProcessName));
+  exports.Set("selfElevated", Napi::Function::New(env, SelfElevatedJs));
+  exports.Set("foregroundElevated", Napi::Function::New(env, ForegroundElevated));
   return exports;
 }
 

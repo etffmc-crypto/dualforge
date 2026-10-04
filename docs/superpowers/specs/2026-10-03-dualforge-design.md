@@ -17,6 +17,7 @@ Research inventories for both reference apps live in the agent reports from
 from the research scratchpad).
 
 ### Out of scope for v1
+
 - Bluetooth transport (report layout + CRC differ; USB only).
 - Firmware update (Sony only), polling-rate selection (fixed by firmware),
   stick quantization/bit-depth (DualSense sticks are 8-bit).
@@ -46,11 +47,16 @@ from the research scratchpad).
 Three processes:
 
 ### 3.1 Main process
+
 - Window lifecycle, frameless window chrome, tray icon, single-instance lock.
 - **ProfileStore**: 4 profile slots + settings, JSON files under
-  `%APPDATA%\DualForge\profiles\`. Atomic writes (write temp → rename),
-  schema-versioned, validated with **zod** on load. Corrupt file → quarantine
-  to `profiles\corrupt\` and load defaults; surfaced on Health page.
+  `%APPDATA%\DualForge\profiles\`; `settings.json` lives in the data root
+  `%APPDATA%\DualForge\` (override: `DUALFORGE_DATA_DIR`). Atomic writes
+  (write temp → rename, retried 3x on EPERM/EBUSY), schema-versioned,
+  validated with **zod** on load. Corrupt profile → quarantine to
+  `profiles\corrupt\` and load defaults; surfaced on Health page. Invalid
+  `settings.json` → original moved to `%APPDATA%\DualForge\corrupt\`, every
+  individually valid field kept (`E_SETTINGS_SALVAGED`), the rest defaulted.
 - **DriverManager**: detect ViGEmBus / HidHide services, run bundled
   installers (elevated), toggle HidHide whitelist.
 - **EngineHost**: spawns/supervises the input engine `utilityProcess`,
@@ -62,6 +68,7 @@ Three processes:
 - **Updater**: `electron-updater` against a GitHub Releases feed (opt-in).
 
 ### 3.2 Input engine (`utilityProcess`)
+
 Single-purpose, no Electron UI imports. Loop driven by `node-hid` async reads
 (~1000 Hz on USB).
 
@@ -70,8 +77,9 @@ Pipeline per report (all stages are pure functions in `packages/engine/`):
 ```
 rawReport(64B) → parseDualSense() → RawState
   → applyCalibration()        (center offset, outer radius per stick)
-  → applyStickShaping()       (center/anti/outer deadzone, circular/square, invert)
+  → applyStickShaping()       (center/outer deadzone, circular/square, invert)
   → applyStickCurve()         (preset or 8-point monotone piecewise-linear)
+  → applyAntiDeadzone()       (anti-deadzone lift, after the curve)
   → applyStickFilter()        (RC/smoothing: basic strength or speed-curve)
   → applyTriggers()           (deadzone, hair-trigger Off/Adaptive/Fixed, curve)
   → applyGyro()               (off | right-stick | mouse; always/hold/toggle)
@@ -81,6 +89,7 @@ rawReport(64B) → parseDualSense() → RawState
 ```
 
 Outputs:
+
 - `xinput` → `vigemclient` target.
 - `keys`/`mouse` → SendInput addon.
 - Feedback: ViGEm rumble callback → scaled by profile intensities → DualSense
@@ -97,6 +106,7 @@ instead of a device, used by integration tests and by the Health page's
 "simulate" button when no pad is attached.
 
 ### 3.3 Renderer (React)
+
 GameSir Connect shell. Zustand store mirroring the active profile; every
 edit is debounced (100 ms) and sent to main → engine, so changes are live.
 Strict IPC schema (zod) in `packages/shared/ipc.ts`; preload exposes only
@@ -105,6 +115,7 @@ typed channels via `contextBridge`.
 ## 4. UI
 
 ### 4.1 Visual language (from GameSir Connect screenshots)
+
 - Frameless window, default 1280×800, min 1000×680. Custom min/max/close.
 - Background: linear gradient 135°, `#3a1f28` → `#0b0b14`.
 - Cards: `rgba(255,255,255,0.06)` fill, 1 px `rgba(255,255,255,0.10)` border,
@@ -118,16 +129,18 @@ typed channels via `contextBridge`.
   lightbar + player LEDs rendered live.
 - Footer legend: `✚ Direction Control  Ⓐ Confirm  Ⓑ Back`. Full gamepad
   navigation: LB/RB switch top tabs, LT/RT switch sub-tabs, A/B confirm/back.
-  Navigation uses the *processed* virtual-pad state only while the window is
+  Navigation uses the _processed_ virtual-pad state only while the window is
   focused; it is disabled when unfocused so it never leaks into games.
 - Light theme toggle exists (HyperStrike-style) but dark is default.
 
 ### 4.2 Header
+
 Wordmark left · centered icon tab strip (Buttons · Sticks · Triggers ·
 Motion · Vibrations · Lights · Macros) · right: Profile 1–4 tabs, Reset,
 Input Test, Health, Home, Settings gear, window controls.
 
 ### 4.3 Pages
+
 1. **Home** — detection status, battery %, USB/none, driver status chips,
    large pad render, "Unable to connect?" → Health.
 2. **Overview** — 2×3 card summary around the pad render.
@@ -142,18 +155,19 @@ Input Test, Health, Home, Settings gear, window controls.
    curve), Calibration wizard (center → outer rotation → verify), live circle
    widgets with X/Y readouts and deviation test.
 5. **Triggers** — L/R. Deadzone Initial/Max, Hair-trigger Off/Adaptive(1–100)/
-   Fixed, curve, Adaptive Trigger Effect: Off · Resistance · Trigger · Weapon ·
-   Vibration · Custom (start, end, force).
+   Fixed, curve, Adaptive Trigger Effect: Off · Resistance · Section ·
+   Vibration (start, end, force/amplitude as applicable). Trigger/Weapon/Custom
+   are not implemented; the four modes above are what the engine encodes.
 6. **Motion** — Output Off/Right stick/Mouse; Activate Always/Hold/Toggle +
    button; deadzone; curve preset; X/Y sensitivity; invert; Calibrate (flat,
    2 s sample).
-7. **Vibrations** — L/R intensity 0–100 with Test; trigger-effect strength.
+7. **Vibrations** — L/R intensity 0–100 with Test. (The "trigger-effect strength" control was removed: effect strength is set per effect on the Triggers page.)
 8. **Lights** — lightbar color picker, brightness, animation Off/Static/
    Breathing/Rainbow/Battery, speed; player-LED pattern; mic LED Off/On/Pulse.
 9. **Macros** — list; Record from pad; step editor `[input, hold ms, delay ms]`
    ≤64 steps; loop toggle; assign to button.
-10. **Profiles** — 4 slots, rename, duplicate, reset, export/import `.dfprofile`
-    JSON, share-code (base64 of gzip JSON, prefix `DUALFORGE:`), per-game
+10. **Profiles** — 4 slots, rename, duplicate, reset, export/import `.dualforge.json`
+    files, share-code (`DUALFORGE:` + base64url(deflateRaw(JSON))), per-game
     auto-switch table.
 11. **Health** — see §7.
 12. **Input Test** — every button/axis live, report-rate meter, raw vs
@@ -169,17 +183,22 @@ Profile {
   sticks: { left: StickConfig; right: StickConfig };
   triggers: { left: TriggerConfig; right: TriggerConfig };
   gyro: GyroConfig;
-  vibration: { left: 0..100; right: 0..100; triggerEffects: 0..100 };
+  vibration: { left: 0..100; right: 0..100 };
   lights: LightsConfig;
   mappings: Record<DsButton, Mapping>;   // Mapping = { targets: Target[≤3], turboHz?, continuous? }
   macros: Macro[];
 }
 StickConfig { calibration{cx,cy,radius}; deadzone{center,anti,outer}; circular; invertX; invertY;
               curve: {preset} | {points: [in,out][8]}; filter: {enabled, basic} | {enabled, points[5]} }
-Settings { activeProfile; autoSwitch: {exe,profileId}[]; hidHide; startWithWindows; startMinimized; theme; updates }
+Settings { activeProfile; autoSwitch: {exe,profileId}[]; hasRumble; hidHide; startWithWindows; startMinimized; closeToTray; theme; updates }
 ```
 
-Defaults reproduce a stock DualSense → stock Xbox 360 mapping with no shaping.
+Defaults reproduce the stock DualSense → stock Xbox 360 mapping with no shaping.
+Note: the shipped defaults are tuned for the author's pad, which has digital
+triggers and no rumble motors, so `Settings.hasRumble` defaults to `false` and
+the trigger defaults are the digital-trigger set; a stock DualSense would use
+analog triggers with rumble enabled, and users with one should turn Rumble on
+(Settings) and adjust the trigger settings.
 
 ## 6. Error handling
 
@@ -201,11 +220,12 @@ Defaults reproduce a stock DualSense → stock Xbox 360 mapping with no shaping.
 Checks (run at startup, every 5 min, and on demand):
 `driver.vigem`, `driver.hidhide`, `device.present`, `device.reportRate`
 (warn < 800 Hz), `engine.alive`, `engine.latency` (p99 pipeline time, warn
+
 > 2 ms), `profiles.integrity`, `disk.logs` (size, rotation), `app.update`.
-Each → `ok | warn | error` + message + optional repair action:
-install/repair ViGEm, enable HidHide, reset profile, restart engine,
-clear logs, open logs folder, export diagnostic bundle (zip of logs,
-crash dumps, profiles, health JSON, system info).
+> Each → `ok | warn | error` + message + optional repair action:
+> install/repair ViGEm, enable HidHide, reset profile, restart engine,
+> clear logs, open logs folder, export diagnostic bundle (zip of logs,
+> crash dumps, profiles, health JSON, system info).
 
 ## 8. Developer pipeline (B)
 
@@ -222,6 +242,7 @@ crash dumps, profiles, health JSON, system info).
 
 A scheduled Claude Code routine (daily) with a prompt file at
 `maintenance/AGENT.md`:
+
 1. `git pull`, `npm ci`, `npm run check`, `npm run audit`.
 2. Read `%APPDATA%\DualForge\logs\*.json` (last 24 h) and `crashes\`.
 3. Group by error `code`; for each new/recurring issue write a short
@@ -229,8 +250,8 @@ A scheduled Claude Code routine (daily) with a prompt file at
    never touch installers/drivers.
 4. Write `maintenance/reports/YYYY-MM-DD.md` summary (what ran, pass/fail,
    issues found, PR/branch names, suggested user actions).
-Guardrails: read-only on profiles; no dependency major bumps without a
-report; stops and leaves a note if tests cannot run.
+   Guardrails: read-only on profiles; no dependency major bumps without a
+   report; stops and leaves a note if tests cannot run.
 
 ## 10. Repository layout
 

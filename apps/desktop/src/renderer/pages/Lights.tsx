@@ -10,7 +10,9 @@ import '../styles/lights.css';
 
 type Tab = 'lightbar' | 'leds' | 'mic';
 const TABS: { value: Tab; label: string }[] = [
-  { value: 'lightbar', label: 'Lightbar' }, { value: 'leds', label: 'Player LEDs' }, { value: 'mic', label: 'Mic' },
+  { value: 'lightbar', label: 'Lightbar' },
+  { value: 'leds', label: 'Player LEDs' },
+  { value: 'mic', label: 'Mic' },
 ];
 
 /** The pad render with the lightbar previewed live (same animation as the controller) and the LED bitmask. */
@@ -21,8 +23,10 @@ function LightsStage({ lights }: { lights: LightsCfg }) {
     <div className="stage">
       <div className="stage-pad lt-pad">
         <DualSenseTop
-          pressed={s?.raw.buttons ?? {}} lightbar={lightbar}
-          sticks={s ? { lx: s.raw.lx, ly: s.raw.ly, rx: s.raw.rx, ry: s.raw.ry } : undefined} playerLeds={lights.playerLeds}
+          pressed={s?.raw.buttons ?? {}}
+          lightbar={lightbar}
+          sticks={s ? { lx: s.raw.lx, ly: s.raw.ly, rx: s.raw.rx, ry: s.raw.ry } : undefined}
+          playerLeds={lights.playerLeds}
         />
       </div>
     </div>
@@ -35,7 +39,9 @@ export function Lights() {
   const updateProfile = useStore((s) => s.updateProfile);
   const [tab, setTab] = useState<Tab>('lightbar');
   if (!lights) return null; // profile still loading
-  const edit: LightsEdit = (fn) => { updateProfile((d) => fn(d.lights)); };
+  const edit: LightsEdit = (fn) => {
+    updateProfile((d) => fn(d.lights));
+  };
   return (
     <SettingsLayout
       label="Light settings"

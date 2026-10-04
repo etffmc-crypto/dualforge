@@ -10,7 +10,12 @@ export const NAV_REPEAT_MS = 150;
 const PRESSED = 0.5;
 
 export type NavDir = 'up' | 'down' | 'left' | 'right';
-const DPAD: Record<NavDir, 'dpadUp' | 'dpadDown' | 'dpadLeft' | 'dpadRight'> = { up: 'dpadUp', down: 'dpadDown', left: 'dpadLeft', right: 'dpadRight' };
+const DPAD: Record<NavDir, 'dpadUp' | 'dpadDown' | 'dpadLeft' | 'dpadRight'> = {
+  up: 'dpadUp',
+  down: 'dpadDown',
+  left: 'dpadLeft',
+  right: 'dpadRight',
+};
 const DIRS = Object.keys(DPAD) as NavDir[];
 
 /** Attribute the fallback focus ring hangs on (styled like :focus-visible) for programmatic focus. */
@@ -20,7 +25,7 @@ function usable(el: HTMLElement): boolean {
   // :disabled also covers controls inside a <fieldset disabled>, which have no `disabled` of their own
   if (el.matches(':disabled') || el.closest('[inert], [aria-hidden="true"]')) return false;
   const r = el.getBoundingClientRect();
-  return r.width > 0 || r.height > 0;   // display:none (and unmounted layout) has no box
+  return r.width > 0 || r.height > 0; // display:none (and unmounted layout) has no box
 }
 
 /** The `data-nav` controls the pad can reach: those of the innermost open dialog, else the whole window. */
@@ -33,7 +38,11 @@ export function navCandidates(): HTMLElement[] {
  * Nearest candidate from `from` in direction `dir` (geometric): only boxes whose centre lies that way count; those
  * overlapping `from` on the perpendicular axis win over the rest, then the smallest edge gap (perpendicular gap doubled).
  */
-export function nearestInDirection(from: HTMLElement, items: HTMLElement[], dir: NavDir): HTMLElement | null {
+export function nearestInDirection(
+  from: HTMLElement,
+  items: HTMLElement[],
+  dir: NavDir,
+): HTMLElement | null {
   const r = from.getBoundingClientRect();
   const vertical = dir === 'up' || dir === 'down';
   const sign = dir === 'down' || dir === 'right' ? 1 : -1;
@@ -45,20 +54,33 @@ export function nearestInDirection(from: HTMLElement, items: HTMLElement[], dir:
     const q = el.getBoundingClientRect();
     const qc = { x: q.left + q.width / 2, y: q.top + q.height / 2 };
     if ((vertical ? qc.y - rc.y : qc.x - rc.x) * sign <= 0.5) continue;
-    const along = Math.max(0, vertical
-      ? (sign > 0 ? q.top - r.bottom : r.top - q.bottom)
-      : (sign > 0 ? q.left - r.right : r.left - q.right));
-    const perpGap = vertical ? Math.max(0, q.left - r.right, r.left - q.right) : Math.max(0, q.top - r.bottom, r.top - q.bottom);
+    const along = Math.max(
+      0,
+      vertical
+        ? sign > 0
+          ? q.top - r.bottom
+          : r.top - q.bottom
+        : sign > 0
+          ? q.left - r.right
+          : r.left - q.right,
+    );
+    const perpGap = vertical
+      ? Math.max(0, q.left - r.right, r.left - q.right)
+      : Math.max(0, q.top - r.bottom, r.top - q.bottom);
     const centreOff = vertical ? Math.abs(qc.x - rc.x) : Math.abs(qc.y - rc.y);
     const key: [number, number] = [perpGap > 0 ? 1 : 0, along + 2 * perpGap + 0.01 * centreOff];
-    if (key[0] < bestKey[0] || (key[0] === bestKey[0] && key[1] < bestKey[1])) { best = el; bestKey = key; }
+    if (key[0] < bestKey[0] || (key[0] === bestKey[0] && key[1] < bestKey[1])) {
+      best = el;
+      bestKey = key;
+    }
   }
   return best;
 }
 
 /** Focuses `el` with a visible ring even though no key was pressed (the ring only if focus really landed there). */
 export function navFocus(el: HTMLElement): void {
-  for (const old of document.querySelectorAll(`[${NAV_FOCUS_ATTR}]`)) old.removeAttribute(NAV_FOCUS_ATTR);
+  for (const old of document.querySelectorAll(`[${NAV_FOCUS_ATTR}]`))
+    old.removeAttribute(NAV_FOCUS_ATTR);
   el.focus({ focusVisible: true } as FocusOptions);
   if (document.activeElement !== el) return;
   el.setAttribute(NAV_FOCUS_ATTR, '');
@@ -69,10 +91,14 @@ export function navFocus(el: HTMLElement): void {
 /** Moves a range input by one step and lets React see it as a user drag. */
 function nudgeRange(input: HTMLInputElement, d: 1 | -1): void {
   const step = Number(input.step) || 1;
-  const min = input.min === '' ? 0 : Number(input.min), max = input.max === '' ? 100 : Number(input.max);
+  const min = input.min === '' ? 0 : Number(input.min),
+    max = input.max === '' ? 100 : Number(input.max);
   const decimals = (String(input.step).split('.')[1] ?? '').length;
   const v = Math.min(max, Math.max(min, Number(input.value) + d * step));
-  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, v.toFixed(decimals));
+  Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+    input,
+    v.toFixed(decimals),
+  );
   input.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
@@ -84,7 +110,11 @@ const focusedNav = (): HTMLElement | null => {
 /** D-pad: a focused slider takes left/right as value steps; otherwise focus moves to the nearest control that way. */
 export function moveFocus(dir: NavDir): void {
   const cur = focusedNav();
-  if (cur instanceof HTMLInputElement && cur.type === 'range' && (dir === 'left' || dir === 'right')) {
+  if (
+    cur instanceof HTMLInputElement &&
+    cur.type === 'range' &&
+    (dir === 'left' || dir === 'right')
+  ) {
     nudgeRange(cur, dir === 'right' ? 1 : -1);
     return;
   }
@@ -92,14 +122,19 @@ export function moveFocus(dir: NavDir): void {
   if (items.length === 0) return;
   const from = cur && items.includes(cur) ? cur : null;
   // nothing focused yet: start on the selected header tab (or the dialog's first control)
-  const next = from ? nearestInDirection(from, items, dir)
-    : items.find((el) => el.getAttribute('role') === 'tab' && el.getAttribute('aria-selected') === 'true') ?? items[0]!;
+  const next = from
+    ? nearestInDirection(from, items, dir)
+    : (items.find(
+        (el) => el.getAttribute('role') === 'tab' && el.getAttribute('aria-selected') === 'true',
+      ) ?? items[0]!);
   if (next) navFocus(next);
 }
 
 /** Steps the first sub-tab strip under `root` (outside any dialog when `root` is the document) by `d`, clamped. */
 function stepSubTabs(root: ParentNode, d: 1 | -1): void {
-  const list = [...root.querySelectorAll<HTMLElement>('[data-subtabs]')].find((l) => root !== document || !l.closest('[role="dialog"]'));
+  const list = [...root.querySelectorAll<HTMLElement>('[data-subtabs]')].find(
+    (l) => root !== document || !l.closest('[role="dialog"]'),
+  );
   if (!list) return;
   const tabs = [...list.querySelectorAll<HTMLElement>('[role="tab"]')];
   const i = tabs.findIndex((t) => t.getAttribute('aria-selected') === 'true');
@@ -111,7 +146,18 @@ function stepSubTabs(root: ParentNode, d: 1 | -1): void {
  * The raw DualSense buttons navigation reads, one bit each (the pressed state of a snapshot is a number, not a fresh
  * Set). Raw, not the virtual pad: a profile's remaps, turbo or macros never change what the UI sees.
  */
-const NAV_KEYS = ['cross', 'circle', 'l1', 'r1', 'l2', 'r2', 'dpadUp', 'dpadDown', 'dpadLeft', 'dpadRight'] as const satisfies readonly DsButton[];
+const NAV_KEYS = [
+  'cross',
+  'circle',
+  'l1',
+  'r1',
+  'l2',
+  'r2',
+  'dpadUp',
+  'dpadDown',
+  'dpadLeft',
+  'dpadRight',
+] as const satisfies readonly DsButton[];
 type NavKey = (typeof NAV_KEYS)[number];
 const BIT = Object.fromEntries(NAV_KEYS.map((k, i) => [k, 1 << i])) as Record<NavKey, number>;
 
@@ -138,34 +184,55 @@ export function useGamepadNav(): void {
   useEffect(() => {
     const allowReplay = window.dualforge?.flags?.navReplay === true;
     let prev = 0;
-    let armed = false;   // false until a baseline snapshot has been taken
+    let armed = false; // false until a baseline snapshot has been taken
     let held: NavDir | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
-    const stopRepeat = () => { held = null; if (timer) clearTimeout(timer); timer = null; };
+    const stopRepeat = () => {
+      held = null;
+      if (timer) clearTimeout(timer);
+      timer = null;
+    };
     const listening = () => document.hasFocus() && !navSuspended();
     const repeat = (dir: NavDir) => {
       timer = setTimeout(() => {
         if (held !== dir) return;
-        if (!listening()) { stopRepeat(); return; }
-        moveFocus(dir); repeat(dir);
+        if (!listening()) {
+          stopRepeat();
+          return;
+        }
+        moveFocus(dir);
+        repeat(dir);
       }, NAV_REPEAT_MS);
     };
 
     const onSnap = (s: EngineSnapshot | null) => {
-      if (!s || (s.source === 'replay' && !allowReplay) || !listening()) { armed = false; stopRepeat(); return; }
+      if (!s || (s.source === 'replay' && !allowReplay) || !listening()) {
+        armed = false;
+        stopRepeat();
+        return;
+      }
       const now = pressedMask(s);
       const was = prev;
       prev = now;
-      if (!armed) { armed = true; return; }
+      if (!armed) {
+        armed = true;
+        return;
+      }
       const rising = (k: NavKey) => (now & BIT[k]) !== 0 && (was & BIT[k]) === 0;
 
       if (held && (now & BIT[DPAD[held]]) === 0) stopRepeat();
       const dir = DIRS.find((d) => rising(DPAD[d]));
-      if (dir) { stopRepeat(); held = dir; moveFocus(dir); repeat(dir); }
+      if (dir) {
+        stopRepeat();
+        held = dir;
+        moveFocus(dir);
+        repeat(dir);
+      }
 
       if (rising('cross')) {
         const el = focusedNav();
-        if (el && usable(el) && !(el instanceof HTMLInputElement && el.type === 'range')) el.click();
+        if (el && usable(el) && !(el instanceof HTMLInputElement && el.type === 'range'))
+          el.click();
       }
       if (rising('circle')) {
         if (!closeTopModal()) useStore.getState().setPage('overview');
@@ -182,14 +249,19 @@ export function useGamepadNav(): void {
         const { page, setPage } = useStore.getState();
         const i = TABS.findIndex((t) => t.id === page);
         const n = TABS.length;
-        const next = rising('r1') ? (i + 1) % n : (i <= 0 ? n - 1 : i - 1);
+        const next = rising('r1') ? (i + 1) % n : i <= 0 ? n - 1 : i - 1;
         setPage(TABS[next]!.id);
       }
       if (rising('l2')) stepSubTabs(document, -1);
       else if (rising('r2')) stepSubTabs(document, 1);
     };
 
-    const off = useStore.subscribe((st, before) => { if (st.snapshot !== before.snapshot) onSnap(st.snapshot); });
-    return () => { off(); stopRepeat(); };
+    const off = useStore.subscribe((st, before) => {
+      if (st.snapshot !== before.snapshot) onSnap(st.snapshot);
+    });
+    return () => {
+      off();
+      stopRepeat();
+    };
   }, []);
 }

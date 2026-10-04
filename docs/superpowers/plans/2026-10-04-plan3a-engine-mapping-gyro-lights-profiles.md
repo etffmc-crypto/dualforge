@@ -26,7 +26,7 @@
 ## File structure
 
 ```
-packages/shared/src/profile.ts        + triggers.*.digital, gyro, lights ext, Mapping targets (xtrigger, macro), macros[], 
+packages/shared/src/profile.ts        + triggers.*.digital, gyro, lights ext, Mapping targets (xtrigger, macro), macros[],
 packages/shared/src/settings.ts       SettingsSchema, defaultSettings()
 packages/shared/src/ipc.ts            + EngineCommand uiFocused/setSettings; new ProfileIpc channel schemas
 packages/engine/src/stages/stick-shape.ts   anti-deadzone split out: applyAntiDeadzone()
@@ -54,6 +54,7 @@ apps/desktop/src/preload/index.ts     new API
 **Files:** Modify `packages/shared/src/profile.ts`, `ipc.ts`, `index.ts`; Create `packages/shared/src/settings.ts`; Test `packages/shared/test/profile.test.ts`, `settings.test.ts`.
 
 **Interfaces (produces):**
+
 ```ts
 // profile.ts additions
 TriggerConfigSchema: + digital: z.boolean().default(true)
@@ -88,6 +89,7 @@ export const SettingsSchema = z.object({
 EngineCommand: + { type:'uiFocused', focused: boolean } + { type:'setSettings', settings: SettingsSchema }
 export const ProfileSummarySchema = z.object({ id, name, slot: z.number().int().min(1).max(4) })
 ```
+
 - [ ] **Step 1: Failing tests** — old profile (no gyro/macros/digital) parses with defaults; macro target referencing a missing id is rejected; settings defaults; `defaultProfile().mappings.l2.targets[0]` is `xtrigger lt`.
 - [ ] **Step 2: Implement.** **Step 3: `npm run check`.** **Commit** `feat(shared): digital triggers, gyro, lights, macros, settings schemas`
 
@@ -98,6 +100,7 @@ export const ProfileSummarySchema = z.object({ id, name, slot: z.number().int().
 **Files:** Modify `stick-shape.ts`, `pipeline.ts`, `mapping.ts`, `triggers.ts`, `compile.ts`; Tests `stick-shape.test.ts`, `pipeline.test.ts`, `mapping.test.ts`, `triggers.test.ts`.
 
 **Interfaces:**
+
 - `applyRadialDeadzone(mag, dz)` no longer applies `anti` (center/outer only). New `applyAntiDeadzone(x, y, anti): {x,y}` — if `hypot>0`, `mag' = anti + mag*(1-anti)`.
 - `applyTrigger(v, cfg, lut, state)` — when `cfg.digital` is true returns `0` (analog ignored; the button mapping drives output).
 - `applyMappings(raw, profile, state, nowMs, xinput: XInputState): OutputFrame` — fills buttons/targets INTO the passed `xinput` (already holding axes/triggers); `xtrigger` sets `lt/rt = 1`; returns `{ xinput, keys, mouse, mouseMove: {dx:0,dy:0}, macroStarts: string[] }` where `macroStarts` lists macro ids whose button was pressed this frame (rising edge).
@@ -112,15 +115,34 @@ export const ProfileSummarySchema = z.object({ id, name, slot: z.number().int().
 **Files:** Create `packages/engine/src/stages/macros.ts`; Modify `pipeline.ts`, `compile.ts`; Test `macros.test.ts`, `pipeline.test.ts`.
 
 **Interfaces:**
+
 ```ts
-export interface RunningMacro { id: string; step: number; phase: 'hold'|'delay'; untilMs: number }
-export interface MacroState { running: RunningMacro[] }
+export interface RunningMacro {
+  id: string;
+  step: number;
+  phase: 'hold' | 'delay';
+  untilMs: number;
+}
+export interface MacroState {
+  running: RunningMacro[];
+}
 export const createMacroState = (): MacroState => ({ running: [] });
-export function startMacro(s: MacroState, id: string, nowMs: number, macros: Map<string, Macro>): void  // ignores if already running (no re-trigger) 
-export function stopMacro(s: MacroState, id: string): void
-export function tickMacros(s: MacroState, nowMs: number, macros: Map<string, Macro>, out: { xinput: XInputState; keysWanted: Set<string>; mouseWanted: Set<MouseButton> }): void
+export function startMacro(
+  s: MacroState,
+  id: string,
+  nowMs: number,
+  macros: Map<string, Macro>,
+): void; // ignores if already running (no re-trigger)
+export function stopMacro(s: MacroState, id: string): void;
+export function tickMacros(
+  s: MacroState,
+  nowMs: number,
+  macros: Map<string, Macro>,
+  out: { xinput: XInputState; keysWanted: Set<string>; mouseWanted: Set<MouseButton> },
+): void;
 // semantics: on start → step 0 phase hold until now+holdMs; while phase hold, the step's target is "active" (applied to out); when untilMs passes → phase delay until +delayMs (target inactive); after last step → loop ? restart : remove.
 ```
+
 - The mapping stage computes key/mouse transition events from the union of button-driven and macro-driven wanted sets (move the transition diffing after macros).
 - `CompiledProfile.macros: Map<string, Macro>`.
 - [ ] **Step 1: Failing tests** — a 2-step macro (A hold 100 delay 50, B hold 100) started at t=0: A active at 0–99, nothing at 100–149, B active 150–249, finished at 250; loop restarts; key target within a macro emits down at start and up after hold (via pipeline); starting an already-running macro is a no-op.
@@ -133,16 +155,34 @@ export function tickMacros(s: MacroState, nowMs: number, macros: Map<string, Mac
 **Files:** Create `packages/engine/src/stages/gyro.ts`; Modify `pipeline.ts`, `compile.ts`; Test `gyro.test.ts`, `pipeline.test.ts`.
 
 **Interfaces:**
+
 ```ts
-export const GYRO_LSB_PER_DPS = 16.384;   // DualSense ±2000 dps over int16
-export interface GyroState { toggled: boolean; prevActivate: boolean; mouseAccX: number; mouseAccY: number }
-export const createGyroState = (): GyroState => ({ toggled:false, prevActivate:false, mouseAccX:0, mouseAccY:0 });
-export function applyGyro(raw: RawState, cfg: GyroConfig, lut: Float32Array, s: GyroState, dtMs: number): { rx: number; ry: number; dx: number; dy: number; active: boolean }
+export const GYRO_LSB_PER_DPS = 16.384; // DualSense ±2000 dps over int16
+export interface GyroState {
+  toggled: boolean;
+  prevActivate: boolean;
+  mouseAccX: number;
+  mouseAccY: number;
+}
+export const createGyroState = (): GyroState => ({
+  toggled: false,
+  prevActivate: false,
+  mouseAccX: 0,
+  mouseAccY: 0,
+});
+export function applyGyro(
+  raw: RawState,
+  cfg: GyroConfig,
+  lut: Float32Array,
+  s: GyroState,
+  dtMs: number,
+): { rx: number; ry: number; dx: number; dy: number; active: boolean };
 // yaw = (raw.gyro.y - bias.y)/GYRO_LSB_PER_DPS (deg/s, + = turn left on DualSense; map to +rx = right by negating), pitch = (raw.gyro.x - bias.x)/LSB.
 // deadzone: |v| < deadzoneDps → 0. activation: always | hold (button down) | toggle (rising edge flips).
 // rightStick: rx = clamp(evaluateLut(lut, min(1, |yaw|/(200/sensX))) * sign), same for ry with pitch; invert flags.
 // mouse: dx += yaw * sensX * dt/1000 * 10 (px); accumulate fractional, emit integer part.
 ```
+
 - `processReport`: when gyro active and output=rightStick, **add** to the processed right stick (clamp to unit circle); when mouse, set `frame.mouseMove`.
 - [ ] **Step 1: Failing tests** — bias subtraction; deadzone; hold/toggle activation edges; rightStick scaling at sens 1 (100 dps → 0.5); mouse accumulates fractional px and emits ints; invert.
 - [ ] **Step 2: Implement.** **Step 3: `npm run check`.** **Commit** `feat(engine): gyro to right stick / mouse`
@@ -154,12 +194,26 @@ export function applyGyro(raw: RawState, cfg: GyroConfig, lut: Float32Array, s: 
 **Files:** Create `packages/engine/src/lights.ts`, `packages/engine/src/share-code.ts`; Test `lights.test.ts`, `share-code.test.ts`; export from index.
 
 **Interfaces:**
+
 ```ts
-export function computeLightbar(cfg: Profile['lights'], tMs: number, battery: Battery): { r: number; g: number; b: number; brightness: 0|1|2; playerLeds: number; micLed: 0|1|2; animated: boolean }
+export function computeLightbar(
+  cfg: Profile['lights'],
+  tMs: number,
+  battery: Battery,
+): {
+  r: number;
+  g: number;
+  b: number;
+  brightness: 0 | 1 | 2;
+  playerLeds: number;
+  micLed: 0 | 1 | 2;
+  animated: boolean;
+};
 // off → 0,0,0; static → rgb; breathing → rgb * (0.15 + 0.85*(0.5+0.5*sin(2π t / period))), period = 4000 - 35*speed ms; rainbow → HSV hue = (t / (6000 - 55*speed)) mod 1 at full S/V; battery → green ≥60, orange 20–59, red <20, blinking at 1 Hz when charging.
-export function encodeShareCode(profile: Profile, deflate: (b: Uint8Array) => Uint8Array): string   // 'DUALFORGE:' + base64url
-export function decodeShareCode(code: string, inflate: (b: Uint8Array) => Uint8Array): Profile      // validates with ProfileSchema, assigns a fresh id, throws E_SHARE_CODE on any failure or > 16 KiB
+export function encodeShareCode(profile: Profile, deflate: (b: Uint8Array) => Uint8Array): string; // 'DUALFORGE:' + base64url
+export function decodeShareCode(code: string, inflate: (b: Uint8Array) => Uint8Array): Profile; // validates with ProfileSchema, assigns a fresh id, throws E_SHARE_CODE on any failure or > 16 KiB
 ```
+
 - [ ] **Step 1: Failing tests** — each mode's colour at t=0 and mid-period; animated flag; share code round-trip with identity deflate; bad prefix/garbage → `E_SHARE_CODE`; oversize rejected.
 - [ ] **Step 2: Implement.** **Step 3: `npm run check`.** **Commit** `feat(engine): lightbar animator and share-code codec`
 
@@ -170,14 +224,17 @@ export function decodeShareCode(code: string, inflate: (b: Uint8Array) => Uint8A
 **Files:** Create `native/sendinput/package.json`, `binding.gyp`, `src/sendinput.cc`, `index.js`, `index.d.ts`; Modify root `package.json` workspaces (`native/*`), `apps/desktop/package.json` (dep `@dualforge/sendinput`, rebuild script), `electron.vite.config.ts` (externalize the addon); Create `apps/desktop/src/main/injector.ts`; Test `apps/desktop/test/injector.test.ts` (mocks the addon).
 
 **Addon API (`index.d.ts`):**
+
 ```ts
-export function sendKey(vk: number, down: boolean): void;            // INPUT_KEYBOARD with KEYEVENTF_SCANCODE via MapVirtualKey, extended-key flag for arrows/nav
-export function sendMouseButton(button: 0|1|2, down: boolean): void; // left/right/middle
-export function sendMouseMove(dx: number, dy: number): void;         // MOUSEEVENTF_MOVE relative
-export function foregroundProcessName(): string;                     // basename of exe owning GetForegroundWindow, '' if none
+export function sendKey(vk: number, down: boolean): void; // INPUT_KEYBOARD with KEYEVENTF_SCANCODE via MapVirtualKey, extended-key flag for arrows/nav
+export function sendMouseButton(button: 0 | 1 | 2, down: boolean): void; // left/right/middle
+export function sendMouseMove(dx: number, dy: number): void; // MOUSEEVENTF_MOVE relative
+export function foregroundProcessName(): string; // basename of exe owning GetForegroundWindow, '' if none
 ```
+
 `sendinput.cc` ≈ 90 lines with `node-addon-api`; `binding.gyp` targets `sendinput`, `win_delay_load_hook` default, links `user32.lib`, `psapi.lib` (use `QueryFullProcessImageNameW`).
 `injector.ts`: `createInjector(): { key(code: string, down), mouse(btn, down), move(dx,dy), foreground(): string, available: boolean }` — maps `VK_*` names to codes via a table in `packages/shared/src/vk.ts` (create: ~120 common keys incl. letters, digits, F1–F12, modifiers, arrows, nav, numpad, media); loads the addon lazily in try/catch → `available=false` + `E_INJECT_LOAD` logged.
+
 - [ ] **Step 1: Build the addon** (`npm run rebuild` must rebuild it for Electron too — add to the `electron-rebuild -w` list). Verify by a one-off script: `foregroundProcessName()` returns a name.
 - [ ] **Step 2: Failing test** for `injector.ts` with the addon mocked (`vi.mock`): `key('VK_SPACE', true)` → `sendKey(0x20, true)`; unknown key → logged `E_INJECT_KEY`, no call; unavailable addon → `available=false` and calls are no-ops.
 - [ ] **Step 3: Implement.** **Step 4: `npm run check`.** **Commit** `feat(native): SendInput addon and injector`
@@ -189,6 +246,7 @@ export function foregroundProcessName(): string;                     // basename
 **Files:** Modify `engine-loop.ts`, `engine-process.ts`; Test `engine-loop.test.ts`.
 
 **Behaviour:**
+
 - `LoopDeps.injector` (interface from Task 6; test passes a fake). After each `processReport`: for `keys`/`mouse` events call injector unless `uiFocused`; `mouseMove` likewise.
 - `uiFocused` command toggles the gate; when it becomes true, release any held injected keys/mouse (emit ups).
 - Lights: `feedback()` uses `computeLightbar(profile.lights, now - t0, battery)`; when `animated`, the idle timer runs at 30 Hz and writes output on change (byte compare already exists).
@@ -204,16 +262,19 @@ export function foregroundProcessName(): string;                     // basename
 **Files:** Create `profile-store.ts`, `settings-store.ts`; Modify `index.ts`, `preload/index.ts`; Test `apps/desktop/test/profile-store.test.ts`, `settings-store.test.ts` (use a temp dir).
 
 **Interfaces:**
+
 ```ts
 createProfileStore(dir: string, log): {
-  list(): ProfileSummary[]; get(id): Profile; set(profile): void; rename(id, name); duplicate(fromId, toSlot); reset(id); 
-  exportTo(id, filePath); importFrom(filePath, toSlot): Profile; 
+  list(): ProfileSummary[]; get(id): Profile; set(profile): void; rename(id, name); duplicate(fromId, toSlot); reset(id);
+  exportTo(id, filePath); importFrom(filePath, toSlot): Profile;
 }
 // 4 fixed slots p1..p4 → files <dir>/profiles/p{n}.json; missing → defaultProfile(`p${n}`, `Profile ${n}`); write = temp file + rename; invalid JSON/schema → move to <dir>/profiles/corrupt/<name>.<ts>.json, log E_PROFILE_SCHEMA, return default.
 createSettingsStore(dir, log): { get(): Settings; set(patch: Partial<Settings>): Settings }  // same atomic/quarantine rules
 ```
+
 IPC (all zod-validated in main): `profiles:list`, `profiles:get(id)`, `profiles:set(profile)`, `profiles:rename(id,name)`, `profiles:duplicate(from,toSlot)`, `profiles:reset(id)`, `profiles:export(id)` (dialog.showSaveDialog), `profiles:import(toSlot)` (dialog.showOpenDialog), `profiles:shareCode(id)` → string, `profiles:importShareCode(code,toSlot)`, `profiles:activate(id)` (sets settings.activeProfile + engine setProfile), `settings:get`, `settings:set(patch)`. Replace the Plan 1 in-memory `profile` with `store.get(settings.activeProfile)`. Window focus/blur → `engine.send({type:'uiFocused'})`.
 Preload API mirrors these (`window.dualforge.profiles.*`, `window.dualforge.settings.*`).
+
 - [ ] **Step 1: Failing tests** — round-trip set/get; atomic (no partial file after a simulated throw mid-write — write to temp then rename); corrupt file quarantined and default returned; settings patch merge.
 - [ ] **Step 2: Implement.** **Step 3: `npm run check`.** **Commit** `feat(desktop): persisted profiles and settings with atomic writes and quarantine`
 
@@ -222,6 +283,7 @@ Preload API mirrors these (`window.dualforge.profiles.*`, `window.dualforge.sett
 ### Task 9: Main — GameWatcher auto-switch
 
 **Files:** Create `game-watcher.ts`; Modify `index.ts`; Test `game-watcher.test.ts`.
+
 - `createGameWatcher({ foreground: () => string, settings: () => Settings, onSwitch: (profileId) => void, intervalMs = 2000 })` with `start()/stop()`; polls; when the foreground exe (case-insensitive) matches an `autoSwitch` rule and differs from the current active profile → `onSwitch(profileId)` once; when no rule matches, returns to the profile that was active before the first auto-switch (remember `manualProfile`).
 - [ ] **Step 1: Failing tests** with fake timers and a scripted foreground sequence (`explorer.exe` → `cod.exe` → `explorer.exe`): switch to the mapped profile once, then back.
 - [ ] **Step 2: Implement.** **Step 3: `npm run check`.** **Commit** `feat(desktop): per-game profile auto-switch`
@@ -231,12 +293,14 @@ Preload API mirrors these (`window.dualforge.profiles.*`, `window.dualforge.sett
 ### Task 10: Playwright + hardware sanity for 3A
 
 **Files:** `apps/desktop/e2e/pages.spec.ts` additions (profiles IPC round-trip via preload: rename p2, list shows it, activate p2, getProfile returns p2); README update (profiles folder, share codes, auto-switch).
+
 - Hardware check (pad attached): set a mapping cross → `key VK_SPACE` via `window.dualforge.profiles.set(...)` in DevTools with Notepad focused; press cross; a space appears. Report the result. Reset the mapping afterwards.
 - [ ] **`npm run check`** green. **Commit** `test(desktop): profiles e2e; docs`
 
 ---
 
 ## Self-review
+
 Spec coverage (3A): §3.1 ProfileStore/GameWatcher/uiFocused ✔ T8/T9/T7; §3.2 gyro ✔ T4, macros ✔ T3, mappings extended ✔ T2, SendInput ✔ T6, lights ✔ T5/T7; §5 settings ✔ T1; share codes ✔ T5/T8; hasRumble ✔ T7. Pages → Plan 3B. Health/HidHide/installer/agent → Plan 4.
 Type consistency: `applyMappings(raw, profile, state, nowMs, xinput)` (T2) used by pipeline (T2–T4); `OutputFrame.mouseMove`/`macroStarts` (T2) consumed by T3/T4/T7; `computeLightbar` (T5) in T7; `Settings` (T1) in T7/T8/T9; injector interface (T6) in T7.
 Placeholders: none — UI-free plan, every task has concrete interfaces and named tests; implementers write test bodies from the stated cases.

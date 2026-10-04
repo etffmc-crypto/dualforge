@@ -6,4 +6,8 @@ import './styles/tokens.css';
 import './styles/global.css';
 
 bootTheme(); // before the first paint; Shell reconciles with settings.get() once it resolves
-createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>);
+createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>,
+);

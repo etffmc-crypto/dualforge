@@ -8,10 +8,20 @@ export interface SegmentedProps<T extends string> {
 }
 
 /** Equal-width option buttons; the active one is solid accent. Arrow keys move the selection. */
-export function Segmented<T extends string>({ options, value, onChange, label }: SegmentedProps<T>) {
+export function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+  label,
+}: SegmentedProps<T>) {
   const ref = useRef<HTMLDivElement>(null);
   const onKey = (e: KeyboardEvent, i: number) => {
-    const d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+    const d =
+      e.key === 'ArrowRight' || e.key === 'ArrowDown'
+        ? 1
+        : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
+          ? -1
+          : 0;
     if (!d) return;
     e.preventDefault();
     const n = (i + d + options.length) % options.length;
@@ -23,9 +33,16 @@ export function Segmented<T extends string>({ options, value, onChange, label }:
       {options.map((o, i) => {
         const checked = o.value === value;
         return (
-          <button data-nav
-            key={o.value} type="button" role="radio" aria-checked={checked} tabIndex={checked ? 0 : -1}
-            className={`seg-btn${checked ? ' active' : ''}`} onClick={() => onChange(o.value)} onKeyDown={(e) => onKey(e, i)}
+          <button
+            data-nav
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={checked}
+            tabIndex={checked ? 0 : -1}
+            className={`seg-btn${checked ? ' active' : ''}`}
+            onClick={() => onChange(o.value)}
+            onKeyDown={(e) => onKey(e, i)}
           >
             {o.label}
           </button>

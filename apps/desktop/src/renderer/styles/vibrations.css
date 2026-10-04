@@ -1,31 +1,117 @@
 /* ---------- Vibrations page ---------- */
 .vib-note {
-  margin: -6px 0 0; padding: 10px 12px; border-radius: 10px; font-size: 12px; line-height: 1.45;
-  color: var(--muted); background: var(--well); border: 1px dashed var(--card-border);
+  margin: -6px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+  background: var(--well);
+  border: 1px dashed var(--card-border);
 }
-.vib-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
-.vib-row .panel-btn { align-self: center; height: 30px; padding: 0 14px; }
+.vib-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+.vib-row .panel-btn {
+  align-self: center;
+  height: 30px;
+  padding: 0 14px;
+}
 
 /* two motors drawn above the pad, waves opening outward like the grips they live in */
 /* spaced so each motor sits above its grip of the pad render below */
-.vib-motors { flex: none; display: flex; justify-content: center; gap: clamp(120px, 40%, 440px); padding-top: 20px; }
-.motor { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.motor svg { display: block; overflow: visible; }
-.motor-hub { fill: var(--seg); stroke: var(--plot-frame); stroke-width: 1.5; }
-.motor-axle { fill: var(--accent); }
-.motor-ring { fill: none; stroke: var(--track); stroke-width: 3; stroke-linecap: round; transition: stroke 150ms ease; }
-.motor-ring.on { stroke: var(--accent); }
-.motor figcaption { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.motor-name { font-size: 13px; color: var(--text-secondary); }
-.motor-value { font-size: 18px; font-weight: 500; color: var(--text); font-variant-numeric: tabular-nums; }
-.motor.muted .motor-ring.on { stroke: var(--text-dim); }
-.motor.muted .motor-axle { fill: var(--text-dim); }
-.motor.muted .motor-value { color: var(--muted); }
-.motor.playing .motor-ring.on { animation: motor-pulse 240ms ease-in-out infinite alternate; }
-.motor.playing .motor-hub { animation: motor-shake 60ms linear infinite alternate; }
-@keyframes motor-pulse { from { opacity: 1; } to { opacity: 0.25; } }
-@keyframes motor-shake { from { transform: translateX(-1px); } to { transform: translateX(1px); } }
+.vib-motors {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  gap: clamp(120px, 40%, 440px);
+  padding-top: 20px;
+}
+.motor {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.motor svg {
+  display: block;
+  overflow: visible;
+}
+.motor-hub {
+  fill: var(--seg);
+  stroke: var(--plot-frame);
+  stroke-width: 1.5;
+}
+.motor-axle {
+  fill: var(--accent);
+}
+.motor-ring {
+  fill: none;
+  stroke: var(--track);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke 150ms ease;
+}
+.motor-ring.on {
+  stroke: var(--accent);
+}
+.motor figcaption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.motor-name {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.motor-value {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.motor.muted .motor-ring.on {
+  stroke: var(--text-dim);
+}
+.motor.muted .motor-axle {
+  fill: var(--text-dim);
+}
+.motor.muted .motor-value {
+  color: var(--muted);
+}
+.motor.playing .motor-ring.on {
+  animation: motor-pulse 240ms ease-in-out infinite alternate;
+}
+.motor.playing .motor-hub {
+  animation: motor-shake 60ms linear infinite alternate;
+}
+@keyframes motor-pulse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.25;
+  }
+}
+@keyframes motor-shake {
+  from {
+    transform: translateX(-1px);
+  }
+  to {
+    transform: translateX(1px);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  .motor-ring { transition: none; }
-  .motor.playing .motor-ring.on, .motor.playing .motor-hub { animation: none; }
+  .motor-ring {
+    transition: none;
+  }
+  .motor.playing .motor-ring.on,
+  .motor.playing .motor-hub {
+    animation: none;
+  }
 }

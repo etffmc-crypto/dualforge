@@ -2,7 +2,11 @@ import type { StickConfig } from '@dualforge/shared';
 import { useStore, type Side } from '../../store';
 
 export type StickEdit = (fn: (c: StickConfig) => void) => void;
-export interface StickSectionProps { side: Side; cfg: StickConfig; edit: StickEdit }
+export interface StickSectionProps {
+  side: Side;
+  cfg: StickConfig;
+  edit: StickEdit;
+}
 
 /** Rounds away float noise such as 1 - 0.98 = 0.020000000000000018. */
 export const tidy = (v: number) => Math.round(v * 1e6) / 1e6;

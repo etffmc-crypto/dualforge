@@ -4,10 +4,20 @@ import { SectionLabel } from './controls/SectionLabel';
 import { useStore, type Side, type SubTabPage } from '../store';
 
 /** GameSir-style settings page: 440px scrollable panel on the left, live render stage on the right. */
-export function SettingsLayout({ label, panel, stage }: { label: string; panel: ReactNode; stage: ReactNode }) {
+export function SettingsLayout({
+  label,
+  panel,
+  stage,
+}: {
+  label: string;
+  panel: ReactNode;
+  stage: ReactNode;
+}) {
   return (
     <div className="settings">
-      <aside className="settings-panel" aria-label={label}>{panel}</aside>
+      <aside className="settings-panel" aria-label={label}>
+        {panel}
+      </aside>
       <div className="settings-stage">{stage}</div>
     </div>
   );
@@ -23,11 +33,16 @@ export function PanelSection({ title, children }: PropsWithChildren<{ title: str
   );
 }
 
-const SIDES: { value: Side; label: string }[] = [{ value: 'left', label: 'Left' }, { value: 'right', label: 'Right' }];
+const SIDES: { value: Side; label: string }[] = [
+  { value: 'left', label: 'Left' },
+  { value: 'right', label: 'Right' },
+];
 
 /** `LT · Left · Right · RT` side switcher bound to `subTab[page]`; LT/RT on the pad switch it too (global gamepad nav). */
 export function SideTabs({ page }: { page: SubTabPage }) {
   const side = useStore((s) => s.subTab[page]);
   const setSubTab = useStore((s) => s.setSubTab);
-  return <SubTabs tabs={SIDES} value={side} onChange={(v) => setSubTab(page, v)} pills={['L2', 'R2']} />;
+  return (
+    <SubTabs tabs={SIDES} value={side} onChange={(v) => setSubTab(page, v)} pills={['L2', 'R2']} />
+  );
 }
