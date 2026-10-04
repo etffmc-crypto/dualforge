@@ -53,7 +53,7 @@ export function AutoSwitchCard({ slots }: { slots: Slot[] }) {
               <td className="as-exe">{r.exe}</td>
               <td><span className="as-profile"><span className="as-arrow" aria-hidden="true">→</span>{nameOf(r.profileId)}</span></td>
               <td className="as-act">
-                <button type="button" className="step-icon danger" aria-label={`Remove rule for ${r.exe}`} title="Remove" onClick={() => remove(r)}>
+                <button data-nav type="button" className="step-icon danger" aria-label={`Remove rule for ${r.exe}`} title="Remove" onClick={() => remove(r)}>
                   <TrashIcon size={16} />
                 </button>
               </td>
@@ -63,11 +63,11 @@ export function AutoSwitchCard({ slots }: { slots: Slot[] }) {
       </table>
       <form className="as-add" onSubmit={add} noValidate>
         <div className="as-exe-row">
-          <input
+          <input data-nav
             className="pf-input mono-in" aria-label="Game executable" placeholder="game.exe" value={exe} maxLength={MAX_EXE_LENGTH + 16}
             spellCheck={false} disabled={full} onChange={(e) => { setExe(e.currentTarget.value); setProblem(null); }}
           />
-          <button type="button" className="panel-btn" disabled={full} onClick={() => setPicking(true)}>Pick running game</button>
+          <button data-nav type="button" className="panel-btn" disabled={full} onClick={() => setPicking(true)}>Pick running game</button>
         </div>
         <span className="pf-field-label" aria-hidden="true">Runs profile</span>
         <Segmented label="Profile for this game" options={slotOptions(slots)} value={profileId} onChange={(v) => setProfileId(v)} />
@@ -75,7 +75,7 @@ export function AutoSwitchCard({ slots }: { slots: Slot[] }) {
           {problem
             ? <span className="pf-err" role="alert">{problem}</span>
             : <span className="psec-hint">{full ? `${MAX_AUTO_SWITCH_RULES} rules is the limit. Remove one to add another.` : `${rules.length} of ${MAX_AUTO_SWITCH_RULES} rules`}</span>}
-          <button type="submit" className="panel-btn primary" disabled={full}>Add rule</button>
+          <button data-nav type="submit" className="panel-btn primary" disabled={full}>Add rule</button>
         </div>
       </form>
       {picking && (

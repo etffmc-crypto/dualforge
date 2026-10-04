@@ -30,7 +30,7 @@ export interface TargetPickerProps {
 function Option({ t, label, sel, full, onPick, className = '' }: { t: Target; label: string; sel: Set<string>; full: boolean; onPick(t: Target): void; className?: string }) {
   const on = sel.has(targetKey(t));
   return (
-    <button type="button" className={`opt ${className}${on ? ' on' : ''}`} aria-pressed={on} disabled={full && !on} onClick={() => onPick(t)}>
+    <button data-nav type="button" className={`opt ${className}${on ? ' on' : ''}`} aria-pressed={on} disabled={full && !on} onClick={() => onPick(t)}>
       {label}
     </button>
   );
@@ -72,7 +72,7 @@ export function TargetPicker({ tab, onTab, selected, full, onPick, subject, macr
               const t: Target = { type: 'mouse', button: b };
               const on = sel.has(targetKey(t));
               return (
-                <button key={b} type="button" className={`opt mouse-opt${on ? ' on' : ''}`} aria-pressed={on} aria-label={MOUSE_LABELS[b]}
+                <button data-nav key={b} type="button" className={`opt mouse-opt${on ? ' on' : ''}`} aria-pressed={on} aria-label={MOUSE_LABELS[b]}
                   disabled={full && !on} onClick={() => onPick(t)}>
                   <MouseGlyph b={b} /><span>{b === 'left' ? 'Left click' : b === 'right' ? 'Right click' : 'Middle click'}</span>
                 </button>
@@ -83,7 +83,7 @@ export function TargetPicker({ tab, onTab, selected, full, onPick, subject, macr
         {tab === 'macro' && macros && (macros.length === 0 ? (
           <div className="picker-empty">
             <p>No macros yet. A macro plays a timed sequence of outputs from one press.</p>
-            {onCreateMacro && <button type="button" className="panel-btn" onClick={onCreateMacro}>Create a macro</button>}
+            {onCreateMacro && <button data-nav type="button" className="panel-btn" onClick={onCreateMacro}>Create a macro</button>}
           </div>
         ) : (
           <div className="opt-grid macro-grid">
@@ -91,7 +91,7 @@ export function TargetPicker({ tab, onTab, selected, full, onPick, subject, macr
               const t: Target = { type: 'macro', macroId: m.id };
               const on = sel.has(targetKey(t));
               return (
-                <button key={m.id} type="button" className={`opt macro-opt${on ? ' on' : ''}`} aria-pressed={on} aria-label={m.name}
+                <button data-nav key={m.id} type="button" className={`opt macro-opt${on ? ' on' : ''}`} aria-pressed={on} aria-label={m.name}
                   disabled={full && !on} onClick={() => onPick(t)}>
                   <span className="macro-opt-name">{m.name}</span>
                   <span className="macro-opt-meta">{m.steps.length} step{m.steps.length === 1 ? '' : 's'}{m.loop ? ' · loops' : ''}</span>

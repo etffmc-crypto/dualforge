@@ -22,6 +22,13 @@ export function RecordDialog({ open, onClose, onUse }: RecordDialogProps) {
   const stop = useRef<() => void>(() => {});
   const profile = useStore((s) => s.profile);
 
+  // the presses being recorded must not also drive gamepad navigation
+  useEffect(() => {
+    if (!open) return;
+    useStore.getState().setUiNavSuspended(true);
+    return () => useStore.getState().setUiNavSuspended(false);
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     setRecording(true); setPresses([]); setCount(0); setSeconds(0);
@@ -83,13 +90,13 @@ export function RecordDialog({ open, onClose, onUse }: RecordDialogProps) {
         </div>
       )}
       <div className="modal-actions">
-        <button type="button" className="panel-btn" onClick={onClose}>Cancel</button>
+        <button data-nav type="button" className="panel-btn" onClick={onClose}>Cancel</button>
         {recording ? (
-          <button type="button" className="panel-btn primary" onClick={() => stop.current()}>Stop</button>
+          <button data-nav type="button" className="panel-btn primary" onClick={() => stop.current()}>Stop</button>
         ) : (
           <>
-            <button type="button" className="panel-btn" onClick={() => setTake((n) => n + 1)}>Record again</button>
-            <button type="button" className="panel-btn primary" disabled={steps.length === 0} onClick={() => onUse(steps)}>
+            <button data-nav type="button" className="panel-btn" onClick={() => setTake((n) => n + 1)}>Record again</button>
+            <button data-nav type="button" className="panel-btn primary" disabled={steps.length === 0} onClick={() => onUse(steps)}>
               Use {steps.length} step{steps.length === 1 ? '' : 's'}
             </button>
           </>

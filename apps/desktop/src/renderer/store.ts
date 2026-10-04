@@ -21,6 +21,9 @@ interface State {
   profiles: ProfileSummary[];
   settings: Settings | null;
   subTab: Record<SubTabPage, Side>;
+  /** True while pad presses mean something else (the macro recorder): gamepad navigation ignores the pad then. */
+  uiNavSuspended: boolean;
+  setUiNavSuspended(v: boolean): void;
   setPage(p: Page): void;
   setSubTab(page: SubTabPage, side: Side): void;
   loadProfile(): Promise<void>;
@@ -66,6 +69,8 @@ export const useStore = create<State>((set, get) => {
     snapshot: null, lastError: null, page: 'home', autoRouted: false,
     profile: null, activeProfileId: null, profiles: [], settings: null,
     subTab: { sticks: 'left', triggers: 'left' },
+    uiNavSuspended: false,
+    setUiNavSuspended: (uiNavSuspended) => set({ uiNavSuspended }),
     setPage: (page) => set({ page }),
     setSubTab: (page, side) => set((s) => ({ subTab: { ...s.subTab, [page]: side } })),
     loadProfile: async () => {

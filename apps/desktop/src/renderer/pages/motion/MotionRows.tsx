@@ -59,7 +59,7 @@ export function OutputRows({ gyro, edit }: { gyro: GyroConfig; edit: GyroEdit })
         />
       </Row>
       <Row label="Activate Button">
-        <button
+        <button data-nav
           type="button" className={`mpill${needsButton ? ' hot' : ''}`} disabled={!needsButton}
           aria-label={`Activate button: ${needsButton && btn ? DS_LABEL[btn] : 'not needed'}`}
           title={needsButton ? 'Choose the button that turns motion aim on' : 'Only used with Hold or Toggle'}
@@ -74,7 +74,7 @@ export function OutputRows({ gyro, edit }: { gyro: GyroConfig; edit: GyroEdit })
         </p>
         <div className="mbtn-grid">
           {DS_BUTTONS.map((b) => (
-            <button
+            <button data-nav
               key={b} type="button" className={`mbtn${b === btn ? ' active' : ''}`} aria-pressed={b === btn} aria-label={DS_LABEL[b]} title={DS_LABEL[b]}
               onClick={() => { edit((g) => { g.activateButton = b; }); setPicking(false); }}
             >

@@ -24,7 +24,7 @@ export function PickGameModal({ taken, onPick, onClose }: { taken: ReadonlySet<s
   return (
     <Modal open title="Pick a running game" onClose={onClose} width={460} className="pick-game">
       <p className="modal-text">Start the game first, then pick its program here. Windows and background programs are left out.</p>
-      <input
+      <input data-nav
         type="search" className="pf-input pick-search" aria-label="Search running programs" placeholder="Search…" value={query}
         ref={search} spellCheck={false} onChange={(e) => setQuery(e.currentTarget.value)}
       />
@@ -35,7 +35,7 @@ export function PickGameModal({ taken, onPick, onClose }: { taken: ReadonlySet<s
         {shown.map((n) => {
           const has = taken.has(n);
           return (
-            <button key={n} type="button" className="pick-item" disabled={has} onClick={() => onPick(n)}>
+            <button data-nav key={n} type="button" className="pick-item" disabled={has} onClick={() => onPick(n)}>
               <span className="pick-exe">{n}</span>
               {has && <span className="pick-tag">has a rule</span>}
             </button>
@@ -43,7 +43,7 @@ export function PickGameModal({ taken, onPick, onClose }: { taken: ReadonlySet<s
         })}
       </div>
       <div className="modal-actions">
-        <button type="button" className="panel-btn" onClick={onClose}>Cancel</button>
+        <button data-nav type="button" className="panel-btn" onClick={onClose}>Cancel</button>
       </div>
     </Modal>
   );

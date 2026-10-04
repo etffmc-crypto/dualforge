@@ -37,7 +37,7 @@ export function StepTable({ steps, onChange, onPickTarget }: StepTableProps) {
             <div className="step-row" role="row" key={i}>
               <span className="step-n" role="cell">{n}</span>
               <span role="cell">
-                <button type="button" className={`step-target t-${s.target.type}`} aria-label={`Step ${n} output: ${text}`} onClick={() => onPickTarget(i)}>{text}</button>
+                <button data-nav type="button" className={`step-target t-${s.target.type}`} aria-label={`Step ${n} output: ${text}`} onClick={() => onPickTarget(i)}>{text}</button>
               </span>
               <span role="cell" className="ms-cell">
                 <DraftNumber min={0} max={MAX_MS} step={10} label={`Step ${n} hold (ms)`} value={s.holdMs} onCommit={(holdMs) => set(i, { holdMs })} />
@@ -48,9 +48,9 @@ export function StepTable({ steps, onChange, onPickTarget }: StepTableProps) {
                 <span aria-hidden="true">ms</span>
               </span>
               <span role="cell" className="step-actions">
-                <button type="button" className="step-icon" aria-label={`Move step ${n} up`} disabled={i === 0} onClick={() => move(i, -1)}><Arrow up /></button>
-                <button type="button" className="step-icon" aria-label={`Move step ${n} down`} disabled={i === steps.length - 1} onClick={() => move(i, 1)}><Arrow /></button>
-                <button type="button" className="step-icon danger" aria-label={`Delete step ${n}`} disabled={steps.length === 1} onClick={() => onChange(steps.filter((_, j) => j !== i))}><Bin /></button>
+                <button data-nav type="button" className="step-icon" aria-label={`Move step ${n} up`} disabled={i === 0} onClick={() => move(i, -1)}><Arrow up /></button>
+                <button data-nav type="button" className="step-icon" aria-label={`Move step ${n} down`} disabled={i === steps.length - 1} onClick={() => move(i, 1)}><Arrow /></button>
+                <button data-nav type="button" className="step-icon danger" aria-label={`Delete step ${n}`} disabled={steps.length === 1} onClick={() => onChange(steps.filter((_, j) => j !== i))}><Bin /></button>
               </span>
             </div>
           );

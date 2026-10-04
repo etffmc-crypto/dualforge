@@ -31,13 +31,13 @@ export function Macros() {
           <p className="macros-sub">A macro plays a timed run of outputs from a single press. Assign one to a button on the Buttons page.</p>
         </div>
         <span className="macros-count">{profile.macros.length} / {MAX_MACROS}</span>
-        <button type="button" className="panel-btn primary" disabled={full} title={full ? 'This profile has the maximum of 32 macros' : undefined} onClick={create}>New macro</button>
+        <button data-nav type="button" className="panel-btn primary" disabled={full} title={full ? 'This profile has the maximum of 32 macros' : undefined} onClick={create}>New macro</button>
       </header>
       {profile.macros.length === 0 ? (
         <div className="macros-empty">
           <h3>No macros yet</h3>
           <p>Build one step by step, or press Record in the editor and play it on the controller.</p>
-          <button type="button" className="panel-btn primary" onClick={create}>Create your first macro</button>
+          <button data-nav type="button" className="panel-btn primary" onClick={create}>Create your first macro</button>
         </div>
       ) : (
         <MacroList
@@ -53,8 +53,8 @@ export function Macros() {
           {users === 0 ? 'No button runs this macro.' : `${users} button${users === 1 ? '' : 's'} run${users === 1 ? 's' : ''} this macro and will stop sending it.`}
         </p>
         <div className="modal-actions">
-          <button type="button" className="panel-btn" onClick={() => setDeleting(null)}>Cancel</button>
-          <button type="button" className="panel-btn primary" onClick={() => {
+          <button data-nav type="button" className="panel-btn" onClick={() => setDeleting(null)}>Cancel</button>
+          <button data-nav type="button" className="panel-btn primary" onClick={() => {
             const id = deleting!.id;
             updateProfile((d) => removeMacro(d, id));   // one edit: the macro and every reference to it go together
             setDeleting(null);

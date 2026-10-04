@@ -12,8 +12,22 @@ export interface ModalProps {
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-/** Open dialogs, innermost last: only the top one answers Escape and traps Tab. */
-const stack: symbol[] = [];
+interface Open { close(): void; panel: HTMLDivElement | null }
+/** Open dialogs, innermost last: only the top one answers Escape (or B on the pad) and traps Tab. */
+const stack: Open[] = [];
+
+/** The innermost open dialog's panel, or null when none is open. */
+export function topModalPanel(): HTMLElement | null {
+  return stack.at(-1)?.panel ?? null;
+}
+
+/** Closes the innermost open dialog as Escape would; false when none is open. */
+export function closeTopModal(): boolean {
+  const top = stack.at(-1);
+  if (!top) return false;
+  top.close();
+  return true;
+}
 
 /** Shared dialog: focus moves in on open, Tab / Shift+Tab loop inside, Escape or a backdrop click closes, focus returns to the opener. */
 export function Modal({ open, title, onClose, width, className = '', children }: PropsWithChildren<ModalProps>) {
@@ -25,7 +39,7 @@ export function Modal({ open, title, onClose, width, className = '', children }:
 
   useEffect(() => {
     if (!open) return;
-    const me = Symbol('modal');
+    const me: Open = { close: () => close.current(), panel: panel.current };
     stack.push(me);
     const opener = document.activeElement as HTMLElement | null;
     panel.current?.focus();

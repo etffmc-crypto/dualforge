@@ -47,7 +47,7 @@ function DigitalNote({ side }: { side: Side }) {
     <div className="digital-note">
       <p className="digital-note-title">Output: full pull on click</p>
       <p className="psec-hint">Clicking {btn} sends a full {side === 'left' ? 'LT' : 'RT'}. Deadzone, hair trigger, curve and adaptive effects need an analog trigger. To send something else, remap {btn} on the Buttons page.</p>
-      <button type="button" className="panel-btn with-icon" onClick={() => setPage('buttons')}>
+      <button data-nav type="button" className="panel-btn with-icon" onClick={() => setPage('buttons')}>
         Remap on the Buttons page<ChevronRightIcon size={14} />
       </button>
     </div>

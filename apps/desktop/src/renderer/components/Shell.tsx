@@ -3,6 +3,7 @@ import { Header } from './Header';
 import { Footer } from './Footer';
 import { useStore } from '../store';
 import { applyTheme } from '../theme';
+import { useGamepadNav } from '../hooks/useGamepadNav';
 
 /** Mirrors `settings.theme` onto `<html data-theme>` (and remembers it for the next boot). Until settings load, the theme `bootTheme()` set stays. */
 export function useThemeSync(): void {
@@ -16,6 +17,7 @@ export function Shell({ children }: PropsWithChildren) {
   const loadSettings = useStore((s) => s.loadSettings);
   const refreshProfiles = useStore((s) => s.refreshProfiles);
   useThemeSync();
+  useGamepadNav();
   useEffect(() => {
     const report = (code: string) => (err: unknown) => useStore.setState({ lastError: { code, msg: String(err) } });
     loadProfile().catch(report('E_PROFILE_LOAD'));

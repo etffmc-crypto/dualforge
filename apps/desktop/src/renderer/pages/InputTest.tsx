@@ -11,7 +11,7 @@ function ReplayBanner() {
     <div className="it-source span2">
       <span className="it-replay">REPLAY</span>
       <span className="it-source-text">Showing a recorded session. The controller is ignored until you switch back.</span>
-      <button type="button" className="panel-btn" onClick={back}>Use the controller</button>
+      <button data-nav type="button" className="panel-btn" onClick={back}>Use the controller</button>
     </div>
   );
 }

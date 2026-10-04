@@ -131,11 +131,11 @@ export function CalibrationWizard({ side, onClose }: { side: Side; onClose(): vo
       )}
 
       <div className="modal-actions">
-        <button type="button" className="panel-btn" onClick={onClose}>Cancel</button>
-        {step === 0 && (center || restFail) && <button type="button" className="panel-btn" onClick={restartCenter}>Measure again</button>}
+        <button data-nav type="button" className="panel-btn" onClick={onClose}>Cancel</button>
+        {step === 0 && (center || restFail) && <button data-nav type="button" className="panel-btn" onClick={restartCenter}>Measure again</button>}
         {step < 2
-          ? <button type="button" className="panel-btn primary" disabled={!canNext} onClick={next}>Next</button>
-          : <button type="button" className="panel-btn primary" onClick={apply}>Apply</button>}
+          ? <button data-nav type="button" className="panel-btn primary" disabled={!canNext} onClick={next}>Next</button>
+          : <button data-nav type="button" className="panel-btn primary" onClick={apply}>Apply</button>}
       </div>
     </Modal>
   );

@@ -17,7 +17,7 @@ function NameField({ slot, onDone }: { slot: Slot; onDone(name: string | null): 
     else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(null); }
   };
   return (
-    <input
+    <input data-nav
       ref={ref} className="slot-input" aria-label={`Name of slot ${slot.n}`} value={value} maxLength={40} spellCheck={false}
       onChange={(e) => setValue(e.currentTarget.value)} onKeyDown={onKey} onBlur={() => finish(value)}
     />
@@ -79,16 +79,16 @@ export function SlotCard({ slot, slots, active, onNotice }: SlotCardProps) {
       </div>
       {editing ? <NameField slot={slot} onDone={commitName} /> : <h3 className="slot-name" title={slot.name}>{slot.name}</h3>}
       <div className="slot-actions">
-        <button
+        <button data-nav
           type="button" className="slot-btn" disabled={active}
           onClick={() => void activate(slot.id).catch(reportError('E_PROFILE_ACTIVATE'))}
         >Activate</button>
-        <button type="button" className="slot-btn" onClick={() => setEditing(true)}>Rename</button>
-        <button type="button" className="slot-btn" onClick={() => setDialog('duplicate')}>Duplicate to…</button>
-        <button type="button" className="slot-btn" onClick={() => setDialog('reset')}>Reset</button>
+        <button data-nav type="button" className="slot-btn" onClick={() => setEditing(true)}>Rename</button>
+        <button data-nav type="button" className="slot-btn" onClick={() => setDialog('duplicate')}>Duplicate to…</button>
+        <button data-nav type="button" className="slot-btn" onClick={() => setDialog('reset')}>Reset</button>
         <span className="slot-sep" aria-hidden="true" />
-        <button type="button" className="slot-btn" onClick={() => void exportFile()}>Export</button>
-        <button type="button" className="slot-btn" onClick={() => void importFile()}>Import</button>
+        <button data-nav type="button" className="slot-btn" onClick={() => void exportFile()}>Export</button>
+        <button data-nav type="button" className="slot-btn" onClick={() => void importFile()}>Import</button>
       </div>
       {dialog === 'duplicate' && <DuplicateDialog slot={slot} slots={slots} onClose={close} onConfirm={duplicate} />}
       {dialog === 'reset' && <ResetSlotDialog slot={slot} onClose={close} onConfirm={reset} />}

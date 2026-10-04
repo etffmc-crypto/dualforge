@@ -22,7 +22,7 @@ export function TabStrip() {
     <nav className="tabstrip" role="tablist" aria-label="Sections">
       <span className="pill" aria-hidden="true">LB</span>
       {TABS.map(({ id, label, Icon }) => (
-        <button key={id} role="tab" aria-selected={page === id} className={`tab${page === id ? ' active' : ''}`} onClick={() => setPage(id)}>
+        <button data-nav key={id} role="tab" aria-selected={page === id} className={`tab${page === id ? ' active' : ''}`} onClick={() => setPage(id)}>
           <Icon size={24} />
           <span className="tab-label">{label}</span>
         </button>

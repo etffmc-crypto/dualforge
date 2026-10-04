@@ -33,7 +33,7 @@ function Cap({ code, cap }: { code: string; cap?: string | undefined }) {
 function Key({ code, cap, style, selected, full, onPick }: { code: string; cap?: string | undefined; style?: CSSProperties } & KeyGridProps) {
   const on = selected.has(code);
   return (
-    <button
+    <button data-nav
       type="button" className={`kc${on ? ' on' : ''}`} style={style} aria-label={KEY_LABELS[code]} title={KEY_LABELS[code]}
       aria-pressed={on} disabled={full && !on} onClick={() => onPick({ type: 'key', code: code as VkName })}
     >

@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { DualSenseTop } from '../art/DualSenseTop';
 import { SubTabs } from '../components/controls/SubTabs';
 import { SettingsLayout } from '../components/SettingsLayout';
-import { useShoulderNav } from '../hooks/useGamepadNav';
 import { useStore } from '../store';
 import { MicTab, PlayerLedsTab } from './lights/LedTabs';
 import { LightbarTab, type Lights as LightsCfg, type LightsEdit } from './lights/LightbarTab';
@@ -30,13 +29,11 @@ function LightsStage({ lights }: { lights: LightsCfg }) {
   );
 }
 
-/** Lights page (GameSir ss5): Lightbar · Player LEDs · Mic sub-tabs; LT / RT on the pad step between them. */
+/** Lights page (GameSir ss5): Lightbar · Player LEDs · Mic sub-tabs; LT / RT on the pad step between them (global gamepad nav). */
 export function Lights() {
   const lights = useStore((s) => s.profile?.lights ?? null);
   const updateProfile = useStore((s) => s.updateProfile);
   const [tab, setTab] = useState<Tab>('lightbar');
-  const step = (d: number) => setTab((t) => TABS[Math.max(0, Math.min(TABS.length - 1, TABS.findIndex((x) => x.value === t) + d))]!.value);
-  useShoulderNav(() => step(-1), () => step(1));
   if (!lights) return null; // profile still loading
   const edit: LightsEdit = (fn) => { updateProfile((d) => fn(d.lights)); };
   return (

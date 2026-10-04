@@ -18,7 +18,7 @@ export function DraftNumber({ value, label, min, max, onCommit, ...rest }: Draft
     setDraft(null);
   };
   return (
-    <input
+    <input data-nav
       {...rest} type="number" min={min} max={max} aria-label={label} value={draft ?? String(value)}
       onChange={(e) => setDraft(e.currentTarget.value)} onBlur={commit}
       onKeyDown={(e) => {

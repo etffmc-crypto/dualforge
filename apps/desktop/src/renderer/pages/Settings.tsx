@@ -47,7 +47,7 @@ export function Settings() {
         </PanelSection>
         <PanelSection title="Data">
           <p className="psec-hint">Profiles, settings and logs are stored in one folder.</p>
-          <button type="button" className="panel-btn with-icon" onClick={openDataDir}><FolderIcon size={16} />Open data folder</button>
+          <button data-nav type="button" className="panel-btn with-icon" onClick={openDataDir}><FolderIcon size={16} />Open data folder</button>
         </PanelSection>
       </section>
     </div>

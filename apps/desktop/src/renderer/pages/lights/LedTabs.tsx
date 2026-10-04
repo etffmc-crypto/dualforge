@@ -14,7 +14,7 @@ export function PlayerLedsTab({ lights, edit }: { lights: Lights; edit: LightsEd
         {LEDS.map((i) => {
           const on = ((lights.playerLeds >> i) & 1) === 1;
           return (
-            <button
+            <button data-nav
               key={i} type="button" role="switch" aria-checked={on} aria-label={`Player LED ${i + 1}`}
               className={`led-switch${on ? ' on' : ''}${i === 2 ? ' centre' : ''}`}
               onClick={() => edit((l) => { l.playerLeds ^= 1 << i; })}

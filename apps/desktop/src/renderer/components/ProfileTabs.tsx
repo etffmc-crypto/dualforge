@@ -16,7 +16,7 @@ function RenameField({ initial, label, onDone }: { initial: string; label: strin
     else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(null); }
   };
   return (
-    <input
+    <input data-nav
       ref={ref} className="ptab-input" aria-label={label} value={value} maxLength={MAX_NAME} spellCheck={false}
       onChange={(e) => setValue(e.currentTarget.value)} onKeyDown={onKey} onBlur={() => finish(value)}
     />
@@ -52,7 +52,7 @@ export function ProfileTabs() {
         }
         return (
           <span key={id} className={`ptab${active ? ' active' : ''}`}>
-            <button
+            <button data-nav
               type="button" role="tab" aria-selected={active} className="ptab-btn" title={`${name} — right-click to rename`}
               onClick={() => { if (!active) void activate(id).catch((err: unknown) => useStore.setState({ lastError: { code: 'E_PROFILE_ACTIVATE', msg: String(err) } })); }}
               onContextMenu={(e) => { e.preventDefault(); setEditing(id); }}
@@ -61,7 +61,7 @@ export function ProfileTabs() {
               <span className="ptab-name">{name}</span>
             </button>
             {active && (
-              <button type="button" className="ptab-edit" aria-label={`Rename ${name}`} title="Rename" onClick={() => setEditing(id)}>
+              <button data-nav type="button" className="ptab-edit" aria-label={`Rename ${name}`} title="Rename" onClick={() => setEditing(id)}>
                 <PencilIcon size={12} />
               </button>
             )}

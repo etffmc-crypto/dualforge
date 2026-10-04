@@ -17,7 +17,7 @@ export interface ToggleProps {
 export function Toggle({ checked, onChange, label, hint, note, disabled = false, title }: ToggleProps) {
   const id = useId();
   const sw = (
-    <button
+    <button data-nav
       type="button" role="switch" aria-checked={checked} aria-labelledby={label ? `${id}-l` : undefined}
       aria-describedby={[hint && `${id}-h`, note && `${id}-n`].filter(Boolean).join(' ') || undefined} disabled={disabled}
       className={`toggle${checked ? ' on' : ''}`} onClick={() => onChange(!checked)}

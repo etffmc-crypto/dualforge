@@ -40,7 +40,7 @@ function OvCard({ area, title, Icon, page, children }: PropsWithChildren<{ area:
       <header className="ov-head">
         <Icon size={18} />
         <h3 id={id} className="ov-title">{title}</h3>
-        <button type="button" className="ov-open" aria-label={`Open ${title}`} title={`Open ${title}`} onClick={() => setPage(page)}>
+        <button data-nav type="button" className="ov-open" aria-label={`Open ${title}`} title={`Open ${title}`} onClick={() => setPage(page)}>
           <ChevronRightIcon size={18} />
         </button>
       </header>
@@ -174,7 +174,7 @@ const ButtonsCard = memo(function ButtonsCard({ profile }: { profile: Profile })
       {chips.length === 0 ? (
         <div className="ov-empty">
           <p className="ov-note">Every button sends its standard Xbox input.</p>
-          <button type="button" className="panel-btn" onClick={() => setPage('buttons')}>Remap buttons</button>
+          <button data-nav type="button" className="panel-btn" onClick={() => setPage('buttons')}>Remap buttons</button>
         </div>
       ) : (
         <ul className="ov-maps">
@@ -182,13 +182,13 @@ const ButtonsCard = memo(function ButtonsCard({ profile }: { profile: Profile })
             const [src, dst] = text.split(' ▸ ');
             return (
               <li key={button}>
-                <button type="button" className="map-chip" aria-label={text} title={`Edit ${DS_LABEL[button]}`} onClick={() => setPage('buttons')}>
+                <button data-nav type="button" className="map-chip" aria-label={text} title={`Edit ${DS_LABEL[button]}`} onClick={() => setPage('buttons')}>
                   <span className="map-src">{src}</span><span className="map-arrow"> ▸ </span><span className="map-dst">{dst}</span>
                 </button>
               </li>
             );
           })}
-          {more > 0 && <li><button type="button" className="map-more" onClick={() => setPage('buttons')}>+{more} more</button></li>}
+          {more > 0 && <li><button data-nav type="button" className="map-more" onClick={() => setPage('buttons')}>+{more} more</button></li>}
         </ul>
       )}
     </OvCard>

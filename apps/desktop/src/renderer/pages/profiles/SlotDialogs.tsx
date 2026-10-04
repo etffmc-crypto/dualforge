@@ -20,8 +20,8 @@ export function DuplicateDialog({ slot, slots, onClose, onConfirm }: DialogProps
       </div>
       <p className="pf-warn">{target.name} is replaced. Its old settings can’t be brought back.</p>
       <div className="modal-actions">
-        <button type="button" className="panel-btn" onClick={onClose}>Cancel</button>
-        <button type="button" className="panel-btn primary" disabled={busy} onClick={() => void run()}>Duplicate</button>
+        <button data-nav type="button" className="panel-btn" onClick={onClose}>Cancel</button>
+        <button data-nav type="button" className="panel-btn primary" disabled={busy} onClick={() => void run()}>Duplicate</button>
       </div>
     </Modal>
   );
@@ -34,8 +34,8 @@ export function ResetSlotDialog({ slot, onClose, onConfirm }: Omit<DialogProps, 
     <Modal open title={`Reset ${slot.name}?`} onClose={onClose} width={420}>
       <p className="modal-text">Sticks, triggers, lights, button mappings, motion, macros and the name go back to their defaults. The other three profiles are not touched.</p>
       <div className="modal-actions">
-        <button type="button" className="panel-btn" onClick={onClose}>Cancel</button>
-        <button type="button" className="panel-btn primary" disabled={busy} onClick={() => void run()}>Reset</button>
+        <button data-nav type="button" className="panel-btn" onClick={onClose}>Cancel</button>
+        <button data-nav type="button" className="panel-btn primary" disabled={busy} onClick={() => void run()}>Reset</button>
       </div>
     </Modal>
   );

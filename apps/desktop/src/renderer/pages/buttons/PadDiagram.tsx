@@ -81,7 +81,7 @@ export const PadDiagram = memo(function PadDiagram({ mappings, macros, lights, o
         const cls = `bpill side-${side}${pressed[b] ? ' pressed' : ''}${isDefaultMapping(b, m) ? '' : ' remapped'}`;
         return (
           <div key={b} className={cls} style={style}>
-            <button type="button" className="bpill-btn" aria-label={`Map ${BUTTON_LABELS[b]}: ${line}`} title={`${BUTTON_LABELS[b]} → ${line}`} onClick={() => onEdit(b)}>
+            <button data-nav type="button" className="bpill-btn" aria-label={`Map ${BUTTON_LABELS[b]}: ${line}`} title={`${BUTTON_LABELS[b]} → ${line}`} onClick={() => onEdit(b)}>
               <span className={`bpill-src${FACE.has(b) ? ' face' : ''}`} aria-hidden="true">{GLYPH[b] ?? BUTTON_LABELS[b]}</span>
               <span className="bpill-dst" aria-hidden="true">
                 {s.macro && <span className="bpill-macro">macro</span>}

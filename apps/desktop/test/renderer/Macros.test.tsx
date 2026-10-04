@@ -33,7 +33,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   runMacro = vi.fn(async () => {});
   vi.stubGlobal('dualforge', { profiles: { set: vi.fn(async () => true) }, engine: { runMacro } });
-  useStore.setState({ profile: stubProfile(), snapshot: snap(0), lastError: null, page: 'macros' });
+  useStore.setState({ profile: stubProfile(), snapshot: snap(0), lastError: null, page: 'macros', uiNavSuspended: false });
 });
 afterEach(() => { cleanup(); vi.runOnlyPendingTimers(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
@@ -121,6 +121,10 @@ describe('Macros page', () => {
     fireEvent.click(dialog('Edit macro').getByRole('button', { name: 'Play test' }));
     expect(macros()[0]!.steps[0]!.holdMs).toBe(90);
     expect(runMacro).toHaveBeenCalledWith('m1');
+    // the run's own A / B / D-pad output must not navigate (B would close this dialog) until it has played
+    expect(useStore.getState().uiNavSuspended).toBe(true);
+    act(() => { vi.advanceTimersByTime(1000); });
+    expect(useStore.getState().uiNavSuspended).toBe(false);
     expect(dialog('Edit macro').getByText(/not injected while DualForge is focused/)).toBeTruthy();
     fireEvent.click(dialog('Edit macro').getByRole('switch', { name: 'Loop' }));
     expect((dialog('Edit macro').getByRole('button', { name: 'Play test' }) as HTMLButtonElement).disabled).toBe(true);
@@ -169,6 +173,13 @@ describe('Macros page', () => {
 });
 
 describe('RecordDialog', () => {
+  it('suspends gamepad navigation while open, so recorded presses do not navigate', () => {
+    const { rerender } = render(<RecordDialog open onClose={() => {}} onUse={() => {}} />);
+    expect(useStore.getState().uiNavSuspended).toBe(true);
+    rerender(<RecordDialog open={false} onClose={() => {}} onUse={() => {}} />);
+    expect(useStore.getState().uiNavSuspended).toBe(false);
+  });
+
   it('turns a scripted snapshot stream into steps with mapped targets and timings', () => {
     const p = stubProfile();
     p.mappings.circle = { targets: [{ type: 'key', code: 'VK_SPACE' }], turboHz: 0, continuous: false };

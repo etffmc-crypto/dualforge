@@ -5,6 +5,9 @@ import { defaultProfile } from '@dualforge/shared';
 import { presetPoints } from '@dualforge/engine/curve';
 import { useStore } from '../../src/renderer/store';
 import { Sticks } from '../../src/renderer/pages/Sticks';
+import { useGamepadNav } from '../../src/renderer/hooks/useGamepadNav';
+
+function Nav() { useGamepadNav(); return null; }
 
 const profile = () => useStore.getState().profile!;
 
@@ -74,7 +77,7 @@ describe('Sticks page', () => {
 
   it('switches the sub-tab on an LT/RT rising edge while focused', () => {
     vi.spyOn(document, 'hasFocus').mockReturnValue(true);
-    render(<Sticks />);
+    render(<><Nav /><Sticks /></>);
     const snap = (lt: number, rt: number) => ({
       t: 0, connected: true, source: 'device' as const, vigemReady: true, reportHz: 250, pipelineP99Ms: 0, battery: { percent: 50, state: 'discharging' as const },
       raw: { lx: 0, ly: 0, rx: 0, ry: 0, l2: lt, r2: rt, buttons: {}, gyro: { x: 0, y: 0, z: 0 }, touch: [] },

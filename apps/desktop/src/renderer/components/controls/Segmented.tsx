@@ -23,7 +23,7 @@ export function Segmented<T extends string>({ options, value, onChange, label }:
       {options.map((o, i) => {
         const checked = o.value === value;
         return (
-          <button
+          <button data-nav
             key={o.value} type="button" role="radio" aria-checked={checked} tabIndex={checked ? 0 : -1}
             className={`seg-btn${checked ? ' active' : ''}`} onClick={() => onChange(o.value)} onKeyDown={(e) => onKey(e, i)}
           >

@@ -274,8 +274,6 @@ test('Macros page: a macro built in the editor is saved, listed and can be assig
 test('Macro Play test drives the virtual pad: a 600 ms B step shows up in the engine output', async () => {
   const app = await launchApp();
   const page = await app.firstWindow();
-  // reports must flow for the pipeline to tick; the fixture never presses circle, so B is the macro's alone
-  await page.evaluate((f) => window.dualforge.replay(f), resolve(import.meta.dirname, '../../../packages/engine/test/fixtures/stick-sweep.hidlog'));
   await page.getByRole('tab', { name: 'Macros' }).click();
   await page.getByRole('button', { name: 'New macro' }).click();
   const ed = page.getByRole('dialog', { name: 'New macro' });
@@ -284,6 +282,9 @@ test('Macro Play test drives the virtual pad: a 600 ms B step shows up in the en
   await page.getByRole('dialog', { name: 'Step 1 output' }).getByRole('button', { name: 'B', exact: true }).click();
   await ed.getByRole('spinbutton', { name: 'Step 1 hold (ms)' }).fill('600');
   await ed.getByRole('spinbutton', { name: 'Step 1 hold (ms)' }).press('Enter');
+  // reports must flow for the pipeline to tick; the fixture never presses circle, so B is the macro's alone. Started only
+  // now: its cross pulses are the pad's A, which gamepad navigation would turn into clicks on the editor's focused button.
+  await page.evaluate((f) => window.dualforge.replay(f), resolve(import.meta.dirname, '../../../packages/engine/test/fixtures/stick-sweep.hidlog'));
 
   type Probe = { sawB: number[]; clickAt: number };
   await page.evaluate(() => {

@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { Macro, Target } from '@dualforge/shared';
 import { Modal } from '../../components/Modal';
 import { Toggle } from '../../components/controls/Toggle';
@@ -17,6 +17,9 @@ export interface MacroEditorProps {
 }
 
 const tabFor = (t: Target): PickerTab => (t.type === 'key' ? 'keyboard' : t.type === 'mouse' ? 'mouse' : 'controller');
+
+/** Extra time gamepad navigation stays off after a test run's last step (engine start-up + one snapshot). */
+const PLAY_NAV_GRACE_MS = 250;
 
 /** Edits a draft copy; nothing reaches the profile until Save (or Play test, which saves first). */
 export function MacroEditor({ macro, isNew, onClose }: MacroEditorProps) {
@@ -43,9 +46,18 @@ export function MacroEditor({ macro, isNew, onClose }: MacroEditorProps) {
     setSaved(true);
     return true;
   };
+  // while a test run plays, its A / B / D-pad steps must not also drive gamepad navigation (B would close this dialog)
+  const navHold = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (navHold.current) { clearTimeout(navHold.current); useStore.getState().setUiNavSuspended(false); }
+  }, []);
   const playTest = () => {
     if (!save()) return;
     flushProfile();   // the engine must have this version before it runs it
+    const { setUiNavSuspended } = useStore.getState();
+    setUiNavSuspended(true);
+    if (navHold.current) clearTimeout(navHold.current);
+    navHold.current = setTimeout(() => { navHold.current = null; setUiNavSuspended(false); }, cycleMs(draft) + PLAY_NAV_GRACE_MS);
     window.dualforge.engine.runMacro(draft.id).catch((err: unknown) => useStore.setState({ lastError: { code: 'E_MACRO_TEST', msg: String(err) } }));
   };
   const openPicker = (i: number) => { setPickTab(tabFor(draft.steps[i]!.target)); setPicking(i); };
@@ -61,7 +73,7 @@ export function MacroEditor({ macro, isNew, onClose }: MacroEditorProps) {
       <div className="me-top">
         <label className="me-name" htmlFor={nameId}>
           <span>Name</span>
-          <input id={nameId} type="text" aria-label="Macro name" maxLength={NAME_MAX} value={draft.name} placeholder="e.g. Reload cancel"
+          <input data-nav id={nameId} type="text" aria-label="Macro name" maxLength={NAME_MAX} value={draft.name} placeholder="e.g. Reload cancel"
             onChange={(e) => { const v = e.currentTarget.value; setDraft((d) => ({ ...d, name: v })); }} />
         </label>
         <Toggle label="Loop" hint="Repeats while the button is held." checked={draft.loop} onChange={(loop) => setDraft((d) => ({ ...d, loop }))} />
@@ -72,10 +84,10 @@ export function MacroEditor({ macro, isNew, onClose }: MacroEditorProps) {
       </div>
       <StepTable steps={draft.steps} onChange={(steps) => setDraft((d) => ({ ...d, steps }))} onPickTarget={openPicker} />
       <div className="me-tools">
-        <button type="button" className="panel-btn" disabled={draft.steps.length >= MAX_STEPS} onClick={() => setDraft((d) => ({ ...d, steps: [...d.steps, newStep()] }))}>Add step</button>
-        <button type="button" className="panel-btn with-icon" onClick={() => setRecording(true)}><span className="rec-dot small" aria-hidden="true" />Record</button>
+        <button data-nav type="button" className="panel-btn" disabled={draft.steps.length >= MAX_STEPS} onClick={() => setDraft((d) => ({ ...d, steps: [...d.steps, newStep()] }))}>Add step</button>
+        <button data-nav type="button" className="panel-btn with-icon" onClick={() => setRecording(true)}><span className="rec-dot small" aria-hidden="true" />Record</button>
         <span className="me-spacer" />
-        <button type="button" className="panel-btn" disabled={!!problem || draft.loop} title={draft.loop ? 'Turn off Loop to play-test' : undefined} onClick={playTest}>Play test</button>
+        <button data-nav type="button" className="panel-btn" disabled={!!problem || draft.loop} title={draft.loop ? 'Turn off Loop to play-test' : undefined} onClick={playTest}>Play test</button>
       </div>
       <p className="me-hint">
         Play test saves the macro, then runs it once on the virtual controller. Keyboard/mouse steps are not injected while DualForge is focused.
@@ -83,8 +95,8 @@ export function MacroEditor({ macro, isNew, onClose }: MacroEditorProps) {
       <div className="modal-actions">
         {problem && <span className="me-problem" role="status">{problem}</span>}
         {!problem && saveError && <span className="me-problem" role="alert">Not saved: {saveError}</span>}
-        <button type="button" className="panel-btn" onClick={onClose}>Cancel</button>
-        <button type="button" className="panel-btn primary" disabled={!!problem} onClick={() => { if (save()) onClose(); }}>Save</button>
+        <button data-nav type="button" className="panel-btn" onClick={onClose}>Cancel</button>
+        <button data-nav type="button" className="panel-btn primary" disabled={!!problem} onClick={() => { if (save()) onClose(); }}>Save</button>
       </div>
 
       <Modal open={picking !== null} title={`Step ${(picking ?? 0) + 1} output`} onClose={() => setPicking(null)} width={1000} className="map-modal step-picker">

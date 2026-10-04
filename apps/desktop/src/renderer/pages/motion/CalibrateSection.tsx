@@ -27,7 +27,7 @@ export function CalibrateSection({ bias }: { bias: GyroConfig['bias'] }) {
           <span className="psec-hint">Keep still…</span>
         </div>
       ) : (
-        <button type="button" className="panel-btn" onClick={start}>Calibrate</button>
+        <button data-nav type="button" className="panel-btn" onClick={start}>Calibrate</button>
       )}
       {state.phase === 'error' && <p className="mcal-error" role="alert">{state.msg}</p>}
       <div className="psec-readout mcal-bias" aria-label="Current drift correction">

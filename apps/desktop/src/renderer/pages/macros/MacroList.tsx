@@ -20,13 +20,13 @@ function MacroCard({ m, profile, onEdit, onDuplicate, onDelete }: { m: Macro } &
         <h3 id={id} className="mcard-name">{m.name}</h3>
         {m.loop && <span className="mcard-loop">Loops</span>}
         <div className="mcard-actions">
-          <button type="button" className="step-icon" aria-label={`Edit ${m.name}`} title="Edit" onClick={() => onEdit(m)}><PencilIcon size={16} /></button>
-          <button type="button" className="step-icon" aria-label={`Duplicate ${m.name}`} title="Duplicate"
+          <button data-nav type="button" className="step-icon" aria-label={`Edit ${m.name}`} title="Edit" onClick={() => onEdit(m)}><PencilIcon size={16} /></button>
+          <button data-nav type="button" className="step-icon" aria-label={`Duplicate ${m.name}`} title="Duplicate"
             disabled={profile.macros.length >= MAX_MACROS} onClick={() => onDuplicate(m)}><CopyIcon size={16} /></button>
-          <button type="button" className="step-icon danger" aria-label={`Delete ${m.name}`} title="Delete" onClick={() => onDelete(m)}><TrashIcon size={16} /></button>
+          <button data-nav type="button" className="step-icon danger" aria-label={`Delete ${m.name}`} title="Delete" onClick={() => onDelete(m)}><TrashIcon size={16} /></button>
         </div>
       </header>
-      <button type="button" className="mcard-roll" tabIndex={-1} aria-hidden="true" onClick={() => onEdit(m)}>
+      <button data-nav type="button" className="mcard-roll" tabIndex={-1} aria-hidden="true" onClick={() => onEdit(m)}>
         <MacroTimeline steps={m.steps} loop={m.loop} />
       </button>
       <div className="mcard-meta">

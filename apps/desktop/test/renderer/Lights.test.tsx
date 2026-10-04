@@ -4,6 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultProfile, type EngineSnapshot } from '@dualforge/shared';
 import { useStore } from '../../src/renderer/store';
 import { Lights } from '../../src/renderer/pages/Lights';
+import { useGamepadNav } from '../../src/renderer/hooks/useGamepadNav';
+
+function Nav() { useGamepadNav(); return null; }
 
 function snap(lt = 0, rt = 0): EngineSnapshot {
   return {
@@ -64,7 +67,7 @@ describe('Lights page', () => {
 
   it('RT / LT on the pad step through the sub-tabs', () => {
     vi.spyOn(document, 'hasFocus').mockReturnValue(true);
-    render(<Lights />);
+    render(<><Nav /><Lights /></>);
     act(() => { useStore.setState({ snapshot: snap(0, 1) }); });
     expect(screen.getByRole('tab', { name: 'Player LEDs' }).getAttribute('aria-selected')).toBe('true');
     act(() => { useStore.setState({ snapshot: snap(0, 0) }); });

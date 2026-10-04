@@ -61,13 +61,13 @@ export function ShareCard({ slots }: { slots: Slot[] }) {
       <div className="psec">
         <SectionLabel>Code for {active.name}</SectionLabel>
         <div className="psec-body">
-          <textarea
+          <textarea data-nav
             className="pf-code" readOnly rows={3} value={code} aria-label={`Share code for ${active.name}`}
             spellCheck={false} onFocus={(e) => e.currentTarget.select()}
           />
           <div className="pf-line">
             <span className="psec-hint">Anyone with DualForge can paste it to get this profile.</span>
-            <button type="button" className="panel-btn with-icon" disabled={!code} onClick={copy}>
+            <button data-nav type="button" className="panel-btn with-icon" disabled={!code} onClick={copy}>
               <CopyIcon size={15} />{copied ? 'Copied' : 'Copy code'}
             </button>
           </div>
@@ -76,7 +76,7 @@ export function ShareCard({ slots }: { slots: Slot[] }) {
       <div className="psec">
         <SectionLabel>Import a code</SectionLabel>
         <div className="psec-body">
-          <textarea
+          <textarea data-nav
             className="pf-code" rows={3} value={paste} aria-label="Paste a share code" placeholder="DUALFORGE:…"
             spellCheck={false} maxLength={MAX_CODE} onChange={(e) => { setPaste(e.currentTarget.value); setResult(null); }}
           />
@@ -86,7 +86,7 @@ export function ShareCard({ slots }: { slots: Slot[] }) {
             {result
               ? <span className={result.ok ? 'pf-ok' : 'pf-err'} role={result.ok ? undefined : 'alert'}>{result.msg}</span>
               : <span className="psec-hint">Everything in the chosen slot is replaced.</span>}
-            <button type="button" className="panel-btn primary" disabled={busy} onClick={() => void importCode()}>Import code</button>
+            <button data-nav type="button" className="panel-btn primary" disabled={busy} onClick={() => void importCode()}>Import code</button>
           </div>
         </div>
       </div>

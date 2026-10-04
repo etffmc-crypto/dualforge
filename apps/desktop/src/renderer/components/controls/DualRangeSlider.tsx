@@ -26,11 +26,11 @@ export function DualRangeSlider({ lo, hi, min = 0, max = 1, step = 0.01, minGap 
       <div className="drs-rail">
         <div className="drs-track" />
         <div className="drs-fill" style={{ left: `calc(7px + (100% - 14px) * ${pct(lo) / 100})`, width: `calc((100% - 14px) * ${(pct(hi) - pct(lo)) / 100})` }} />
-        <input
+        <input data-nav
           type="range" className="slider drs-input" data-testid="drs-lo" min={min} max={max} step={step} value={lo}
           aria-label={`${label} ${captions?.[0] ?? 'low'}`} onChange={(e) => setLo(Number(e.currentTarget.value))}
         />
-        <input
+        <input data-nav
           type="range" className="slider drs-input" data-testid="drs-hi" min={min} max={max} step={step} value={hi}
           aria-label={`${label} ${captions?.[1] ?? 'high'}`} onChange={(e) => setHi(Number(e.currentTarget.value))}
         />

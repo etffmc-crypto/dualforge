@@ -38,7 +38,7 @@ export function MappingModal({ button, onClose }: MappingModalProps) {
 
   return (
     <Modal open title={`Remap ${label}`} onClose={onClose} width={1000} className="map-modal">
-      <button type="button" className="modal-x" aria-label="Close" onClick={onClose}>
+      <button data-nav type="button" className="modal-x" aria-label="Close" onClick={onClose}>
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
       </button>
       <TargetPicker
@@ -57,7 +57,7 @@ export function MappingModal({ button, onClose }: MappingModalProps) {
                 return (
                   <li key={targetKey(t)} className="tchip">
                     {text}
-                    <button type="button" aria-label={`Remove ${text}`} onClick={() => edit((m) => { m.targets = pickTarget(m.targets, t, true); })}>×</button>
+                    <button data-nav type="button" aria-label={`Remove ${text}`} onClick={() => edit((m) => { m.targets = pickTarget(m.targets, t, true); })}>×</button>
                   </li>
                 );
               })}
@@ -72,8 +72,8 @@ export function MappingModal({ button, onClose }: MappingModalProps) {
             onChange={(v) => edit((m) => { m.turboHz = snapTurbo(v); })} />
           <div className="turbo-scale" aria-hidden="true"><span>Off</span><span>30 Hz</span></div>
           <div className="map-actions">
-            <button type="button" className="panel-btn" onClick={() => edit((m) => { Object.assign(m, structuredClone(CLEARED)); })}>Clear</button>
-            <button type="button" className="panel-btn primary" onClick={onClose}>Done</button>
+            <button data-nav type="button" className="panel-btn" onClick={() => edit((m) => { Object.assign(m, structuredClone(CLEARED)); })}>Clear</button>
+            <button data-nav type="button" className="panel-btn primary" onClick={onClose}>Done</button>
           </div>
         </div>
       </div>

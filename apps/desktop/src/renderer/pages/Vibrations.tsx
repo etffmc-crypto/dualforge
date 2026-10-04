@@ -56,7 +56,7 @@ export function Vibrations() {
                   format={(v) => `${v}%`} disabled={!hasRumble}
                   onChange={(v) => updateProfile((d) => { d.vibration[side] = v; })}
                 />
-                <button
+                <button data-nav
                   type="button" className="panel-btn" disabled={!hasRumble || vibration[side] === 0}
                   aria-label={`Test ${side} motor`} title={`Play the ${side} motor for half a second`} onClick={() => test(side)}
                 >
