@@ -6,7 +6,10 @@ import { useStore } from '../../store';
 import { PickGameModal } from './PickGameModal';
 import { slotOptions, type Slot } from './slots';
 
-type Rule = Settings['autoSwitch'][number];
+type AutoSwitchRule = Settings['autoSwitch'][number];
+type Rule = AutoSwitchRule;
+/** Stable empty list for the selector while settings load: a fresh `[]` each call would re-render forever. */
+const EMPTY_RULES: readonly AutoSwitchRule[] = [];
 
 /** Why `exe` can't be added, or null when it can. `exe` is already trimmed and lowercased. */
 export function exeProblem(exe: string, rules: readonly Rule[]): string | null {
@@ -20,7 +23,7 @@ export function exeProblem(exe: string, rules: readonly Rule[]): string | null {
 
 /** Per-game auto-switch rules (settings.autoSwitch): while the exe is in front, the engine runs its profile. */
 export function AutoSwitchCard({ slots }: { slots: Slot[] }) {
-  const rules = useStore((s) => s.settings?.autoSwitch ?? []);
+  const rules = useStore((s) => s.settings?.autoSwitch ?? EMPTY_RULES);
   const updateSettings = useStore((s) => s.updateSettings);
   const [exe, setExe] = useState('');
   const [profileId, setProfileId] = useState<Rule['profileId']>(slots[1]!.id);

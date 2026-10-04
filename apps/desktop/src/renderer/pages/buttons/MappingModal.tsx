@@ -17,7 +17,10 @@ export interface MappingModalProps { button: DsButton | null; onClose(): void }
 
 /** GameSir-style remap dialog (ss6): output tabs, multi-map chips, continuous + turbo footer. Every change is live. */
 export function MappingModal({ button, onClose }: MappingModalProps) {
-  const mapping = useStore((s) => (button && s.profile ? mappingOf(s.profile.mappings, button) : undefined));
+  // select the stored object (stable); the default for a missing entry is built outside the selector, never inside it
+  const stored = useStore((s) => (button ? s.profile?.mappings[button] : undefined));
+  const hasProfile = useStore((s) => s.profile !== null);
+  const mapping = button && hasProfile ? stored ?? mappingOf({}, button) : undefined;
   const macros = useStore((s) => s.profile?.macros ?? NO_MACROS);
   const updateProfile = useStore((s) => s.updateProfile);
   const setPage = useStore((s) => s.setPage);

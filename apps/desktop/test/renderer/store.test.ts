@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defaultProfile, defaultSettings, type EngineEvent, type EngineSnapshot } from '@dualforge/shared';
+import { DS_BUTTONS, defaultProfile, defaultSettings, type EngineEvent, type EngineSnapshot } from '@dualforge/shared';
 import { DEBOUNCE_MS, useStore } from '../../src/renderer/store';
 
 const set = vi.fn(async () => true);
@@ -130,6 +130,16 @@ describe('store profiles + settings', () => {
     await useStore.getState().updateSettings({ startMinimized: true });
     expect(useStore.getState().settings!.startMinimized).toBe(false);
     expect(useStore.getState().lastError?.code).toBe('E_SETTINGS_SEND');
+  });
+
+  it('profiles loaded from main are made dense: every button has a mapping', async () => {
+    const sparse = (id: string) => ({ ...defaultProfile(id, 'Sparse'), mappings: { cross: defaultProfile(id, 'x').mappings.cross } });
+    profilesApi.get.mockImplementationOnce(async (id: string) => sparse(id) as ReturnType<typeof defaultProfile>);
+    await useStore.getState().loadProfile();
+    expect(Object.keys(useStore.getState().profile!.mappings)).toHaveLength(DS_BUTTONS.length);
+    profilesApi.activate.mockImplementationOnce(async (id: string) => sparse(id) as ReturnType<typeof defaultProfile>);
+    await useStore.getState().activateProfile('p3');
+    expect(useStore.getState().profile!.mappings.circle).toEqual(defaultProfile('p3', 'x').mappings.circle);
   });
 
   it('activateProfile switches the engine and loads that profile', async () => {

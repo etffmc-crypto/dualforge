@@ -27,6 +27,15 @@ describe('profile store', () => {
     s.rename('p3', 'Renamed');
     expect(createProfileStore(dir, log).list()[2]!.name).toBe('Renamed');
   });
+  it('adopt fills mappings missing from an imported profile with the defaults', () => {
+    const s = createProfileStore(dir, log);
+    const src = defaultProfile('x', 'Sparse') as unknown as { mappings: Record<string, unknown> };
+    src.mappings = { cross: { targets: [{ type: 'none' }], turboHz: 5, continuous: false } };
+    const p = s.adopt(src, 'p2');
+    expect(Object.keys(p.mappings).length).toBe(Object.keys(defaultProfile('p2', 'x').mappings).length);
+    expect(p.mappings.cross).toEqual({ targets: [{ type: 'none' }], turboHz: 5, continuous: false });
+    expect(p.mappings.circle).toEqual(defaultProfile('p2', 'x').mappings.circle);
+  });
   it('rejects non-slot ids and invalid profiles', () => {
     const s = createProfileStore(dir, log);
     expect(() => s.get('../evil')).toThrow('E_PROFILE_ID');

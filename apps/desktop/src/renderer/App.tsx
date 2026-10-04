@@ -1,4 +1,5 @@
 import { Shell } from './components/Shell';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { useStore } from './store';
 import { Home } from './pages/Home';
 import { InputTest } from './pages/InputTest';
@@ -35,5 +36,6 @@ function Page() {
 }
 
 export default function App() {
-  return <Shell><Page /></Shell>;
+  // outermost, so a render error anywhere (a page, a selector, the shell itself) shows the restart card, never a blank window
+  return <ErrorBoundary><Shell><Page /></Shell></ErrorBoundary>;
 }

@@ -112,4 +112,22 @@
 .badge-b { background: var(--badge-b); }
 .version { color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: 0.5px; }
 
+/* ---------- crash card (top-level error boundary): the header is gone, so the whole window drags ---------- */
+.crash { height: 100%; display: grid; place-items: center; padding: 24px; -webkit-app-region: drag; }
+.crash-card {
+  -webkit-app-region: no-drag; width: min(480px, 100%); padding: 24px 24px 20px;
+  background: var(--modal-bg); border: 1px solid var(--card-border); border-top: 3px solid var(--accent);
+  border-radius: var(--radius); box-shadow: var(--modal-shadow); display: flex; flex-direction: column; gap: 12px;
+}
+.crash-title { margin: 0; font-size: 17px; font-weight: 600; line-height: 1.3; }
+.crash-text { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
+.crash-detail {
+  margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--well); border: 1px solid var(--card-border);
+  font-family: var(--mono); font-size: 12px; line-height: 1.5; display: flex; flex-direction: column; gap: 2px;
+  user-select: text; overflow-wrap: anywhere; max-height: 140px; overflow: auto;
+}
+.crash-code { color: var(--bad-text); font-weight: 600; letter-spacing: 0.3px; }
+.crash-msg { color: var(--muted); }
+.crash-btn { align-self: flex-end; margin-top: 4px; }
+
 @media (prefers-reduced-motion: reduce) { .tab, .icon-btn, .ptab-btn, .ptab-edit { transition: none; } }

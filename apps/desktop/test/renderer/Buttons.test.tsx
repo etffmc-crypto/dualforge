@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DS_BUTTONS, VK_NAMES, defaultProfile, type EngineSnapshot, type Profile } from '@dualforge/shared';
 import { useStore } from '../../src/renderer/store';
 import { Buttons } from '../../src/renderer/pages/Buttons';
+import { MappingModal } from '../../src/renderer/pages/buttons/MappingModal';
 import { KEY_LABELS, pickTarget, summarize, summaryLine } from '../../src/renderer/pages/buttons/targets';
 import { MAIN_ROWS, NAV_ROWS, NUMPAD, OFF_BOARD } from '../../src/renderer/pages/buttons/keyboard';
 
@@ -157,5 +158,21 @@ describe('button target helpers', () => {
   it('summaryLine marks multi, turbo and continuous', () => {
     const s = summarize({ targets: [{ type: 'key', code: 'VK_SPACE' }, { type: 'mouse', button: 'left' }], turboHz: 10, continuous: true }, []);
     expect(summaryLine(s)).toBe('Space +1 ⟳ ∞');
+  });
+});
+
+describe('MappingModal on a sparse profile', () => {
+  it('opens for a button absent from mappings, shows its default, and the first edit stores it', () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const p = stubProfile();
+    delete (p.mappings as Partial<Profile['mappings']>).square;
+    useStore.setState({ profile: p });
+    render(<MappingModal button="square" onClose={() => {}} />);
+    expect(screen.getByRole('dialog', { name: 'Remap □' })).toBeTruthy();
+    expect(dialog().getByRole('button', { name: 'X' }).getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(dialog().getByRole('button', { name: 'Y' }));
+    expect(mapping('square').targets).toEqual([{ type: 'xbutton', button: 'Y' }]);
+    expect(errors).not.toHaveBeenCalled();
+    errors.mockRestore();
   });
 });

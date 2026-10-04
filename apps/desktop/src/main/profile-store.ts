@@ -1,6 +1,6 @@
 import { readFileSync, statSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { defaultProfile, PROFILE_IDS, ProfileSchema, type Profile, type ProfileSummary } from '@dualforge/shared';
+import { defaultProfile, ensureDenseMappings, PROFILE_IDS, ProfileSchema, type Profile, type ProfileSummary } from '@dualforge/shared';
 import { nodeIo, quarantine, readJsonFile, writeJsonAtomic, type FileIo, type StoreLog } from './json-file.js';
 
 export { PROFILE_IDS };
@@ -68,13 +68,13 @@ export function createProfileStore(dir: string, log: StoreLog, io: FileIo = node
     pending.set(p.id, setTimeout(() => persist(p.id), DEBOUNCE_MS));
   }
   function flush(): void { for (const id of [...pending.keys()]) persist(id); }
-  /** Validates untrusted JSON text/object as a profile placed into `toSlot` (never throws raw zod errors). */
+  /** Validates untrusted JSON text/object as a profile placed into `toSlot` (never throws raw zod errors); missing button mappings get their defaults. */
   function adopt(raw: unknown, toSlot: string): Profile {
     slotOf(toSlot);
     if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) throw new Error('E_PROFILE_SCHEMA');
     const r = ProfileSchema.safeParse({ ...raw, id: toSlot });
     if (!r.success) throw new Error('E_PROFILE_SCHEMA');
-    set(r.data);
+    set(ensureDenseMappings(r.data));
     return get(toSlot);
   }
 

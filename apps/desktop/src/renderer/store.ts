@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { ProfileSchema, type EngineSnapshot, type Profile, type ProfileSummary, type Settings } from '@dualforge/shared';
+import { ensureDenseMappings, ProfileSchema, type EngineSnapshot, type Profile, type ProfileSummary, type Settings } from '@dualforge/shared';
 
 export type Page =
   | 'home' | 'overview' | 'buttons' | 'sticks' | 'triggers' | 'motion' | 'vibrations' | 'lights' | 'macros' | 'inputTest' | 'settings' | 'profiles';
@@ -90,7 +90,8 @@ export const useStore = create<State>((set, get) => {
     setSubTab: (page, side) => set((s) => ({ subTab: { ...s.subTab, [page]: side } })),
     loadProfile: async () => {
       const { id } = await window.dualforge.profiles.current();
-      const profile = await window.dualforge.profiles.get(id);
+      // dense: every page may read any button's mapping without a fallback
+      const profile = ensureDenseMappings(await window.dualforge.profiles.get(id));
       set({ profile, activeProfileId: id });
     },
     loadSettings: async () => set({ settings: await window.dualforge.settings.get() }),
@@ -106,7 +107,7 @@ export const useStore = create<State>((set, get) => {
     refreshProfiles: async () => set({ profiles: await window.dualforge.profiles.list() }),
     activateProfile: async (id) => {
       flushPending();
-      const profile = await window.dualforge.profiles.activate(id);
+      const profile = ensureDenseMappings(await window.dualforge.profiles.activate(id));
       set({ profile, activeProfileId: id });
     },
     renameProfile: async (id, name) => {

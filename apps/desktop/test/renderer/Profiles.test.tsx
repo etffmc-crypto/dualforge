@@ -224,3 +224,14 @@ describe('Profiles page: auto-switch', () => {
     expect(screen.getByText(/32 rules is the limit/)).toBeTruthy();
   });
 });
+
+describe('Profiles page: before settings load', () => {
+  it('renders the auto-switch card with settings still null (no selector update loop)', () => {
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
+    useStore.setState({ settings: null });
+    render(<Profiles />);
+    expect(screen.getByText('No games yet. Add one below.')).toBeTruthy();
+    expect(errors).not.toHaveBeenCalled();
+    errors.mockRestore();
+  });
+});
