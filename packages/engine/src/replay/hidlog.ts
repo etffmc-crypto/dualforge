@@ -12,6 +12,7 @@ export function parseHidlog(text: string): HidlogEntry[] {
     if (typeof j !== 'object' || j === null) throw bad(i + 1);
     const { t, hex } = j as { t?: unknown; hex?: unknown };
     if (typeof t !== 'number' || typeof hex !== 'string' || !/^([0-9a-f]{2})*$/i.test(hex)) throw bad(i + 1);
+    if (hex.length !== 128) throw bad(i + 1);
     out.push({ t, hex: hex.toLowerCase() });
   }
   return out;

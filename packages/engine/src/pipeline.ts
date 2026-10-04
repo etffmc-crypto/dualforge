@@ -1,7 +1,7 @@
 import type { Profile, RawState } from '@dualforge/shared';
 import { applyStickShaping } from './stages/stick-shape.js';
 import { applyStickCurve } from './stages/stick-curve.js';
-import { applyStickFilter, createFilterState, type FilterState } from './stages/stick-filter.js';
+import { applyStickFilter, createFilterState, MIN_DT_MS, type FilterState } from './stages/stick-filter.js';
 import { applyTrigger, createTriggerState, type TriggerState } from './stages/triggers.js';
 import { applyMappings, createMappingState, type MappingState, type OutputFrame } from './stages/mapping.js';
 
@@ -18,7 +18,7 @@ export const createPipelineState = (): PipelineState => ({
 });
 
 export function processReport(raw: RawState, profile: Profile, s: PipelineState, nowMs: number): OutputFrame {
-  const dt = s.lastMs < 0 ? 1 : Math.max(0.01, nowMs - s.lastMs);
+  const dt = s.lastMs < 0 ? 1 : Math.max(MIN_DT_MS, nowMs - s.lastMs);
   s.lastMs = nowMs;
 
   const frame = applyMappings(raw, profile, s.mapping, nowMs);

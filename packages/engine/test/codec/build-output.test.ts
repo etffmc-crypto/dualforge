@@ -11,9 +11,9 @@ describe('buildOutputReport', () => {
   });
   it('sets valid flags', () => {
     const r = buildOutputReport(fb);
-    expect(r[1] & 0x03).toBe(0x03);            // vibration + haptics select
-    expect(r[2] & 0x15).toBe(0x15);            // mic LED, lightbar, player LEDs
-    expect(r[39] & 0x06).toBe(0x06);           // lightbar setup + vibration v2
+    expect(r[1]! & 0x03).toBe(0x03);            // vibration + haptics select
+    expect(r[2]! & 0x15).toBe(0x15);            // mic LED, lightbar, player LEDs
+    expect(r[39]! & 0x06).toBe(0x06);           // lightbar setup + vibration v2
   });
   it('scales motors 0..255 (right=small, left=large)', () => {
     const r = buildOutputReport(fb);
