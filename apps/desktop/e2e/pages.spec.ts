@@ -110,3 +110,16 @@ test('Settings page: Light theme re-themes the app and is saved', async () => {
   await expect.poll(async () => (await page.evaluate(() => window.dualforge.settings.get())).hasRumble).toBe(true);
   await app.close();
 });
+
+test('Overview dashboard: five tiles around the pad, Lights animation edits the engine profile', async () => {
+  const app = await launchApp();
+  const page = await app.firstWindow();
+  await page.getByRole('tab', { name: 'Overview' }).click();
+  for (const name of ['Lights', 'Motion', 'Triggers', 'Sticks', 'Buttons']) await expect(page.getByRole('region', { name })).toBeVisible();
+  await expect(page.locator('.ov-stage .ds-art')).toBeVisible();
+  await page.getByRole('radiogroup', { name: 'Light animation' }).getByRole('radio', { name: 'Rainbow' }).click();
+  await expect.poll(async () => (await page.evaluate(() => window.dualforge.getProfile())).lights.mode, { timeout: 2000 }).toBe('rainbow');
+  await page.getByRole('button', { name: 'Open Motion' }).click();
+  await expect(page.getByRole('tab', { name: 'Motion' })).toHaveAttribute('aria-selected', 'true');
+  await app.close();
+});

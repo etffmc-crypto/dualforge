@@ -91,3 +91,103 @@
 .stage-bars .trigger-bar { grid-template-columns: 56px 1fr 40px; font-size: 13px; }
 .live-curve figcaption, .stage-caption { margin-top: 8px; font-size: 12px; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .panel-btn { transition: none; } }
+/* ---------- Overview (ss2): five tiles around the live pad ---------- */
+.overview {
+  display: grid; height: 100%; min-height: 560px; gap: 14px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.38fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas: 'lights stage motion' 'triggers sticks buttons';
+}
+.ov-lights { grid-area: lights; } .ov-stage { grid-area: stage; } .ov-motion { grid-area: motion; }
+.ov-triggers { grid-area: triggers; } .ov-sticks { grid-area: sticks; } .ov-buttons { grid-area: buttons; }
+
+.ov-card {
+  display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+  background: var(--card); border: 1px solid var(--card-border); border-radius: var(--radius); box-shadow: var(--card-shadow);
+}
+.ov-head {
+  flex: none; display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 8px 0 18px;
+  background: var(--card-head); border-bottom: 1px solid var(--hairline); color: var(--text-secondary);
+}
+.ov-title { flex: 1; margin: 0; font-size: 15px; font-weight: 500; color: var(--text); }
+.ov-open {
+  width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; display: grid; place-items: center;
+  background: transparent; color: var(--muted); cursor: pointer; transition: background-color 120ms ease, color 120ms ease;
+}
+.ov-open:hover { background: var(--hover); color: var(--text-strong); }
+.ov-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 14px 18px 16px; }
+.ov-lights .ov-body { gap: 9px; padding-top: 12px; }
+.ov-lights .section-label { font-size: 14px; line-height: 16px; }
+.ov-body::-webkit-scrollbar { width: 6px; }
+.ov-body::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 3px; }
+.ov-note { font-size: 12px; line-height: 1.45; color: var(--muted); }
+.ov-indent { padding: 0 4px 2px 14px; }
+
+/* lights */
+.ov-modes { padding-left: 14px; }
+.ov-modes .seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.ov-lights .seg-btn { height: 28px; padding: 0 6px; font-size: 12px; }
+.slider.hue-slider::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 2px;
+  background: linear-gradient(to right, #f00 0%, #ff0 16.7%, #0f0 33.3%, #0ff 50%, #00f 66.7%, #f0f 83.3%, #f00 100%);
+}
+.slider.hue-slider::-webkit-slider-thumb {
+  width: 16px; height: 16px; margin-top: -6px;
+  background: radial-gradient(circle, var(--hue) 0 3.4px, var(--handle-ring) 3.8px 6.2px, var(--hue) 6.6px);
+}
+
+/* motion */
+.ov-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; font-size: 14px; }
+.ov-row-label { color: var(--text); }
+.ov-pill {
+  min-width: 44px; padding: 5px 10px; border-radius: 8px; text-align: center; white-space: nowrap;
+  background: var(--seg); color: var(--text-soft); font-size: 12px; font-variant-numeric: tabular-nums;
+}
+
+/* triggers + sticks: a slim labelled rail per side, like the GameSir LT / RT / L / R bars */
+.ov-side, .ov-stick { display: flex; gap: 12px; min-width: 0; }
+.ov-side + .ov-side { margin-top: 4px; }
+.ov-rail {
+  flex: none; width: 18px; border-radius: 6px; display: grid; place-items: center;
+  background: var(--seg); color: var(--muted); font-size: 10px; font-weight: 500; letter-spacing: 0.5px;
+}
+.ov-side-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 6px 0; }
+.ov-kv { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.ov-kv > :last-child { color: var(--text-soft); font-variant-numeric: tabular-nums; }
+.ov-kv > :first-child { color: var(--text-secondary); }
+.ov-digital { display: flex; align-items: center; gap: 10px; min-height: 52px; }
+.ov-badge {
+  flex: none; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 500;
+  color: var(--accent); background: rgba(226, 64, 63, 0.12); border: 1px solid rgba(226, 64, 63, 0.45);
+}
+.ov-stick-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.ov-stick-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.ov-label { font-size: 13px; color: var(--text-secondary); }
+.ov-label em { margin-left: 4px; font-style: normal; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.ov-stick .drs, .ov-stick .rs-row { padding: 0; }
+.ov-curve { display: flex; align-items: flex-end; gap: 12px; margin-top: 8px; }
+
+/* buttons: outlined source → red target, like the GameSir mapping pairs */
+.ov-maps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 8px; align-content: flex-start; }
+.ov-maps > li { min-width: 0; max-width: 100%; }
+.map-chip {
+  max-width: 100%; height: 34px; padding: 0 4px; border: 0; border-radius: 17px; display: flex; align-items: center; gap: 6px;
+  background: transparent; color: var(--text); font-size: 12px; cursor: pointer; transition: background-color 120ms ease;
+}
+.map-chip:hover { background: var(--hover); }
+.map-src, .map-dst { height: 26px; line-height: 23px; border-radius: 13px; padding: 0 9px; white-space: nowrap; }
+.map-src { flex: none; border: 1.5px solid var(--text-dim); color: var(--text-secondary); }
+.map-arrow { flex: none; color: var(--muted); font-size: 12px; }
+.map-dst { min-width: 26px; overflow: hidden; text-overflow: ellipsis; background: var(--accent); color: #fff; line-height: 26px; }
+.map-more { height: 34px; padding: 0 10px; border: 0; background: transparent; color: var(--muted); font-size: 12px; cursor: pointer; text-align: left; }
+.map-more:hover { color: var(--text-strong); }
+.ov-empty { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+
+/* stage */
+.ov-stage { min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ov-pad { position: relative; flex: 1; width: 100%; min-height: 120px; }
+.ov-pad .ds-art { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ov-name { margin: 2px 0 0; font-size: 18px; }
+.ov-status { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) { .ov-open, .map-chip { transition: none; } }

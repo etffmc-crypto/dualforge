@@ -6,6 +6,7 @@ import { InputTest } from './pages/InputTest';
 import { Sticks } from './pages/Sticks';
 import { Triggers } from './pages/Triggers';
 import { Settings } from './pages/Settings';
+import { Overview } from './pages/Overview';
 import './styles/shell.css';
 import './styles/pages.css';
 import './styles/controls.css';
@@ -14,7 +15,7 @@ function Page() {
   const page = useStore((s) => s.page);
   switch (page) {
     case 'home': return <Home />;
-    case 'overview': return <ComingSoon title="Overview" note="Coming in Plan 3B." />;
+    case 'overview': return <Overview />;
     case 'buttons': return <ComingSoon title="Buttons" note="Coming in Plan 3B." />;
     case 'settings': return <Settings />;
     case 'inputTest': return <InputTest />;
