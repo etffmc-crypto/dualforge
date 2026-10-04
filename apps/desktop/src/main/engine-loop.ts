@@ -100,6 +100,12 @@ export function createEngineLoop(d: LoopDeps) {
   const heldKeys = new Set<string>();
   const heldMouse = new Set<'left' | 'right' | 'middle'>();
   let animated = false;
+  /** Set by rumble/profile/settings/test-pulse changes; the per-report path only rebuilds the output when this or the keepalive is due. */
+  let dirty = false;
+  const MOVE_FLUSH_MS = 1;
+  let pendingDx = 0,
+    pendingDy = 0,
+    lastMoveFlush = -Infinity;
 
   function feedback(now: number): Feedback {
     const p = profile!;
@@ -141,6 +147,8 @@ export function createEngineLoop(d: LoopDeps) {
     for (const b of heldMouse) inj?.mouse(b, false);
     heldKeys.clear();
     heldMouse.clear();
+    pendingDx = 0;
+    pendingDy = 0;
   }
   function inject(out: OutputFrame) {
     const inj = d.injector;
@@ -159,11 +167,24 @@ export function createEngineLoop(d: LoopDeps) {
         inj.mouse(e.button, true);
       } else if (heldMouse.delete(e.button)) inj.mouse(e.button, false);
     }
-    if (!uiFocused && (out.mouseMove.dx !== 0 || out.mouseMove.dy !== 0))
-      inj.move(out.mouseMove.dx, out.mouseMove.dy);
+    if (uiFocused) {
+      pendingDx = 0;
+      pendingDy = 0;
+      return;
+    }
+    // Coalesce gyro mouse motion to >= 1 ms between injected moves (8 kHz pads would otherwise issue 8000 SendInputs/s).
+    pendingDx += out.mouseMove.dx;
+    pendingDy += out.mouseMove.dy;
+    if ((pendingDx !== 0 || pendingDy !== 0) && d.now() - lastMoveFlush >= MOVE_FLUSH_MS) {
+      inj.move(pendingDx, pendingDy);
+      pendingDx = 0;
+      pendingDy = 0;
+      lastMoveFlush = d.now();
+    }
   }
   function maybeWriteOutput(now: number, force = false) {
     if (!profile || !connected) return;
+    dirty = false;
     const rep = buildOutputReport(feedback(now));
     if (force || !sameBytes(rep, lastOutBytes) || now - lastOutWrite >= KEEPALIVE_MS) {
       void d.source.write(rep);
@@ -212,7 +233,8 @@ export function createEngineLoop(d: LoopDeps) {
       reports = 0;
       hzWindowStart = now;
     }
-    maybeWriteOutput(now);
+    // The 30 Hz timer drives lights animation; per report only dirty state or an overdue keepalive needs a rebuild.
+    if (dirty || now - lastOutWrite >= KEEPALIVE_MS) maybeWriteOutput(now);
     if (now - lastSnap >= SNAPSHOT_MS) {
       lastSnap = now;
       emitSnapshot(now);
@@ -342,6 +364,7 @@ export function createEngineLoop(d: LoopDeps) {
     // Pipeline state (filters, hair-trigger hysteresis, turbo) is deliberately preserved so live edits do not jump.
     setSettings(s: Settings) {
       settings = s;
+      dirty = true;
       if (!s.hasRumble) {
         rumble = { large: 0, small: 0 };
         endTestPulse();
@@ -354,7 +377,10 @@ export function createEngineLoop(d: LoopDeps) {
     },
     setProfile(p: Profile) {
       const prev = compiled;
+      // A different activation mode makes a stale toggle latch meaningless (it could leave gyro stuck on).
+      if (prev && prev.profile.gyro.activate !== p.gyro.activate) state.gyro.toggled = false;
       profile = p;
+      dirty = true;
       compiled = compileProfile(p);
       if (prev)
         reconcileMacros(state.macros, prev.macros, compiled.macros, Math.max(0, state.lastMs));
@@ -372,11 +398,13 @@ export function createEngineLoop(d: LoopDeps) {
     testRumble(left: number, right: number, ms: number) {
       if (!settings.hasRumble) return;
       endTestPulse();
+      dirty = true;
       testPulse = {
         left,
         right,
         timer: setTimeout(() => {
           testPulse = null;
+          dirty = true;
           maybeWriteOutput(d.now(), true);
         }, ms),
       };
@@ -391,6 +419,7 @@ export function createEngineLoop(d: LoopDeps) {
       d.sink.onRumble((large, small) => {
         if (!settings.hasRumble) return;
         rumble = { large, small };
+        dirty = true;
         maybeWriteOutput(d.now());
       });
       d.source.start(onReport, onStatus, onError);

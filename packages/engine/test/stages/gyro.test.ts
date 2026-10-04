@@ -132,4 +132,12 @@ describe('applyGyro', () => {
       ).dx,
     ).toBe(10);
   });
+  it('clamps dt to 20 ms for mouse integration after a stall', () => {
+    const c = cfg({ output: 'mouse' });
+    const stalled = applyGyro(raw(0, 100 * D), c, lin, createGyroState(), 5000);
+    const capped = applyGyro(raw(0, 100 * D), c, lin, createGyroState(), 20);
+    expect(stalled.dx).toBe(capped.dx);
+    expect(Math.abs(stalled.dx)).toBeGreaterThan(0);
+    expect(Math.abs(stalled.dx)).toBeLessThan(30); // 100 dps * 20 ms * 10 px/deg = 20 px, not 5000
+  });
 });

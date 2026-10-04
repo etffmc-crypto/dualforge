@@ -20,6 +20,12 @@ describe('applyRadialDeadzone', () => {
 });
 
 describe('applyAntiDeadzone', () => {
+  it('returns the very same object when anti <= 0 (no allocation on the hot path)', () => {
+    const p = { x: 0.3, y: 0.4 };
+    expect(applyAntiDeadzone(p, 0)).toBe(p);
+    expect(applyAntiDeadzone(p, 0.3)).not.toBe(p);
+    expect(applyAntiDeadzone(p, 0.3)).toEqual(applyAntiDeadzone(0.3, 0.4, 0.3));
+  });
   it('lifts the smallest live magnitude to anti and keeps direction', () => {
     const o = applyAntiDeadzone(0.003, 0.004, 0.3); // mag 0.005
     expect(Math.hypot(o.x, o.y)).toBeCloseTo(0.3 + 0.005 * 0.7, 6);

@@ -56,11 +56,11 @@ export function processReport(
     R = cp.right;
   let l = applyStickShaping(raw.lx, raw.ly, L.cfg);
   l = applyStickLut(l.x, l.y, L.lut);
-  l = applyAntiDeadzone(l.x, l.y, L.cfg.deadzone.anti);
+  l = applyAntiDeadzone(l, L.cfg.deadzone.anti);
   l = applyStickFilter(l.x, l.y, L.cfg.filter, s.filterL, dt);
   let r = applyStickShaping(raw.rx, raw.ry, R.cfg);
   r = applyStickLut(r.x, r.y, R.lut);
-  r = applyAntiDeadzone(r.x, r.y, R.cfg.deadzone.anti);
+  r = applyAntiDeadzone(r, R.cfg.deadzone.anti);
   r = applyStickFilter(r.x, r.y, R.cfg.filter, s.filterR, dt);
   const lt = applyTrigger(raw.l2, cp.lt.cfg, cp.lt.lut, s.trigL);
   const rt = applyTrigger(raw.r2, cp.rt.cfg, cp.rt.lut, s.trigR);

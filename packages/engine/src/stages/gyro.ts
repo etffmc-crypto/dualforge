@@ -7,6 +7,8 @@ export const GYRO_LSB_PER_DPS = 16.384;
 const MOUSE_PX_PER_DEG = 10;
 /** Stick: full deflection at (STICK_FULL_DPS / sensitivity) deg/s. */
 const STICK_FULL_DPS = 200;
+/** Longest integration step for gyro (ms). */
+export const GYRO_MAX_DT_MS = 20;
 
 export interface GyroResult {
   rx: number;
@@ -46,6 +48,7 @@ export function applyGyro(
   s: GyroState,
   dtMs: number,
 ): GyroResult {
+  dtMs = Math.min(dtMs, GYRO_MAX_DT_MS); // a stalled loop must not turn one old sample into a huge mouse jump
   const o = s.out;
   o.rx = 0;
   o.ry = 0;
