@@ -9,3 +9,5 @@ maintenance/reports/*.tmp
 
 .superpowers/
 *.tsbuildinfo
+test-results/
+playwright-report/
