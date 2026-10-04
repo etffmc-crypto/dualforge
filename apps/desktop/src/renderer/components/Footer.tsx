@@ -1,4 +1,3 @@
-import { APP_VERSION } from '@dualforge/shared';
 import { DpadIcon } from './icons';
 
 export function Footer() {
@@ -9,7 +8,7 @@ export function Footer() {
         <span className="hint"><span className="badge badge-a" aria-hidden="true">A</span> Confirm</span>
         <span className="hint"><span className="badge badge-b" aria-hidden="true">B</span> Back</span>
       </div>
-      <span className="version">V{APP_VERSION}</span>
+      <span className="version">V{__APP_VERSION__}</span>
     </footer>
   );
 }

@@ -103,8 +103,31 @@ describe('CurveEditor', () => {
   it('edits a point through its numeric input (0-100)', () => {
     const onChange = vi.fn();
     render(<CurveEditor points={linear8()} onChange={onChange} />);
-    fireEvent.change(screen.getByLabelText('Point 8 output'), { target: { value: '80' } });
+    const input = screen.getByLabelText('Point 8 output');
+    fireEvent.change(input, { target: { value: '80' } });
+    expect(onChange).not.toHaveBeenCalled(); // draft only until commit
+    fireEvent.keyDown(input, { key: 'Enter' });
     expect((onChange.mock.calls.at(-1)![0] as [number, number][])[7]).toEqual([1, 0.8]);
+  });
+  it('keeps a draft while the input is cleared and commits a clamped value on blur', () => {
+    const onChange = vi.fn();
+    const points = linear8();
+    render(<CurveEditor points={points} onChange={onChange} />);
+    const input = screen.getByLabelText('Point 4 input') as HTMLInputElement; // handle-3
+    const cxBefore = screen.getByTestId('handle-3').getAttribute('cx');
+    fireEvent.change(input, { target: { value: '' } });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(input.value).toBe('');
+    expect(screen.getByTestId('handle-3').getAttribute('cx')).toBe(cxBefore);
+    fireEvent.blur(input); // empty draft is discarded, not committed as 0
+    expect(onChange).not.toHaveBeenCalled();
+    expect(input.value).toBe(String(Math.round(points[3]![0] * 100)));
+    fireEvent.change(input, { target: { value: '45' } });
+    fireEvent.blur(input);
+    expect((onChange.mock.calls.at(-1)![0] as [number, number][])[3]![0]).toBe(0.45);
+    fireEvent.change(input, { target: { value: '90' } });
+    fireEvent.blur(input);
+    expect((onChange.mock.calls.at(-1)![0] as [number, number][])[3]![0]).toBe(points[4]![0]); // clamped to right neighbour
   });
   it('supports yMax and pointCount for the 5-point speed curve', () => {
     const onChange = vi.fn();
@@ -113,6 +136,7 @@ describe('CurveEditor', () => {
     expect(screen.getAllByTestId(/^handle-/)).toHaveLength(5);
     expect((screen.getByLabelText('Point 4 output') as HTMLInputElement).value).toBe('40');
     fireEvent.change(screen.getByLabelText('Point 4 output'), { target: { value: '55' } });
+    fireEvent.blur(screen.getByLabelText('Point 4 output'));
     expect((onChange.mock.calls.at(-1)![0] as [number, number][])[3]).toEqual([0.5, 55]);
   });
 });

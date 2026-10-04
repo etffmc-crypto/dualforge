@@ -23,5 +23,6 @@ test('face-lift tokens applied', async () => {
   await expect(active).toHaveCount(1);
   expect(await page.locator('body').evaluate((e) => getComputedStyle(e).fontFamily)).toMatch(/Poppins/);
   await expect(page.locator('.footer .badge-a')).toHaveText('A');
+  await expect(page.locator('.footer .version')).toHaveText('V0.1.0'); // injected from root package.json
   await app.close();
 });
