@@ -115,6 +115,14 @@ describe('health repairs', () => {
     }
   });
 
+  it('exportBundle runs the wired exporter', async () => {
+    const exportBundle = vi.fn(async () => ({ ok: true }));
+    const svc = createHealthService({ gather: async () => GOOD, emit: vi.fn(), log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      repairs: { restartEngine: vi.fn(), resetProfile: vi.fn(), clearLogs: () => 0, openLogs: () => '', exportBundle } });
+    expect(await svc.repair({ id: 'exportBundle' })).toEqual({ ok: true });
+    expect(exportBundle).toHaveBeenCalled();
+  });
+
   it('maps an openLogs error string and a throwing handler to coded failures', async () => {
     const { svc, repairs } = rig();
     repairs.openLogs.mockResolvedValueOnce('no such folder');
@@ -151,6 +159,20 @@ describe('health IPC', () => {
     expect(() => call('health:repair', 'openLogs')).toThrow('E_HEALTH_REQUEST');
     expect(log.error).toHaveBeenCalledTimes(4);
     expect(await call('health:repair', { id: 'openLogs' })).toEqual({ ok: true });
+  });
+  it('health:exportBundle returns the summary, null on cancel, and a coded error on failure', async () => {
+    const { svc } = rig();
+    const handlers = new Map<string, (...a: unknown[]) => unknown>();
+    const results: unknown[] = [{ path: 'a.zip', files: 1, bytes: 2, skipped: [] }, null, new Error('E_BUNDLE_WRITE'), new Error('weird')];
+    registerHealthIpc({
+      ipc: { handle: (ch, fn) => handlers.set(ch, (...a) => fn({}, ...a)) }, service: svc, log: { error: vi.fn() },
+      exportBundle: async () => { const r = results.shift(); if (r instanceof Error) throw r; return r as never; },
+    });
+    const call = () => handlers.get('health:exportBundle')!() as Promise<unknown>;
+    expect(await call()).toMatchObject({ path: 'a.zip' });
+    expect(await call()).toBeNull();
+    await expect(call()).rejects.toThrow('E_BUNDLE_WRITE');
+    await expect(call()).rejects.toThrow('E_BUNDLE_EXPORT');
   });
   it('schema accepts the documented shape', () => {
     expect(HealthRepairRequestSchema.parse({ id: 'resetProfile', arg: 'p1' })).toEqual({ id: 'resetProfile', arg: 'p1' });

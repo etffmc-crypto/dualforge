@@ -183,6 +183,17 @@ A repair threw an error (see `msg` in the log). Fix: retry; export a diagnostics
 ### E_HEALTH_OPEN_LOGS
 Explorer could not open the logs folder. Fix: open `%APPDATA%\DualForge\logs` manually.
 
+## Diagnostics bundle
+
+### E_BUNDLE_WRITE
+The diagnostics zip could not be written (partial file removed). Cause: disk full, read-only or locked destination. Fix: choose another location.
+
+### E_BUNDLE_COLLECT
+The health or system part of the bundle could not be produced; the bundle is still written with an error placeholder for that file. Fix: none needed; report if it repeats.
+
+### E_BUNDLE_EXPORT
+An unexpected failure while exporting the bundle (renderer-facing wrapper; the cause is in the log). Fix: retry.
+
 ## Process-level
 
 ### E_UNCAUGHT
@@ -198,6 +209,9 @@ Info: the engine reported a connection transition (`connected`, `vigemReady`).
 
 ### ENGINE_EXIT
 Warning: the engine process exited (`exitCode`); main restarts it unless stopping or past the restart limit.
+
+### BUNDLE_WRITTEN
+Info: a diagnostics bundle was written (`files`, `bytes`, `skipped` = files left out to stay under 50 MB).
 
 ### HEALTH_RESULT
 Warning: a health run found an `error`-status check (`id`, `status`).

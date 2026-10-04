@@ -11,6 +11,8 @@ export interface SendInputAddon {
 }
 export interface Injector {
   readonly available: boolean;
+  /** Whether the loaded addon build exports foregroundElevated (diagnostics only). */
+  readonly hasForegroundElevated: boolean;
   key(code: string, down: boolean): void;
   mouse(btn: 'left' | 'right' | 'middle', down: boolean): void;
   move(dx: number, dy: number): void;
@@ -34,6 +36,7 @@ export function createInjector(log: InjectLog, load: () => SendInputAddon = load
   const badKeys = new Set<string>();
   return {
     available: addon !== null,
+    hasForegroundElevated: typeof addon?.foregroundElevated === 'function',
     key(code, down) {
       if (!addon) return;
       const vk = Object.hasOwn(VK, code) ? VK[code] : undefined;

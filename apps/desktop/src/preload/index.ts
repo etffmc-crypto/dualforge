@@ -57,6 +57,8 @@ const api = {
     /** Cached check results (runs the checks first if none exist yet). */
     get: (): Promise<HealthState> => ipcRenderer.invoke('health:get'),
     run: (): Promise<HealthState> => ipcRenderer.invoke('health:run'),
+    /** Asks where to save, then writes the diagnostics zip (logs, crashes, profiles, settings, health, system). Null if cancelled. */
+    exportBundle: (): Promise<{ path: string; files: number; bytes: number; skipped: string[] } | null> => ipcRenderer.invoke('health:exportBundle'),
     repair: (req: HealthRepairRequest): Promise<HealthRepairResult> => ipcRenderer.invoke('health:repair', req),
     /** Fires after every check run (startup, every 5 min, on demand, after a repair). */
     onChanged(cb: (s: HealthState) => void): () => void {

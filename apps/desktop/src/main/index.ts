@@ -1,11 +1,14 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, crashReporter, dialog, ipcMain, shell } from 'electron';
+import os from 'node:os';
 import { basename, join, resolve, extname } from 'node:path';
 import { statSync } from 'node:fs';
 import { z } from 'zod';
 import { logger, LOG_DIR } from './logger.js';
 import { clearLogs, pruneLogs } from './log-prune.js';
 import { createHealthService, createEngineFeed } from './health/service.js';
-import { gatherInput, defaultExec } from './health/adapters.js';
+import { gatherInput, defaultExec, queryVigemService } from './health/adapters.js';
+import { buildSystemInfo, createBundleExporter } from './bundle.js';
+import { startCrashReporter } from './crash-reporter.js';
 import { registerHealthIpc } from './health/ipc.js';
 import { createEngineHost } from './engine-host.js';
 import { createProfileStore } from './profile-store.js';
@@ -20,6 +23,9 @@ const engine = createEngineHost({ log: logger, onEvent: (e) => { engineFeed.onEv
 const engineFeed = createEngineFeed(() => engine.stats());
 
 const dataDir = process.env.DUALFORGE_DATA_DIR ?? join(app.getPath('appData'), 'DualForge');
+// Crash dumps stay local (no upload) in <data dir>crashes; started before app ready so child processes are covered.
+const crashDir = join(dataDir, 'crashes');
+startCrashReporter(app, crashReporter, crashDir);
 const store = createProfileStore(dataDir, logger);
 const settings = createSettingsStore(dataDir, logger);
 const ipc = registerIpc({
@@ -48,9 +54,19 @@ const health = createHealthService({
     resetProfile: (id) => { ipc.resetProfile(id); },
     clearLogs: () => clearLogs(LOG_DIR),
     openLogs: () => shell.openPath(LOG_DIR),
+    exportBundle: async () => { await bundle.exportWithDialog(); return { ok: true }; },
   },
 });
-registerHealthIpc({ ipc: ipcMain, service: health, log: logger });
+const bundle = createBundleExporter({
+  logDir: LOG_DIR, crashDir: app.getPath('crashDumps'), dataDir, dialog, log: logger, now: Date.now,
+  health: () => health.get(),
+  system: async () => buildSystemInfo({
+    appVersion: app.getVersion(), vigemState: await queryVigemService(defaultExec, (code, msg) => logger.warn({ code, msg })),
+    addonAvailable: injector.available, foregroundElevatedExport: injector.hasForegroundElevated,
+    os, versions: process.versions,
+  }),
+});
+registerHealthIpc({ ipc: ipcMain, service: health, log: logger, exportBundle: () => bundle.exportWithDialog() });
 
 const MAX_REPLAY_BYTES = 16 * 1024 * 1024;
 function validateReplayPath(raw: unknown): string {
