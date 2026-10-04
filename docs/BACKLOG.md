@@ -41,3 +41,12 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 - Settings: exe format refine in schema; [done Plan 4] >32 rules file quarantines whole settings (per-field salvage, autoSwitch resets to []); 'Services' session filter locale-dependent (use session number).
 - Macros: play test persists new macro before cancel; recorder timing ~16 ms (document).
 - Stale doc comments mentioning LT/RT in SettingsLayout.tsx and Sticks.tsx; main load() returns sparse mappings (renderer densifies).
+
+## From Plan 4 (2026-10-04) — parked at final review
+- Native addon: export foregroundPid (removes 2 s blur race + exe-name fallback for the inject gate); re-sample 100-200 ms after blur.
+- HidHide: decline latch is in-memory only (prompts again next launch); verify admin requirement, CompatibleID filter and UAC flow on real install; Bluetooth instance paths not matched; quit drain 5 s untested in index.ts.
+- Maintenance: Claude Code deny-rule matching for ~/AppData and //c/ forms unverified; wildcard looseness on 'git add apps/*'; unstaged report after a dirty run keeps the tree dirty for the next run; stale last-check.json when node missing.
+- Installer: signer exact-CN/thumbprint check; per-driver ASSET_PATH; drain 3xx bodies; unsigned (SmartScreen); app-update.yml presence in installer build unverified; node-hid prebuild bloat; root scripts unlinted.
+- Health: crash dumps never pruned (bundle UI should say dumps included); done-state releases nav hold before installer closes; failing probe logs every 5 min; access-denied counted as elevated.
+- Persistence: rename retry rethrows uncoded; quarantine rename no retry; per-rule autoSwitch salvage.
+- Updates toggle hidden until a real publish owner is configured.
