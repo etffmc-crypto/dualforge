@@ -9,6 +9,8 @@ export interface SendInputAddon {
   /** Absent in addon builds that predate it. */
   foregroundElevated?(): boolean | null;
   selfElevated?(): boolean | null;
+  /** Pid of the foreground window's process; absent in addon builds that predate it. */
+  foregroundPid?(): number | null;
 }
 export interface Injector {
   readonly available: boolean;
@@ -20,6 +22,8 @@ export interface Injector {
   foreground(): string;
   /** Whether the foreground process runs elevated; null when unknown (no addon, protected process, old addon). */
   foregroundElevated(): boolean | null;
+  /** Pid of the foreground window's process; null when unknown (no addon, old addon, no window). */
+  foregroundPid(): number | null;
   /** Whether DualForge itself runs elevated; null when unknown. */
   selfElevated(): boolean | null;
 }
@@ -64,6 +68,13 @@ export function createInjector(log: InjectLog, load: () => SendInputAddon = load
     foregroundElevated() {
       try {
         return addon?.foregroundElevated?.() ?? null;
+      } catch {
+        return null;
+      }
+    },
+    foregroundPid() {
+      try {
+        return addon?.foregroundPid?.() ?? null;
       } catch {
         return null;
       }

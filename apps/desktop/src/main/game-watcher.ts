@@ -14,6 +14,12 @@ export interface GameWatcherOpts {
   /** Elevation of the foreground process (sampled on the same poll); null when unknown. */
   foregroundElevated?: () => boolean | null;
   now?: () => number;
+  /** Pid of the foreground process (same poll); null when unknown. When absent or null, the exe name is compared with `ignore`. */
+  foregroundPid?: () => number | null;
+  /** This process's pid (default `process.pid`). */
+  ownPid?: number;
+  /** Called whenever the sampled "DualForge (any of its windows, native dialogs included) is in front" value changes. */
+  onOwnForeground?: (own: boolean) => void;
   /** Executable basenames treated like an unknown foreground (DualForge itself). Default: this process and electron.exe. */
   ignore?: string[];
 }
@@ -49,8 +55,27 @@ export function createGameWatcher(o: GameWatcherOpts) {
     }
   }
 
+  let ownForeground = false;
+  /** Samples the foreground once: true when it is one of DualForge's own windows (pid match, else exe-name match). */
+  function sampleOwn(fg: string): void {
+    let own: boolean;
+    let pid: number | null = null;
+    try {
+      pid = o.foregroundPid?.() ?? null;
+    } catch {
+      /* unknown */
+    }
+    if (pid !== null) own = pid === (o.ownPid ?? process.pid);
+    else own = fg !== '' && ignore.has(fg);
+    if (own !== ownForeground) {
+      ownForeground = own;
+      o.onOwnForeground?.(own);
+    }
+  }
+
   function tick() {
     const fg = o.foreground().toLowerCase();
+    sampleOwn(fg);
     if (fg === '' || ignore.has(fg)) {
       if (++idleTicks >= FOREIGN_EXPIRY_TICKS) lastForeign = null; // ~60 s away: the sample is stale
       return;
@@ -90,6 +115,14 @@ export function createGameWatcher(o: GameWatcherOpts) {
     /** The most recent foreground program other than DualForge (name, elevation, when), or null before any was seen. */
     lastForeignForeground(): ForeignForeground | null {
       return lastForeign;
+    },
+    /** True when the last sample found DualForge itself in front (its window, or a native dialog it opened). */
+    isOwnForeground(): boolean {
+      return ownForeground;
+    },
+    /** Takes a sample now (e.g. when the window loses focus) instead of waiting for the next tick. */
+    sampleOwnForeground(): void {
+      sampleOwn(o.foreground().toLowerCase());
     },
     stop() {
       if (timer) clearInterval(timer);

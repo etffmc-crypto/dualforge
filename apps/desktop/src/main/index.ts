@@ -26,6 +26,7 @@ import { createProfileStore } from './profile-store.js';
 import { createSettingsStore } from './settings-store.js';
 import { registerIpc } from './register-ipc.js';
 import { createInjector } from './injector.js';
+import { createFocusGate } from './focus-gate.js';
 import { createGameWatcher } from './game-watcher.js';
 import { createProcessLister } from './processes.js';
 import { createHidHide } from './hidhide.js';
@@ -94,6 +95,7 @@ const ipc = registerIpc({
 });
 
 // The main process loads the addon too, only to read the foreground process name for auto-switching (E_INJECT_LOAD is logged once).
+const focusGate = createFocusGate((focused) => engine.send({ type: 'uiFocused', focused }));
 const injector = createInjector((code, msg) => logger.error({ code, msg }));
 const watcher = createGameWatcher({
   foreground: () => injector.foreground(),
@@ -102,6 +104,8 @@ const watcher = createGameWatcher({
   log: (code, msg) => logger.error({ code, msg }),
   available: injector.available,
   foregroundElevated: () => injector.foregroundElevated(),
+  foregroundPid: () => injector.foregroundPid(),
+  onOwnForeground: (own) => focusGate.ownForeground(own),
 });
 
 const installer = createDriverInstaller({
@@ -242,8 +246,11 @@ function createWindow(): void {
     quitting = true;
     ipc.flush(); // the process may be killed right after logoff/shutdown: write pending profile edits now
   }); // Windows logoff/shutdown must not be swallowed by close-to-tray
-  win.on('focus', () => engine.send({ type: 'uiFocused', focused: true }));
-  win.on('blur', () => engine.send({ type: 'uiFocused', focused: false }));
+  win.on('focus', () => focusGate.windowFocus(true));
+  win.on('blur', () => {
+    focusGate.windowFocus(false);
+    watcher.sampleOwnForeground(); // a native dialog of ours may be in front: keep the gate closed
+  });
   win.on('closed', () => {
     win = null;
   });
@@ -325,7 +332,8 @@ if (!app.requestSingleInstanceLock()) {
     if (settings.get().updates) setTimeout(() => void updater.check(), 10_000); // opt-in only
     engine.start();
     engine.send({ type: 'setSettings', settings: settings.get() });
-    engine.send({ type: 'uiFocused', focused: win?.isFocused() ?? true });
+    focusGate.windowFocus(win?.isFocused() ?? true);
+    focusGate.resend();
     ipc.applyProfile(settings.get().activeProfile);
     watcher.start();
     health.start();
