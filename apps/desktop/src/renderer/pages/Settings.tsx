@@ -1,4 +1,5 @@
-import type { Settings as SettingsT } from '@dualforge/shared';
+import { useEffect, useState } from 'react';
+import type { HealthState, Settings as SettingsT } from '@dualforge/shared';
 import { Segmented } from '../components/controls/Segmented';
 import { Toggle } from '../components/controls/Toggle';
 import { PanelSection } from '../components/SettingsLayout';
@@ -13,6 +14,20 @@ const THEMES: { value: SettingsT['theme']; label: string }[] = [{ value: 'dark',
 export function Settings() {
   const settings = useStore((s) => s.settings);
   const updateSettings = useStore((s) => s.updateSettings);
+  const loadSettings = useStore((s) => s.loadSettings);
+  // null = unknown (Health not loaded); false = the HidHide driver is missing
+  const [hidHideInstalled, setHidHideInstalled] = useState<boolean | null>(null);
+  useEffect(() => {
+    loadSettings().catch(() => undefined);   // Health repairs can flip hidHide behind the page's back
+    const health = window.dualforge.health;
+    if (!health) return;
+    const apply = (s: HealthState) => {
+      const r = s.results.find((x) => x.id === 'hidhide');
+      setHidHideInstalled(r ? r.repair !== 'installHidHide' : null);
+    };
+    health.get().then(apply).catch(() => undefined);
+    return health.onChanged(apply);
+  }, [loadSettings]);
   if (!settings) return null; // still loading
   const flag = (k: Flag, label: string, hint: string, note?: string) => (
     <Toggle label={label} hint={hint} note={note} checked={settings[k]} onChange={(v) => void updateSettings({ [k]: v })} />
@@ -27,8 +42,11 @@ export function Settings() {
         <PanelSection title="Hardware">
           {flag('hasRumble', 'This controller has rumble motors', 'Turn off if your DualSense has no working rumble. The Vibrations sliders are greyed out while it is off.')}
           <Toggle
-            label="Hide the DualSense from games" hint="Games would see only the virtual Xbox controller, so inputs are never doubled. Needs the HidHide driver."
-            checked={settings.hidHide} onChange={() => {}} disabled title="Coming in Plan 4"
+            label="Hide the DualSense from games" hint="Games would see only the virtual Xbox controller, so inputs are never doubled. While DualForge is closed the DualSense is visible again."
+            note={hidHideInstalled === false ? 'Driver not installed — install from Health' : undefined}
+            checked={settings.hidHide} onChange={(v) => void updateSettings({ hidHide: v })}
+            disabled={hidHideInstalled === false && !settings.hidHide}
+            title={hidHideInstalled === false ? 'Install the HidHide driver from the Health page first' : undefined}
           />
         </PanelSection>
       </section>

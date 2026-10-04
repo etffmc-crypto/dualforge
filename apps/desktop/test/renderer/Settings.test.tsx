@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defaultSettings, type Settings as S } from '@dualforge/shared';
+import { defaultSettings, type HealthState, type Settings as S } from '@dualforge/shared';
 import { useStore } from '../../src/renderer/store';
 import { Settings } from '../../src/renderer/pages/Settings';
 import { useThemeSync } from '../../src/renderer/components/Shell';
@@ -13,13 +13,16 @@ const settingsApi = {
   set: vi.fn(async (patch: Partial<S>) => { stored = { ...stored, ...patch }; return stored; }),
 };
 const openDataDir = vi.fn(async () => '');
+let healthState: HealthState = { results: [{ id: 'hidhide', status: 'ok', title: 'HidHide active', detail: '' }], ranAt: 0 };
+const healthApi = { get: vi.fn(async () => healthState), onChanged: vi.fn(() => () => undefined) };
 
 function ThemeProbe() { useThemeSync(); return null; }
 
 beforeEach(() => {
   vi.clearAllMocks();
   stored = defaultSettings();
-  vi.stubGlobal('dualforge', { settings: settingsApi, system: { openDataDir } });
+  healthState = { results: [{ id: 'hidhide', status: 'ok', title: 'HidHide active', detail: '' }], ranAt: 0 };
+  vi.stubGlobal('dualforge', { settings: settingsApi, system: { openDataDir }, health: healthApi });
   useStore.setState({ settings: defaultSettings(), lastError: null });
   delete document.documentElement.dataset.theme;
   localStorage.clear();
@@ -44,13 +47,33 @@ describe('Settings page', () => {
     await waitFor(() => expect(stored).toMatchObject({ startWithWindows: true, startMinimized: true, updates: true }));
   });
 
-  it('HidHide is shown but disabled until Plan 4', () => {
+  it('the HidHide switch saves hidHide when the driver is installed', async () => {
     render(<Settings />);
+    await waitFor(() => expect(healthApi.get).toHaveBeenCalled());
+    const hid = sw('Hide the DualSense from games');
+    expect(hid.disabled).toBe(false);
+    fireEvent.click(hid);
+    expect(settingsApi.set).toHaveBeenCalledWith({ hidHide: true });
+    await waitFor(() => expect(stored.hidHide).toBe(true));
+    expect(screen.getByText(/visible again/)).toBeTruthy();
+  });
+
+  it('HidHide stays disabled with an install hint while the driver is missing', async () => {
+    healthState = { results: [{ id: 'hidhide', status: 'warn', title: 'HidHide not installed', detail: '', repair: 'installHidHide' }], ranAt: 0 };
+    render(<Settings />);
+    await waitFor(() => expect(screen.getByText('Driver not installed — install from Health')).toBeTruthy());
     const hid = sw('Hide the DualSense from games');
     expect(hid.disabled).toBe(true);
-    expect(hid.closest('[title]')?.getAttribute('title')).toMatch(/Plan 4/);
     fireEvent.click(hid);
     expect(settingsApi.set).not.toHaveBeenCalled();
+  });
+
+  it('a failed enable (main rejects) reverts the switch and reports the code', async () => {
+    settingsApi.set.mockRejectedValueOnce(new Error('E_HIDHIDE_NO_DEVICE'));
+    render(<Settings />);
+    fireEvent.click(sw('Hide the DualSense from games'));
+    await waitFor(() => expect(useStore.getState().lastError?.msg).toMatch(/E_HIDHIDE_NO_DEVICE/));
+    expect(sw('Hide the DualSense from games').getAttribute('aria-checked')).toBe('false');
   });
 
   it('switching to Light saves the theme and re-themes the document', async () => {

@@ -12,7 +12,7 @@ let dir: string;
 beforeEach(() => { dir = mkdtempSync(join(tmpdir(), 'df-ipc-')); });
 afterEach(() => { rmSync(dir, { recursive: true, force: true }); });
 
-function rig(io: FileIo = nodeIo, processes: () => Promise<unknown> = async () => ['game.exe']) {
+function rig(io: FileIo = nodeIo, processes: () => Promise<unknown> = async () => ['game.exe'], extra: Partial<Parameters<typeof registerIpc>[0]> = {}) {
   const log = { error: vi.fn(), warn: vi.fn() };
   const handlers = new Map<string, (...a: unknown[]) => unknown>();
   const sent: EngineCommand[] = [];
@@ -25,7 +25,7 @@ function rig(io: FileIo = nodeIo, processes: () => Promise<unknown> = async () =
     ipc: { handle: (ch, fn) => handlers.set(ch, (...a) => fn({}, ...a)) },
     dialog, store: createProfileStore(dir, log, io), settings: createSettingsStore(dir, log),
     engine: { send: (c) => sent.push(c) }, notifyActive: (id) => active.push(id), log,
-    processes: processes as () => Promise<string[]>,
+    processes: processes as () => Promise<string[]>, ...extra,
   });
   const call = (ch: string, ...a: unknown[]) => handlers.get(ch)!(...a);
   return { call, sent, active, api, log };
@@ -151,5 +151,19 @@ describe('engine IPC', () => {
     expect(() => call('engine:testRumble', { left: 0.5, right: 0, ms: 500, extra: 1 })).toThrow();
     expect(() => call('engine:testRumble', 'loud')).toThrow();
     expect(sent).toHaveLength(n);
+  });
+});
+
+describe('settings change hook', () => {
+  it('runs after settings:set with the previous and next settings, and the reply waits for it', async () => {
+    const seen: [boolean, boolean][] = [];
+    const { call } = rig(nodeIo, undefined, { onSettingsChanged: async (p, n) => { await Promise.resolve(); seen.push([p.hidHide, n.hidHide]); } });
+    const next = await (call('settings:set', { hidHide: true }) as Promise<{ hidHide: boolean }>);
+    expect(next.hidHide).toBe(true);
+    expect(seen).toEqual([[false, true]]);
+  });
+  it('a rejecting hook rejects the settings:set call', async () => {
+    const { call } = rig(nodeIo, undefined, { onSettingsChanged: async () => { throw new Error('E_HIDHIDE_CLI'); } });
+    await expect(call('settings:set', { hidHide: true }) as Promise<unknown>).rejects.toThrow('E_HIDHIDE_CLI');
   });
 });

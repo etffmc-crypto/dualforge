@@ -10,7 +10,7 @@ export interface ToggleProps {
   note?: string | undefined;
   disabled?: boolean;
   /** tooltip for the whole row, e.g. why it is disabled */
-  title?: string;
+  title?: string | undefined;
 }
 
 /** iOS-style switch: grey track when off, accent when on. */

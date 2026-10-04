@@ -17,6 +17,7 @@ import { registerIpc } from './register-ipc.js';
 import { createInjector } from './injector.js';
 import { createGameWatcher } from './game-watcher.js';
 import { createProcessLister } from './processes.js';
+import { createHidHide } from './hidhide.js';
 import { createDriverInstaller, registerDriverIpc, type DriverStatus } from './driver-installer.js';
 
 let win: BrowserWindow | null = null;
@@ -29,10 +30,22 @@ const crashDir = join(dataDir, 'crashes');
 startCrashReporter(app, crashReporter, crashDir);
 const store = createProfileStore(dataDir, logger);
 const settings = createSettingsStore(dataDir, logger);
+const hidhide = createHidHide({ ownExe: process.execPath, log: logger });
 const ipc = registerIpc({
   ipc: ipcMain, dialog, store, settings, engine, log: logger,
   processes: createProcessLister(undefined, [basename(process.execPath)]),
   notifyActive: (id) => { if (win && !win.isDestroyed()) win.webContents.send('profiles:active', id); },
+  onSettingsChanged: async (prev, next) => {
+    if (prev.hidHide === next.hidHide) return;
+    const r = next.hidHide ? await hidhide.enable() : await hidhide.disable();
+    void health.run();   // re-check so Health reflects the new state at once
+    if (r.ok) return;
+    if (next.hidHide) {   // could not enable: leave the setting off so the toggle tells the truth, and tell the renderer why
+      const reverted = settings.set({ hidHide: false });
+      engine.send({ type: 'setSettings', settings: reverted });
+      throw new Error(r.code ?? 'E_HIDHIDE_CLI');
+    }
+  },
 });
 
 // The main process loads the addon too, only to read the foreground process name for auto-switching (E_INJECT_LOAD is logged once).
@@ -67,6 +80,11 @@ const health = createHealthService({
     openLogs: () => shell.openPath(LOG_DIR),
     installViGEm: installRepair('vigem'),
     installHidHide: installRepair('hidhide'),
+    enableHidHide: async () => {
+      const r = await hidhide.enable();
+      if (r.ok && !settings.get().hidHide) engine.send({ type: 'setSettings', settings: settings.set({ hidHide: true }) });   // the quit/startup logic follows the setting
+      return r;
+    },
     exportBundle: async () => ((await bundle.exportWithDialog()) ? { ok: true } : { ok: false, code: 'E_BUNDLE_CANCELLED' }),
   },
 });
@@ -136,8 +154,23 @@ if (!app.requestSingleInstanceLock()) {
     ipc.applyProfile(settings.get().activeProfile);
     watcher.start();
     health.start();
+    if (settings.get().hidHide) {   // cloak is off after a quit/reboot: switch it on again
+      void hidhide.enable().then((r) => { if (!r.ok) logger.warn({ code: r.code, msg: r.msg }); void health.run(); });
+    }
   });
-  app.on('before-quit', () => { health.stop(); watcher.stop(); ipc.flush(); engine.stop(); });
+  // While DualForge is closed the DualSense must be visible to games again: cloak off first (best effort, 2 s), then really quit.
+  let quitCleanup: 'idle' | 'running' | 'done' = 'idle';
+  app.on('before-quit', (e) => {
+    if (quitCleanup === 'idle' && settings.get().hidHide && hidhide.findCli()) {
+      e.preventDefault();
+      quitCleanup = 'running';
+      const timeout = new Promise<void>((r) => setTimeout(r, 2000));
+      void Promise.race([hidhide.disable(), timeout]).catch(() => undefined).finally(() => { quitCleanup = 'done'; app.quit(); });
+      return;
+    }
+    if (quitCleanup === 'running') { e.preventDefault(); return; }
+    health.stop(); watcher.stop(); ipc.flush(); engine.stop();
+  });
   app.on('window-all-closed', () => app.quit());
 }
 process.on('uncaughtException', (err) => logger.error({ code: 'E_UNCAUGHT', msg: err.message, stack: err.stack }));

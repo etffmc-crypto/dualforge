@@ -28,6 +28,8 @@ export interface IpcDeps {
   log: { error(o: object): void };
   /** Running exe basenames for the auto-switch picker (see processes.ts). */
   processes: () => Promise<string[]>;
+  /** Runs after settings:set persisted (HidHide, login item, tray); the reply waits for it and a rejection reaches the renderer. */
+  onSettingsChanged?: (prev: Settings, next: Settings) => void | Promise<void>;
 }
 
 /** Every handler validates its input with zod in the main process; renderer data is never trusted. */
@@ -106,10 +108,12 @@ export function registerIpc(d: IpcDeps) {
     const parsed = PatchSchema.safeParse(patch);
     if (!parsed.success) { d.log.error({ code: 'E_SETTINGS_SCHEMA', msg: 'settings:set rejected' }); throw new Error('E_SETTINGS_SCHEMA'); }
     if (parsed.data.activeProfile !== undefined) IdSchema.parse(parsed.data.activeProfile);
+    const prev = d.settings.get();
     const next = d.settings.set(parsed.data as Partial<Settings>);
     d.engine.send({ type: 'setSettings', settings: next });
     if (parsed.data.activeProfile !== undefined) applyProfile(next.activeProfile);
-    return next;
+    if (!d.onSettingsChanged) return next;
+    return Promise.resolve(d.onSettingsChanged(prev, next)).then(() => d.settings.get());
   });
   h('system:processes', async () => {
     try { return ProcessListSchema.parse(await d.processes()); }

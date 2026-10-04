@@ -212,6 +212,17 @@ The signature is valid but not from Nefarius Software Solutions. The file is del
 ### E_DRIVER_LAUNCH
 Windows could not start the installer (for example the UAC prompt was declined). The downloaded file stays in `%TEMP%\DualForge`. Fix: click install again and accept the prompt.
 
+## HidHide
+
+### E_HIDHIDE_NOT_INSTALLED
+HidHide was asked to enable but `HidHideCLI.exe` is not under `%ProgramFiles%Nefarius Software SolutionsHidHided`. Fix: install HidHide from the Health page.
+
+### E_HIDHIDE_NO_DEVICE
+No connected DualSense "HID-compliant game controller" was found through PnP, so there is nothing to hide. The setting stays off. Fix: connect the controller over USB and try again.
+
+### E_HIDHIDE_CLI
+A `HidHideCLI.exe` call failed or timed out (`msg` names the command). Cause: the driver service is stopped, or the CLI needs administrator rights. Fix: restart the PC or run DualForge as administrator, then retry.
+
 ## Diagnostics bundle
 
 ### E_BUNDLE_WRITE
@@ -247,6 +258,15 @@ Info: a diagnostics bundle was written (`files`, `bytes`, `skipped` = files left
 
 ### HEALTH_RESULT
 Warning: a health run found an `error`-status check (`id`, `status`).
+
+### HIDHIDE_ENABLED
+Info: HidHide was enabled (`instance` is the hidden HID instance path).
+
+### DRIVER_DOWNLOADED
+Info: a driver installer was downloaded (`driver`, `url`, `sha256`, `file`) and is about to be signature-checked.
+
+### DRIVER_LAUNCHED
+Info: a verified driver installer was handed to Windows (`driver`, `sha256`).
 
 ### HEALTH_REPAIR
 Info: a repair completed (`id`, plus a result such as `deleted`).
