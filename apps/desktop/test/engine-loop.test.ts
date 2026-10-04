@@ -568,6 +568,41 @@ describe('engine loop plan 2: compiled profiles, grace release, trigger effects'
     await loop.stop();
     vi.useRealTimers();
   });
+
+  it('reports a failed virtual-pad plug-in as E_VIGEM_TARGET, distinct from E_VIGEM_INIT', async () => {
+    vi.useFakeTimers();
+    const sink = fakeSink();
+    sink.ready = false;
+    sink.connect = async () => {
+      throw new Error('E_VIGEM_TARGET busy');
+    };
+    const events: { type: string; code?: string }[] = [];
+    let status!: (c: boolean) => void;
+    const src: InputSource = {
+      kind: 'device',
+      start(_r, st) {
+        status = st;
+      },
+      async write() {},
+      async stop() {},
+    };
+    const loop = createEngineLoop({
+      source: src,
+      sink,
+      emit: (e) => events.push(e as never),
+      now: () => performance.now(),
+    });
+    loop.setProfile(defaultProfile('p', 'p'));
+    await loop.start();
+    status(true);
+    await vi.advanceTimersByTimeAsync(0);
+    status(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(events.filter((e) => e.type === 'error' && e.code === 'E_VIGEM_TARGET')).toHaveLength(1);
+    expect(events.some((e) => e.code === 'E_VIGEM_INIT')).toBe(false);
+    await loop.stop();
+    vi.useRealTimers();
+  });
   it('does not run concurrent connect() calls', async () => {
     vi.useFakeTimers();
     const sink = fakeSink();

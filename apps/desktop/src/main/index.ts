@@ -240,6 +240,7 @@ function createWindow(): void {
   win.on('hide', () => tray?.refresh());
   win.on('session-end', () => {
     quitting = true;
+    ipc.flush(); // the process may be killed right after logoff/shutdown: write pending profile edits now
   }); // Windows logoff/shutdown must not be swallowed by close-to-tray
   win.on('focus', () => engine.send({ type: 'uiFocused', focused: true }));
   win.on('blur', () => engine.send({ type: 'uiFocused', focused: false }));

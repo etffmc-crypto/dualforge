@@ -257,13 +257,17 @@ export function createEngineLoop(d: LoopDeps) {
       d.emit({ type: 'status', connected, vigemReady: d.sink.ready });
     }, GRACE_MS);
   }
-  // One connect at a time; failures go through the deduped error path (one E_VIGEM_INIT per 30 s).
+  // One connect at a time; failures go through the deduped error path (one E_VIGEM_INIT / E_VIGEM_TARGET per 30 s).
   function ensureConnected(): Promise<void> {
     if (d.sink.ready) return Promise.resolve();
     if (connecting) return connecting;
     connecting = d.sink
       .connect()
-      .catch((e: unknown) => onError('E_VIGEM_INIT', (e as Error).message))
+      .catch((e: unknown) => {
+        const msg = (e as Error).message;
+        // The sink prefixes its messages with the code; a plugged-in-pad failure is not a missing driver.
+        onError(msg.startsWith('E_VIGEM_TARGET') ? 'E_VIGEM_TARGET' : 'E_VIGEM_INIT', msg);
+      })
       .finally(() => {
         connecting = null;
       });

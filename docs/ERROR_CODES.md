@@ -58,7 +58,7 @@ Could not connect to the ViGEmBus driver; retried at most once per 30 s. Cause: 
 
 ### E_VIGEM_TARGET
 
-Connected to ViGEmBus but could not plug in the virtual Xbox 360 pad. Cause: bus driver in a bad state or another client monopolising ports. Fix: reinstall ViGEmBus; reboot.
+Connected to ViGEmBus but could not plug in the virtual Xbox 360 pad. Reported separately from `E_VIGEM_INIT` (driver missing) and retried at most once per 30 s. Cause: bus driver in a bad state or another client monopolising ports. Fix: reinstall ViGEmBus; reboot.
 
 ## Engine process
 
@@ -161,6 +161,10 @@ A share code could not be created or decoded (invalid, corrupt or larger than 16
 ### E_SETTINGS_SCHEMA
 
 Settings failed validation (the file on disk is moved to `corrupt/` and defaults restored, or `settings:set` was rejected). Fix: none needed for the quarantine; retry the change.
+
+### E_SETTINGS_SALVAGED
+
+`settings.json` had one or more invalid fields. The original was moved to `corrupt/`; every field that was valid was kept and the file rewritten, invalid ones fell back to defaults. Fix: re-check the affected settings (theme, rules, active profile).
 
 ### E_SETTINGS_SEND
 

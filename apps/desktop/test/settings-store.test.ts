@@ -63,4 +63,36 @@ describe('settings store', () => {
     );
     expect(createSettingsStore(dir, log).get().autoSwitch).toEqual([]);
   });
+  it('salvages valid fields when one field is invalid, quarantines the original, logs E_SETTINGS_SALVAGED', () => {
+    writeFileSync(
+      join(dir, 'settings.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        theme: 'light',
+        hasRumble: true,
+        activeProfile: 'zzz',
+        closeToTray: 'yes',
+      }),
+    );
+    const s = createSettingsStore(dir, log);
+    expect(s.get()).toMatchObject({
+      theme: 'light',
+      hasRumble: true,
+      activeProfile: 'p1',
+      closeToTray: true,
+    });
+    expect(readdirSync(join(dir, 'corrupt'))).toHaveLength(1);
+    expect(log.error.mock.calls.map((c) => (c[0] as { code: string }).code)).toContain(
+      'E_SETTINGS_SALVAGED',
+    );
+    // the salvaged values were written back, so the next launch loads them cleanly
+    log.error.mockClear();
+    expect(createSettingsStore(dir, log).get()).toMatchObject({ theme: 'light', hasRumble: true });
+    expect(log.error).not.toHaveBeenCalled();
+  });
+  it('still quarantines non-object JSON with E_SETTINGS_SCHEMA', () => {
+    writeFileSync(join(dir, 'settings.json'), '[1,2]');
+    expect(createSettingsStore(dir, log).get()).toEqual(defaultSettings());
+    expect((log.error.mock.calls[0]![0] as { code: string }).code).toBe('E_SETTINGS_SCHEMA');
+  });
 });
