@@ -18,7 +18,7 @@ export function TriggerStage({ side, cfg }: { side: Side; cfg: TriggerConfig }) 
         <div className="stage-bars">
           <TriggerBar label={L ? 'L2 raw' : 'R2 raw'} value={raw} />
           <TriggerBar label={L ? 'LT out' : 'RT out'} value={out} />
-          <div className="stage-caption">Pull {L ? 'L2' : 'R2'} to see the output after deadzone, hair trigger and curve.</div>
+          <div className="stage-caption">{cfg.digital ? `Click ${L ? 'L2' : 'R2'}: ${L ? 'LT' : 'RT'} goes straight to full.` : `Pull ${L ? 'L2' : 'R2'} to see the output after deadzone, hair trigger and curve.`}</div>
         </div>
       </div>
       <div className="stage-pad">

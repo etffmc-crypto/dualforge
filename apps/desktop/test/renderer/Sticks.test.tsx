@@ -76,13 +76,26 @@ describe('Sticks page', () => {
     vi.spyOn(document, 'hasFocus').mockReturnValue(true);
     render(<Sticks />);
     const snap = (lt: number, rt: number) => ({
-      t: 0, connected: true, vigemReady: true, reportHz: 250, pipelineP99Ms: 0, battery: { percent: 50, state: 'discharging' as const },
-      raw: { lx: 0, ly: 0, rx: 0, ry: 0, l2: lt, r2: rt, buttons: {}, gyro: { x: 0, y: 0, z: 0 } },
+      t: 0, connected: true, source: 'device' as const, vigemReady: true, reportHz: 250, pipelineP99Ms: 0, battery: { percent: 50, state: 'discharging' as const },
+      raw: { lx: 0, ly: 0, rx: 0, ry: 0, l2: lt, r2: rt, buttons: {}, gyro: { x: 0, y: 0, z: 0 }, touch: [] },
       out: { lx: 0, ly: 0, rx: 0, ry: 0, lt, rt, buttons: {} },
     });
     act(() => useStore.setState({ snapshot: snap(0, 0.9) }));
     expect(useStore.getState().subTab.sticks).toBe('right');
     act(() => useStore.setState({ snapshot: snap(0.9, 0.9) }));
     expect(useStore.getState().subTab.sticks).toBe('left');
+  });
+
+  it('the live stick view draws the raw dot in the stick’s calibrated space', () => {
+    const p = defaultProfile('p1', 'Profile 1');
+    p.sticks.left.calibration = { cx: 0.08, cy: 0.04, radius: 1 };
+    useStore.setState({ profile: p, snapshot: {
+      t: 0, connected: true, source: 'device', vigemReady: true, reportHz: 250, pipelineP99Ms: 0, battery: { percent: 50, state: 'discharging' },
+      raw: { lx: 0.08, ly: 0.04, rx: 0, ry: 0, l2: 0, r2: 0, buttons: {}, gyro: { x: 0, y: 0, z: 0 }, touch: [] },
+      out: { lx: 0, ly: 0, rx: 0, ry: 0, lt: 0, rt: 0, buttons: {} },
+    } });
+    const { container } = render(<Sticks />);
+    const dot = container.querySelector('.stick-live circle.dot-raw')!;
+    expect([dot.getAttribute('cx'), dot.getAttribute('cy')]).toEqual(['74', '74']);   // size 148: the resting stick is dead centre
   });
 });

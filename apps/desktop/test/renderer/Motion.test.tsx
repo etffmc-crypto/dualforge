@@ -8,8 +8,8 @@ import { CALIBRATE_MS } from '../../src/renderer/pages/motion/useGyroCalibration
 
 function snap(gyro = { x: 0, y: 0, z: 0 }): EngineSnapshot {
   return {
-    t: 0, connected: true, vigemReady: true, reportHz: 250, pipelineP99Ms: 0, battery: { percent: 50, state: 'discharging' },
-    raw: { lx: 0, ly: 0, rx: 0, ry: 0, l2: 0, r2: 0, buttons: {}, gyro },
+    t: 0, connected: true, source: 'device', vigemReady: true, reportHz: 250, pipelineP99Ms: 0, battery: { percent: 50, state: 'discharging' },
+    raw: { lx: 0, ly: 0, rx: 0, ry: 0, l2: 0, r2: 0, buttons: {}, gyro, touch: [] },
     out: { lx: 0, ly: 0, rx: 0, ry: 0, lt: 0, rt: 0, buttons: {} },
   };
 }

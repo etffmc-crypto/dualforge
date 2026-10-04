@@ -28,9 +28,9 @@ test('Sticks page edits reach the engine profile live', async () => {
 test('Triggers page: Left hair trigger Fixed turns a partial L2 pull into a full LT', async () => {
   const app = await launchApp();
   const page = await app.firstWindow();
-  // Default hardware profile is digital triggers; this test exercises the analog path (no UI toggle until Plan 3B).
-  await page.evaluate(async () => { const p = await window.dualforge.getProfile(); p.triggers.left.digital = false; await window.dualforge.setProfile(p); });
+  // Default hardware profile is digital triggers; this test exercises the analog path, so switch Left to analog first.
   await page.getByRole('tab', { name: 'Triggers' }).click();
+  await page.getByRole('switch', { name: 'Digital (mouse-click) trigger' }).click();
   await page.getByRole('radiogroup', { name: 'Hair trigger mode' }).getByRole('radio', { name: 'Fixed' }).click();
   await page.getByRole('radiogroup', { name: 'Adaptive trigger effect' }).getByRole('radio', { name: 'Resistance' }).click();
   await setRange(page, 'Force', 8);
@@ -47,6 +47,44 @@ test('Triggers page: Left hair trigger Fixed turns a partial L2 pull into a full
   await expect.poll(async () => (await bars())['LT out'], { timeout: 500 }).toBe(1);
   // discriminating: the fixture ramps L2 0 → 1 in a loop, so catch a mid-ramp frame and require a full LT on it
   await expect.poll(async () => { const b = await bars(); return b['L2 raw']! > 0.1 && b['L2 raw']! < 0.9 ? b['LT out'] : -1; }, { timeout: 5000 }).toBe(1);
+  await app.close();
+});
+
+test('Triggers page: the Digital toggle hides the analog sections and reaches the engine profile', async () => {
+  const app = await launchApp();
+  const page = await app.firstWindow();
+  await page.getByRole('tab', { name: 'Triggers' }).click();
+  const sw = page.getByRole('switch', { name: 'Digital (mouse-click) trigger' });
+  await expect(sw).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByText('Output: full pull on click')).toBeVisible();
+  await expect(page.getByRole('radiogroup', { name: 'Hair trigger mode' })).toHaveCount(0);
+  await sw.click();
+  await expect(page.getByRole('radiogroup', { name: 'Hair trigger mode' })).toBeVisible();
+  await expect(page.getByRole('radiogroup', { name: 'Adaptive trigger effect' })).toBeVisible();
+  await expect.poll(async () => (await page.evaluate(() => window.dualforge.getProfile())).triggers.left.digital, { timeout: 2000 }).toBe(false);
+  expect((await page.evaluate(() => window.dualforge.getProfile())).triggers.right.digital).toBe(true);
+  await sw.click();
+  await expect(page.getByRole('radiogroup', { name: 'Hair trigger mode' })).toHaveCount(0);
+  await expect.poll(async () => (await page.evaluate(() => window.dualforge.getProfile())).triggers.left.digital, { timeout: 2000 }).toBe(true);
+  await page.getByRole('button', { name: 'Remap on the Buttons page' }).click();
+  await expect(page.getByRole('tab', { name: 'Buttons' })).toHaveAttribute('aria-selected', 'true');
+  await app.close();
+});
+
+test('Input Test: a REPLAY badge shows while a recording plays, and goes away back on the controller', async () => {
+  const app = await launchApp();
+  const page = await app.firstWindow();
+  await page.getByRole('tab', { name: 'Input Test' }).click();
+  await expect(page.getByRole('meter', { name: 'Yaw' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Touchpad' })).toBeVisible();
+  await expect(page.getByText('REPLAY', { exact: true })).toHaveCount(0);
+  await page.evaluate((f) => window.dualforge.replay(f), resolve(import.meta.dirname, '../../../packages/engine/test/fixtures/stick-sweep.hidlog'));
+  await expect(page.getByText('REPLAY', { exact: true })).toBeVisible({ timeout: 5000 });
+  await page.getByRole('tab', { name: 'Home' }).click();
+  await expect(page.getByText(/Connected · Replay/)).toBeVisible();
+  await page.getByRole('tab', { name: 'Input Test' }).click();
+  await page.getByRole('button', { name: 'Use the controller' }).click();
+  await expect(page.getByText('REPLAY', { exact: true })).toHaveCount(0, { timeout: 5000 });
   await app.close();
 });
 

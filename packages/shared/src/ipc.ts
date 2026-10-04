@@ -2,15 +2,21 @@ import { z } from 'zod';
 import { ProfileSchema } from './profile.js';
 import { SettingsSchema } from './settings.js';
 
+/** A touchpad finger: x 0..1919, y 0..1079 (DualSense touchpad units). */
+export const TouchPointSchema = z.object({ active: z.boolean(), id: z.number(), x: z.number(), y: z.number() });
+
 export const EngineSnapshotSchema = z.object({
   t: z.number(),                         // ms since engine start
   connected: z.boolean(),
+  /** Where the input comes from: the controller, or a recorded .hidlog being replayed. */
+  source: z.enum(['device', 'replay']).default('device'),
   vigemReady: z.boolean(),
   reportHz: z.number(),
   pipelineP99Ms: z.number(),
   battery: z.object({ percent: z.number(), state: z.enum(['discharging', 'charging', 'full', 'unknown']) }),
   raw: z.object({ lx: z.number(), ly: z.number(), rx: z.number(), ry: z.number(), l2: z.number(), r2: z.number(),
-                  buttons: z.record(z.string(), z.boolean()), gyro: z.object({ x: z.number(), y: z.number(), z: z.number() }) }),
+                  buttons: z.record(z.string(), z.boolean()), gyro: z.object({ x: z.number(), y: z.number(), z: z.number() }),
+                  touch: z.array(TouchPointSchema).max(2).default([]) }),
   out: z.object({ lx: z.number(), ly: z.number(), rx: z.number(), ry: z.number(), lt: z.number(), rt: z.number(),
                   buttons: z.record(z.string(), z.boolean()) }),
 });

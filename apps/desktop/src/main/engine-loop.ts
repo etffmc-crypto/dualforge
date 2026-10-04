@@ -178,10 +178,10 @@ export function createEngineLoop(d: LoopDeps) {
     const p99 = sorted[Math.floor(sorted.length * 0.99)] ?? 0;
     const raw = lastRaw, out = lastOut;
     d.emit({ type: 'snapshot', snapshot: {
-      t: now - t0, connected, vigemReady: d.sink.ready, reportHz, pipelineP99Ms: p99,
+      t: now - t0, connected, source: d.source.kind, vigemReady: d.sink.ready, reportHz, pipelineP99Ms: p99,
       battery: raw?.battery ?? { percent: 0, state: 'unknown' },
-      raw: raw ? { lx: raw.lx, ly: raw.ly, rx: raw.rx, ry: raw.ry, l2: raw.l2, r2: raw.r2, buttons: raw.buttons, gyro: raw.gyro }
-               : { lx: 0, ly: 0, rx: 0, ry: 0, l2: 0, r2: 0, buttons: emptyButtons(), gyro: { x: 0, y: 0, z: 0 } },
+      raw: raw ? { lx: raw.lx, ly: raw.ly, rx: raw.rx, ry: raw.ry, l2: raw.l2, r2: raw.r2, buttons: raw.buttons, gyro: raw.gyro, touch: raw.touch }
+               : { lx: 0, ly: 0, rx: 0, ry: 0, l2: 0, r2: 0, buttons: emptyButtons(), gyro: { x: 0, y: 0, z: 0 }, touch: [] },
       out: out ? { lx: out.lx, ly: out.ly, rx: out.rx, ry: out.ry, lt: out.lt, rt: out.rt, buttons: out.buttons }
                : { lx: 0, ly: 0, rx: 0, ry: 0, lt: 0, rt: 0, buttons: {} },
     } });

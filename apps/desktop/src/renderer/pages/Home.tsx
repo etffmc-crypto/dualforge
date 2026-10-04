@@ -21,7 +21,7 @@ export function Home() {
         DUALSENSE {connected && s && <Battery percent={s.battery.percent} charging={s.battery.state === 'charging'} />}
       </h2>
       <p className="home-status">
-        {connected ? `Connected · USB · Battery ${s?.battery.percent ?? 0}%` : 'Select controller — plug in a DualSense over USB'}
+        {connected ? `Connected · ${s?.source === 'replay' ? 'Replay' : 'USB'} · Battery ${s?.battery.percent ?? 0}%` : 'Select controller — plug in a DualSense over USB'}
       </p>
       <div className="status-row">
         <span className={`chip ${connected ? 'ok' : 'bad'}`}>Controller {connected ? 'detected' : 'not found'}</span>

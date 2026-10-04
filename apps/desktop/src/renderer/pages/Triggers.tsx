@@ -4,7 +4,9 @@ import { RangeSlider } from '../components/controls/RangeSlider';
 import { Segmented } from '../components/controls/Segmented';
 import { PRESET_OPTIONS } from '../components/LiveCurve';
 import { PanelSection, SettingsLayout, SideTabs } from '../components/SettingsLayout';
-import { useStore } from '../store';
+import { Toggle } from '../components/controls/Toggle';
+import { ChevronRightIcon } from '../components/icons';
+import { useStore, type Side } from '../store';
 import { EffectSection } from './triggers/EffectSection';
 import { TriggerStage } from './triggers/TriggerStage';
 
@@ -38,6 +40,20 @@ function HairTrigger({ cfg, edit }: { cfg: TriggerConfig; edit(fn: (t: TriggerCo
   );
 }
 
+function DigitalNote({ side }: { side: Side }) {
+  const setPage = useStore((s) => s.setPage);
+  const btn = side === 'left' ? 'L2' : 'R2';
+  return (
+    <div className="digital-note">
+      <p className="digital-note-title">Output: full pull on click</p>
+      <p className="psec-hint">Clicking {btn} sends a full {side === 'left' ? 'LT' : 'RT'}. Deadzone, hair trigger, curve and adaptive effects need an analog trigger. To send something else, remap {btn} on the Buttons page.</p>
+      <button type="button" className="panel-btn with-icon" onClick={() => setPage('buttons')}>
+        Remap on the Buttons page<ChevronRightIcon size={14} />
+      </button>
+    </div>
+  );
+}
+
 export function Triggers() {
   const side = useStore((s) => s.subTab.triggers);
   const cfg = useStore((s) => s.profile?.triggers[side] ?? null);
@@ -51,18 +67,27 @@ export function Triggers() {
       panel={
         <>
           <SideTabs page="triggers" />
-          <PanelSection title="Deadzone">
-            <DualRangeSlider
-              label="Deadzone" captions={['Initial', 'Max']} lo={dz.initial} hi={dz.max} minGap={MIN_TRAVEL}
-              onChange={(initial, max) => edit((t) => { t.deadzone = { initial, max }; })}
-            />
-            <div className="psec-readout"><span>{pct(dz.initial)}</span><span>{pct(dz.max)}</span></div>
-          </PanelSection>
-          <HairTrigger cfg={cfg} edit={edit} />
-          <PanelSection title="Response Curve">
-            <Segmented label="Response curve" options={PRESET_OPTIONS} value={cfg.curve} onChange={(c) => edit((t) => { t.curve = c; })} />
-          </PanelSection>
-          <EffectSection cfg={cfg} edit={edit} />
+          <Toggle
+            label="Digital (mouse-click) trigger" checked={cfg.digital}
+            hint="For triggers that only click. On: a click gives a full pull. Off: the analog travel is read."
+            onChange={(v) => edit((t) => { t.digital = v; })}
+          />
+          {cfg.digital ? <DigitalNote side={side} /> : (
+            <>
+              <PanelSection title="Deadzone">
+                <DualRangeSlider
+                  label="Deadzone" captions={['Initial', 'Max']} lo={dz.initial} hi={dz.max} minGap={MIN_TRAVEL}
+                  onChange={(initial, max) => edit((t) => { t.deadzone = { initial, max }; })}
+                />
+                <div className="psec-readout"><span>{pct(dz.initial)}</span><span>{pct(dz.max)}</span></div>
+              </PanelSection>
+              <HairTrigger cfg={cfg} edit={edit} />
+              <PanelSection title="Response Curve">
+                <Segmented label="Response curve" options={PRESET_OPTIONS} value={cfg.curve} onChange={(c) => edit((t) => { t.curve = c; })} />
+              </PanelSection>
+              <EffectSection cfg={cfg} edit={edit} />
+            </>
+          )}
         </>
       }
       stage={<TriggerStage side={side} cfg={cfg} />}

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fileURLToPath } from 'node:url';
-import { defaultProfile, defaultSettings, type XInputState } from '@dualforge/shared';
+import { EngineSnapshotSchema, defaultProfile, defaultSettings, type EngineEvent, type XInputState } from '@dualforge/shared';
 import { createEngineLoop, GRACE_MS, type InputSource, type PadSink } from '../src/main/engine-loop.js';
 import { createReplaySource } from '../src/main/replay-source.js';
 
@@ -621,6 +621,40 @@ describe('engine loop plan 3b: testRumble', () => {
     expect(writes.at(-1)![4]).toBe(204);
     loop.setSettings({ ...defaultSettings(), hasRumble: false });
     expect([writes.at(-1)![4], writes.at(-1)![3]]).toEqual([0, 0]);
+    await loop.stop(); vi.useRealTimers();
+  });
+});
+
+describe('engine loop snapshot: input source and touchpad', () => {
+  it.each(['device', 'replay'] as const)('a %s source tags its snapshots and carries the touch points', async (kind) => {
+    vi.useFakeTimers();
+    let t = 1000;
+    const events: EngineEvent[] = [];
+    let report!: (b: Uint8Array, t: number) => void;
+    const src: InputSource = { kind, start(r, st) { report = r; st(true); }, async write() {}, async stop() {} };
+    const loop = createEngineLoop({ source: src, sink: fakeSink(), emit: (e) => events.push(e), now: () => t, allowInject: false });
+    loop.setProfile(defaultProfile('p', 'p'));
+    await loop.start();
+    const b = usbReport(false);
+    b[33] = 0x05; b[34] = 0x7f; b[35] = 0x37; b[36] = 0x21;   // finger id 5 down at (1919, 531)
+    b[37] = 0x80;                                              // second slot: no finger
+    t += 20; report(b, t);
+    const snaps = events.filter((e) => e.type === 'snapshot');
+    const snap = EngineSnapshotSchema.parse(snaps.at(-1)!.snapshot);
+    expect(snap.source).toBe(kind);
+    expect(snap.raw.touch).toEqual([{ active: true, id: 5, x: 1919, y: 531 }, { active: false, id: 0, x: 0, y: 0 }]);
+    await loop.stop(); vi.useRealTimers();
+  });
+  it('a disconnected snapshot has no fingers down', async () => {
+    vi.useFakeTimers();
+    const events: EngineEvent[] = [];
+    const src: InputSource = { kind: 'device', start(_r, st) { st(false); }, async write() {}, async stop() {} };
+    const loop = createEngineLoop({ source: src, sink: fakeSink(), emit: (e) => events.push(e), now: () => 1000, allowInject: false });
+    loop.setProfile(defaultProfile('p', 'p'));
+    await loop.start();
+    const snap = events.filter((e) => e.type === 'snapshot').at(-1)!.snapshot;
+    expect(snap.raw.touch).toEqual([]);
+    expect(snap.source).toBe('device');
     await loop.stop(); vi.useRealTimers();
   });
 });

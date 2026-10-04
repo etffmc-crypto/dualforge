@@ -163,4 +163,18 @@ describe('StickLive', () => {
     expect(screen.getByText('X 1.000')).toBeTruthy();
     expect(screen.getByText('Y -0.250')).toBeTruthy();
   });
+  it('with a calibration, draws the raw dot in calibrated space around the ring centre', () => {
+    const cal = { cx: 0.1, cy: -0.05, radius: 0.9 };
+    const { container } = render(<StickLive raw={{ x: 0.1, y: -0.05 }} out={{ x: 0, y: 0 }} deadzone={{ center: 0.1, outer: 0 }} calibration={cal} />);
+    const dot = () => container.querySelector('circle.dot-raw')!;
+    expect([dot().getAttribute('cx'), dot().getAttribute('cy')]).toEqual(['80', '80']);   // resting off-centre stick sits in the middle
+    expect(container.querySelector('[data-testid="dz-inner"]')!.getAttribute('cx')).toBe('80');
+    cleanup();
+    const r = render(<StickLive raw={{ x: 0.1 + 0.45, y: -0.05 }} out={{ x: 0, y: 0 }} deadzone={{ center: 0, outer: 0 }} calibration={cal} />);
+    expect(r.container.querySelector('circle.dot-raw')!.getAttribute('cx')).toBe('115');   // (0.45 / 0.9) * 70 + 80
+  });
+  it('without a calibration the raw dot is drawn as reported', () => {
+    const { container } = render(<StickLive raw={{ x: 0.5, y: 0 }} out={{ x: 0, y: 0 }} deadzone={{ center: 0, outer: 0 }} />);
+    expect(container.querySelector('circle.dot-raw')!.getAttribute('cx')).toBe('115');
+  });
 });
