@@ -5,6 +5,7 @@ import { PROFILE_IDS } from '@dualforge/shared';
 import type { HealthInput } from './checks.js';
 
 export const ADAPTER_TIMEOUT_MS = 5000;
+export const FOREIGN_MAX_AGE_MS = 60_000;
 export const VIGEM_BUS_NAME = 'Nefarius Virtual Gamepad Emulation Bus';
 export const DUALSENSE_VID = /VID_054C/i;
 
@@ -16,11 +17,11 @@ export interface ExecResult { stdout: string }
 export type Exec = (file: string, args: string[], opts: { timeoutMs: number }) => Promise<ExecResult>;
 export type ErrorSink = (code: string, msg: string) => void;
 
-/** execFile with a hard timeout (E_HEALTH_TIMEOUT). Other failures keep their error (and `stdout`) for the caller to interpret. */
 const SYS32 = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32');
 export const SC_EXE = join(SYS32, 'sc.exe');
 export const POWERSHELL_EXE = join(SYS32, 'WindowsPowerShell', 'v1.0', 'powershell.exe');
 
+/** execFile with a hard timeout (E_HEALTH_TIMEOUT). Other failures keep their error (and `stdout`) for the caller to interpret. */
 export const defaultExec: Exec = (file, args, { timeoutMs }) =>
   new Promise((resolve, reject) => {
     execFile(file, args, { timeout: timeoutMs, windowsHide: true, maxBuffer: 1024 * 1024, encoding: 'utf8' }, (err, stdout) => {
@@ -128,8 +129,9 @@ export interface GatherDeps {
   ownExe: string;
   appVersion: string;
   engine: () => EngineView;
-  /** `foregroundElevated` is the sticky sample of the last non-DualForge foreground (see the game watcher). */
-  injector: { available: boolean; foregroundElevated: () => boolean | null; selfElevated: () => boolean | null };
+  /** `lastForeign` is the game watcher's sticky sample of the last non-DualForge foreground. */
+  injector: { available: boolean; lastForeign: () => { name: string; elevated: boolean | null; at: number } | null; selfElevated: () => boolean | null };
+  now?: () => number;
   onError: ErrorSink;
   cliPath?: string;
   exists?: (p: string) => boolean;
@@ -149,7 +151,13 @@ export async function gatherInput(d: GatherDeps): Promise<GatheredInput> {
   const s = e.snapshot;
   let foregroundElevated: boolean | null = null;
   let ownElevated: boolean | null = null;
-  try { ownElevated = d.injector.selfElevated(); foregroundElevated = d.injector.foregroundElevated(); } catch (err) { d.onError('E_HEALTH_ELEVATION', (err as Error).message); }
+  let foregroundSeen: { name: string; ageS: number } | null = null;
+  try {
+    ownElevated = d.injector.selfElevated();
+    const f = d.injector.lastForeign();
+    const ageMs = f ? (d.now ?? Date.now)() - f.at : 0;
+    if (f && ageMs <= FOREIGN_MAX_AGE_MS) { foregroundElevated = f.elevated; foregroundSeen = { name: f.name, ageS: Math.round(ageMs / 1000) }; }   // older samples are ignored
+  } catch (err) { d.onError('E_HEALTH_ELEVATION', (err as Error).message); }
   return {
     vigem: { serviceState, busDevicePresent },
     hidhide,
@@ -158,6 +166,6 @@ export async function gatherInput(d: GatherDeps): Promise<GatheredInput> {
     profiles: profileStatuses(d.dataDir, d.fs),
     disk: diskUsage(d.logDir, d.fs),
     app: { version: d.appVersion, updateAvailable: null },
-    inject: { available: d.injector.available, foregroundElevated, ownElevated },
+    inject: { available: d.injector.available, foregroundElevated, ownElevated, foregroundSeen },
   };
 }

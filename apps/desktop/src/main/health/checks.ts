@@ -10,7 +10,7 @@ export interface HealthInput {
   profiles: { slot: string; status: 'ok' | 'quarantined' | 'default' }[];
   disk: { logBytes: number; logFiles: number };
   app: { version: string; updateAvailable: boolean | null };
-  inject: { available: boolean; foregroundElevated: boolean | null; ownElevated: boolean | null };
+  inject: { available: boolean; foregroundElevated: boolean | null; ownElevated: boolean | null; foregroundSeen?: { name: string; ageS: number } | null };
 }
 
 export const MIN_REPORT_HZ = 800;
@@ -78,8 +78,10 @@ export function runChecks(i: HealthInput): HealthResult[] {
   else out.push(ok('logs', 'Logs small', `${(i.disk.logBytes / 1048576).toFixed(1)} MB in ${i.disk.logFiles} files.`));
 
   // Key and mouse injection
+  const fs = i.inject.foregroundSeen;
+  const seen = fs ? ` (last seen: ${fs.name}, ${fs.ageS}s ago)` : '';
   if (!i.inject.available) out.push({ id: 'inject', status: 'warn', title: 'Keyboard and mouse output unavailable', detail: 'The native input addon did not load (E_INJECT_LOAD). Key/mouse mappings and per-game profiles are disabled.' });
-  else if (i.inject.foregroundElevated === true && i.inject.ownElevated !== true) out.push({ id: 'inject', status: 'warn', title: 'Foreground program is elevated', detail: "Keys and mouse can't be injected into an elevated (administrator) game. Run DualForge as administrator or the game without it." });
+  else if (i.inject.foregroundElevated === true && i.inject.ownElevated !== true) out.push({ id: 'inject', status: 'warn', title: 'Foreground program is elevated', detail: `Keys and mouse can't be injected into an elevated (administrator) game${seen}. Run DualForge as administrator or the game without it.` });
   else out.push(ok('inject', 'Keyboard and mouse output ready', 'The native input addon is loaded.'));
 
   // App

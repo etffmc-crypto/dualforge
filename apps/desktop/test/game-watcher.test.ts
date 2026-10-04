@@ -39,6 +39,22 @@ describe('game watcher', () => {
     w.stop();
   });
 
+  it('expires the sticky sample after 60 s of DualForge or empty foreground', () => {
+    let fg = 'game.exe';
+    const w = createGameWatcher({ foreground: () => fg, foregroundElevated: () => true, settings: () => ({ ...defaultSettings() }), onSwitch: vi.fn() });
+    w.start();
+    vi.advanceTimersByTime(2000);
+    expect(w.lastForeignForeground()?.name).toBe('game.exe');
+    fg = 'electron.exe';
+    vi.advanceTimersByTime(2000 * 29);
+    expect(w.lastForeignForeground()).not.toBeNull();   // 58 s: still held
+    vi.advanceTimersByTime(2000 * 2);
+    expect(w.lastForeignForeground()).toBeNull();        // 62 s
+    fg = ''; vi.advanceTimersByTime(2000);
+    expect(w.lastForeignForeground()).toBeNull();
+    w.stop();
+  });
+
   it('switches once to the mapped profile (case-insensitive) and back when the game leaves the foreground', () => {
     const { w, switched } = rig(['explorer.exe', 'cod.exe', 'cod.exe', 'cod.exe', 'explorer.exe', 'explorer.exe']);
     w.start();

@@ -44,7 +44,7 @@ const watcher = createGameWatcher({
 const health = createHealthService({
   gather: () => gatherInput({
     exec: defaultExec, dataDir, logDir: LOG_DIR, ownExe: process.execPath, appVersion: app.getVersion(), engine: () => engineFeed.view(),
-    injector: { available: injector.available, foregroundElevated: () => watcher.lastForeignForeground()?.elevated ?? null, selfElevated: () => injector.selfElevated() },
+    injector: { available: injector.available, lastForeign: () => watcher.lastForeignForeground(), selfElevated: () => injector.selfElevated() },
     onError: (code, msg) => logger.warn({ code, msg }),
   }),
   emit: (s) => { if (win && !win.isDestroyed()) win.webContents.send('health:changed', s); },

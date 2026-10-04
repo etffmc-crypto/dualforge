@@ -84,6 +84,19 @@ describe('absolute system paths and exec errors', () => {
   });
 });
 
+describe('foreign foreground sample', () => {
+  const mk = (at: number, now: number) => gatherInput({
+    exec: async () => ({ stdout: '' }), dataDir: join(tmpdir(), 'df-x'), logDir: join(tmpdir(), 'df-y'), ownExe: 'x.exe', appVersion: '1',
+    engine: () => ({ alive: true, restartsLastHour: 0, lastErrorCodes: [], snapshot: null }),
+    injector: { available: true, lastForeign: () => ({ name: 'game.exe', elevated: true, at }), selfElevated: () => false },
+    onError: vi.fn(), exists: () => false, now: () => now,
+  });
+  it('uses a fresh sample and reports its age; ignores one older than 60 s', async () => {
+    expect((await mk(1000, 13_000)).inject).toMatchObject({ foregroundElevated: true, foregroundSeen: { name: 'game.exe', ageS: 12 } });
+    expect((await mk(1000, 61_001)).inject).toMatchObject({ foregroundElevated: null, foregroundSeen: null });
+  });
+});
+
 describe('queryHidHide', () => {
   it('normalises quotes and slashes in --app-list and reports unknown (null) when the CLI call fails', async () => {
     const base = { cliPath: 'C:\\HH\\HidHideCLI.exe', ownExe: 'C:\\Apps\\DualForge.exe', exists: () => true };
@@ -148,7 +161,7 @@ describe('gatherInput', () => {
     exec: async (file) => ({ stdout: /sc\.exe$/i.test(file) ? SC_RUNNING : 'OK' }),
     dataDir: join(tmpdir(), 'df-missing-data'), logDir: join(tmpdir(), 'df-missing-logs'), ownExe: 'x.exe', appVersion: '1.2.3',
     engine: () => ({ alive: true, restartsLastHour: 1, lastErrorCodes: ['E_PIPELINE'], snapshot: { connected: true, reportHz: 7900, pipelineP99Ms: 0.4, source: 'device' } }),
-    injector: { available: true, foregroundElevated: () => null, selfElevated: () => false },
+    injector: { available: true, lastForeign: () => null, selfElevated: () => false },
     onError: vi.fn(), exists: () => false,
     ...over,
   });
@@ -159,13 +172,13 @@ describe('gatherInput', () => {
     expect(r.device).toEqual({ present: true, reportHz: 7900, source: 'device' });
     expect(r.engine).toEqual({ alive: true, restartsLastHour: 1, p99Ms: 0.4, lastErrorCodes: ['E_PIPELINE'] });
     expect(r.app.version).toBe('1.2.3');
-    expect(r.inject).toEqual({ available: true, foregroundElevated: null, ownElevated: false });
+    expect(r.inject).toEqual({ available: true, foregroundElevated: null, ownElevated: false, foregroundSeen: null });
   });
   it('handles no snapshot yet and a throwing elevation probe', async () => {
     const onError = vi.fn();
     const r = await gatherInput(deps({
       onError, engine: () => ({ alive: false, restartsLastHour: 0, lastErrorCodes: [], snapshot: null }),
-      injector: { available: true, selfElevated: () => false, foregroundElevated: () => { throw new Error('addon exploded'); } },
+      injector: { available: true, selfElevated: () => false, lastForeign: () => { throw new Error('addon exploded'); } },
     }));
     expect(r.device).toEqual({ present: false, reportHz: 0, source: 'device' });
     expect(r.inject.foregroundElevated).toBeNull();

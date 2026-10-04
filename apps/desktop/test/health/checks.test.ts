@@ -58,6 +58,11 @@ describe('runChecks', () => {
     if (repair) expect(r.repair).toBe(repair);
   });
 
+  it('says which program was last seen and how long ago', () => {
+    const r = byId(mod((i) => { i.inject.foregroundElevated = true; i.inject.foregroundSeen = { name: 'cod.exe', ageS: 7 }; }), 'inject');
+    expect(r.detail).toContain('last seen: cod.exe, 7s ago');
+  });
+
   it('names the 8 kHz pad in the report-rate detail', () => {
     const r = byId(mod((i) => { i.device.reportHz = 700; i.device.highestSeenHz = 8000; }), 'reportRate');
     expect(r.detail).toMatch(/8 kHz/);
