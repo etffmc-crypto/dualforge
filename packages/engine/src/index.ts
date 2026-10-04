@@ -1,5 +1,6 @@
 export * from './codec/parse-input.js';
 export * from './codec/build-output.js';
+export * from './codec/trigger-effect.js';
 export * from './stages/stick-shape.js';
 export * from './stages/stick-curve.js';
 export * from './stages/stick-filter.js';
