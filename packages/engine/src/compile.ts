@@ -10,6 +10,7 @@ export interface CompiledProfile {
   left: CompiledStick; right: CompiledStick;
   lt: CompiledTrigger; rt: CompiledTrigger;
   macros: Map<string, Macro>;
+  gyroLut: Float32Array;
 }
 
 const stick = (cfg: StickConfig): CompiledStick => ({
@@ -22,6 +23,7 @@ export function compileProfile(profile: Profile): CompiledProfile {
     profile,
     left: stick(profile.sticks.left), right: stick(profile.sticks.right),
     lt: trig(profile.triggers.left), rt: trig(profile.triggers.right),
+    gyroLut: buildCurveLut(presetPoints(profile.gyro.curve)),
     macros: new Map(profile.macros.map((m) => [m.id, m])),
   };
 }

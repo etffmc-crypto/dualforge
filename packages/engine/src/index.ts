@@ -8,6 +8,7 @@ export * from './stages/calibration.js';
 export * from './stages/triggers.js';
 export * from './stages/mapping.js';
 export * from './stages/macros.js';
+export * from './stages/gyro.js';
 export * from './compile.js';
 export * from './pipeline.js';
 export * from './replay/hidlog.js';

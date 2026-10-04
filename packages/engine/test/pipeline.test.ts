@@ -78,4 +78,24 @@ describe('processReport', () => {
     expect(processReport(press, cp, s, 100).keys).toEqual([{ code: 'VK_Q', down: false }]);
     expect(processReport(press, cp, s, 150).keys).toEqual([]);
   });
+  it('gyro rightStick adds to the processed right stick and clamps to the unit circle', () => {
+    const p = defaultProfile('p', 'p'); p.gyro.output = 'rightStick'; p.gyro.deadzoneDps = 0;
+    const cp = compileProfile(p);
+    const withGyro = (rxByte: number, yawLsb: number) => {
+      const b = report((bb) => { bb[3] = rxByte; });
+      const raw = parseDualSenseUsb(b); raw.gyro.y = yawLsb;
+      return processReport(raw, cp, createPipelineState(), 0);
+    };
+    expect(withGyro(128, -100 * 16.384).xinput.rx).toBeCloseTo(0.5, 2);
+    const o = withGyro(255, -200 * 16.384);
+    expect(Math.hypot(o.xinput.rx, o.xinput.ry)).toBeLessThanOrEqual(1.0000001);
+  });
+  it('gyro mouse sets mouseMove and leaves the right stick alone', () => {
+    const p = defaultProfile('p', 'p'); p.gyro.output = 'mouse'; p.gyro.deadzoneDps = 0;
+    const raw = parseDualSenseUsb(report(() => {})); raw.gyro.y = -100 * 16.384;
+    const o = processReport(raw, compileProfile(p), createPipelineState(), 10);   // first frame dt = 1 ms
+    expect(o.xinput.rx).toBe(0);
+    const s = createPipelineState(); processReport(raw, compileProfile(p), s, 0);
+    expect(processReport(raw, compileProfile(p), s, 10).mouseMove.dx).toBe(10);
+  });
 });
