@@ -120,7 +120,7 @@ export function CalibrationWizard({ side, onClose }: { side: Side; onClose(): vo
             {center
               ? <p className="cal-result">Rest position <span className="mono" data-testid="cal-center">X {fmt(center.x)} Â· Y {fmt(center.y)}</span></p>
               : restFail
-                ? <p className="cal-result" role="alert" data-testid="cal-rest-error">{restFail === 'moving' ? "Stick isn't at rest — release it and try again" : 'Stick is off-center — release it fully'}</p>
+                ? <p className="cal-result" role="alert" data-testid="cal-rest-error">{restFail === 'moving' ? "Stick isn't at rest - release it and try again" : 'Stick is off-center - release it fully'}</p>
                 : <p className="cal-result muted">{snapshot ? 'Measuringâ€¦' : 'Waiting for the controllerâ€¦'}</p>}
           </div>
         )}

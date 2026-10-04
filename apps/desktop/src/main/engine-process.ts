@@ -16,10 +16,14 @@ port.on('message', (m) => {
   switch (c.type) {
     case 'setProfile': loop.setProfile(c.profile); break;
     case 'replay':
-      try { loop.swapSource(createReplaySource(c.path, true)); }
-      catch (e) { emit({ type: 'error', code: 'E_REPLAY_OPEN', msg: (e as Error).message }); }
+      void (async () => {
+        try { await loop.swapSource(createReplaySource(c.path, true)); }
+        catch (e) { emit({ type: 'error', code: 'E_REPLAY_OPEN', msg: (e as Error).message }); }
+      })();
       break;
-    case 'useDevice': loop.swapSource(createDeviceSource()); break;
+    case 'useDevice':
+      void loop.swapSource(createDeviceSource()).catch((e: unknown) => emit({ type: 'error', code: 'E_ENGINE_SWAP', msg: (e as Error).message }));
+      break;
     case 'shutdown': void (async () => { await loop.stop(); process.exit(0); })(); break;
   }
 });

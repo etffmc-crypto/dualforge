@@ -66,6 +66,7 @@ describe('CalibrationWizard', () => {
     render(<CalibrationWizard side="left" onClose={() => {}} />);
     for (let i = 0; i < 130; i++) feed(0.3, 0);
     expect(screen.getByTestId('cal-rest-error').textContent).toMatch(/off-center/);
+    expect(screen.getByTestId('cal-rest-error').textContent).not.toContain('�');
     expect(next().disabled).toBe(true);
     expect(screen.queryByTestId('cal-center')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Measure again' }));
@@ -78,6 +79,7 @@ describe('CalibrationWizard', () => {
     render(<CalibrationWizard side="left" onClose={() => {}} />);
     for (let i = 0; i < 130; i++) feed(i % 2 ? 0.12 : 0, 0);
     expect(screen.getByTestId('cal-rest-error').textContent).toMatch(/at rest/);
+    expect(screen.getByTestId('cal-rest-error').textContent).not.toContain('�');
     expect(next().disabled).toBe(true);
   });
 

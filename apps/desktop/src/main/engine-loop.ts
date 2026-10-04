@@ -130,6 +130,7 @@ export function createEngineLoop(d: LoopDeps) {
     } });
   }
   let idle: NodeJS.Timeout | null = null;
+  let swapping: Promise<void> = Promise.resolve();
 
   return {
     // Pipeline state (filters, hair-trigger hysteresis, turbo) is deliberately preserved so live edits do not jump.
@@ -147,15 +148,21 @@ export function createEngineLoop(d: LoopDeps) {
       await d.source.stop();
       d.sink.disconnect();
     },
-    async swapSource(src: InputSource) {
-      if (profile && connected) await d.source.write(safeReport()).catch(() => {});
-      await d.source.stop(); d.source = src;
-      connected = false; lastOutBytes = null;
-      neutralize();
-      armGrace();   // a never-connecting new source still releases the pad
-      d.emit({ type: 'status', connected: false, vigemReady: d.sink.ready });
-      const now = d.now(); lastSnap = now; emitSnapshot(now);
-      d.source.start(onReport, onStatus, onError);
+    // Concurrent swaps are serialised: a second call waits for the first to finish, then proceeds.
+    swapSource(src: InputSource): Promise<void> {
+      const run = swapping.catch(() => {}).then(() => doSwap(src));
+      swapping = run;
+      return run;
     },
   };
+  async function doSwap(src: InputSource) {
+    if (profile && connected) await d.source.write(safeReport()).catch(() => {});
+    await d.source.stop(); d.source = src;
+    connected = false; lastOutBytes = null;
+    neutralize();
+    armGrace();   // a never-connecting new source still releases the pad
+    d.emit({ type: 'status', connected: false, vigemReady: d.sink.ready });
+    const now = d.now(); lastSnap = now; emitSnapshot(now);
+    d.source.start(onReport, onStatus, onError);
+  }
 }

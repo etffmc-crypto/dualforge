@@ -83,6 +83,15 @@ describe('engine loop output reports and source swap', () => {
     expect(order.slice(-2)).toEqual(['write', 'stop']);
     await loop.stop(); vi.useRealTimers();
   });
+  it('serialises concurrent swapSource calls', async () => {
+    vi.useFakeTimers();
+    const order: string[] = [];
+    const mk = (n: string): InputSource => ({ start() { order.push(`start ${n}`); }, async write() {}, async stop() { await Promise.resolve(); order.push(`stop ${n}`); } });
+    const loop = createEngineLoop({ source: mk('a'), sink: fakeSink(), emit: () => {}, now: () => performance.now() });
+    await Promise.all([loop.swapSource(mk('b')), loop.swapSource(mk('c'))]);
+    expect(order).toEqual(['stop a', 'start b', 'stop b', 'start c']);
+    await loop.stop(); vi.useRealTimers();
+  });
   it('swapSource emits status false and forces an output write on the new source', async () => {
     vi.useFakeTimers();
     const events: { type: string; connected?: boolean }[] = [];
