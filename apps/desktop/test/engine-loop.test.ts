@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fileURLToPath } from 'node:url';
-import { defaultProfile, type XInputState } from '@dualforge/shared';
+import { defaultProfile, defaultSettings, type XInputState } from '@dualforge/shared';
 import { createEngineLoop, GRACE_MS, type InputSource, type PadSink } from '../src/main/engine-loop.js';
 import { createReplaySource } from '../src/main/replay-source.js';
 
@@ -118,6 +118,7 @@ describe('engine loop safety and errors', () => {
     const src: InputSource = { start(_r, st) { st(true); }, async write(r) { writes.push(r); }, async stop() {} };
     const loop = createEngineLoop({ source: src, sink, emit: () => {}, now: () => performance.now() });
     loop.setProfile(defaultProfile('p', 'p'));
+    loop.setSettings({ ...defaultSettings(), hasRumble: true });
     await loop.start();
     sink.rumble!(1, 0.5);
     const last = writes[writes.length - 1]!;
@@ -318,6 +319,86 @@ describe('engine loop plan 2: compiled profiles, grace release, trigger effects'
     expect(disconnect).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
     expect(disconnect).toHaveBeenCalledTimes(1);
+    await loop.stop(); vi.useRealTimers();
+  });
+});
+
+function fakeInjector() {
+  const calls: string[] = [];
+  return {
+    calls,
+    key: (c: string, d: boolean) => calls.push(`key ${c} ${d ? 'down' : 'up'}`),
+    mouse: (b: string, d: boolean) => calls.push(`mouse ${b} ${d ? 'down' : 'up'}`),
+    move: (dx: number, dy: number) => calls.push(`move ${dx} ${dy}`),
+  };
+}
+function keyProfile() {
+  const p = defaultProfile('p', 'p');
+  p.mappings.cross = { targets: [{ type: 'key', code: 'VK_SPACE' }], turboHz: 0, continuous: false };
+  return p;
+}
+async function injectorRig() {
+  const injector = fakeInjector();
+  let report!: (b: Uint8Array, t: number) => void;
+  const src: InputSource = { start(r, st) { report = r; st(true); }, async write() {}, async stop() {} };
+  const loop = createEngineLoop({ source: src, sink: fakeSink(), emit: () => {}, now: () => performance.now(), injector });
+  loop.setProfile(keyProfile());
+  await loop.start();
+  return { injector, loop, report: (b: Uint8Array) => report(b, performance.now()) };
+}
+
+describe('engine loop plan 3a: injector gate, rumble setting, lights cadence', () => {
+  it('key events reach the injector when the UI is not focused', async () => {
+    vi.useFakeTimers();
+    const { injector, loop, report } = await injectorRig();
+    loop.setUiFocused(false);
+    report(usbReport(true)); report(usbReport(false));
+    expect(injector.calls).toEqual(['key VK_SPACE down', 'key VK_SPACE up']);
+    await loop.stop(); vi.useRealTimers();
+  });
+  it('injects nothing while uiFocused (the default)', async () => {
+    vi.useFakeTimers();
+    const { injector, loop, report } = await injectorRig();
+    report(usbReport(true)); report(usbReport(false));
+    expect(injector.calls).toEqual([]);
+    await loop.stop(); vi.useRealTimers();
+  });
+  it('releases held injected keys when the UI gains focus', async () => {
+    vi.useFakeTimers();
+    const { injector, loop, report } = await injectorRig();
+    loop.setUiFocused(false);
+    report(usbReport(true));
+    loop.setUiFocused(true);
+    expect(injector.calls).toEqual(['key VK_SPACE down', 'key VK_SPACE up']);
+    report(usbReport(false));   // late release must not re-send an up
+    expect(injector.calls).toHaveLength(2);
+    await loop.stop(); vi.useRealTimers();
+  });
+  it('hasRumble false forces rumble bytes to 0 and ignores sink vibration', async () => {
+    vi.useFakeTimers();
+    const writes: Uint8Array[] = [];
+    const sink = fakeSink();
+    const src: InputSource = { start(_r, st) { st(true); }, async write(r) { writes.push(r); }, async stop() {} };
+    const loop = createEngineLoop({ source: src, sink, emit: () => {}, now: () => performance.now() });
+    loop.setProfile(defaultProfile('p', 'p'));
+    await loop.start();
+    sink.rumble!(1, 1);
+    await vi.advanceTimersByTimeAsync(600);
+    for (const w of writes) { expect(w[3]).toBe(0); expect(w[4]).toBe(0); }
+    await loop.stop(); vi.useRealTimers();
+  });
+  it('breathing lights write >= 2 distinct lightbar colours within 1 s', async () => {
+    vi.useFakeTimers();
+    const writes: Uint8Array[] = [];
+    const src: InputSource = { start(_r, st) { st(true); }, async write(r) { writes.push(r); }, async stop() {} };
+    const loop = createEngineLoop({ source: src, sink: fakeSink(), emit: () => {}, now: () => performance.now() });
+    const p = defaultProfile('p', 'p');
+    p.lights = { ...p.lights, mode: 'breathing', speed: 100, r: 255, g: 0, b: 255 };
+    loop.setProfile(p);
+    await loop.start();
+    await vi.advanceTimersByTimeAsync(1000);
+    const colours = new Set(writes.map((w) => `${w[45]},${w[46]},${w[47]}`));
+    expect(colours.size).toBeGreaterThanOrEqual(2);
     await loop.stop(); vi.useRealTimers();
   });
 });
