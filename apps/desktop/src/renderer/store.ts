@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { EngineSnapshot, Profile } from '@dualforge/shared';
 
-export type Page = 'home' | 'inputTest';
+export type Page = 'home' | 'sticks' | 'triggers' | 'motion' | 'vibrations' | 'lights' | 'inputTest';
 
 interface State {
   snapshot: EngineSnapshot | null;

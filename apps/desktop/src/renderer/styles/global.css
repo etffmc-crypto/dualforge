@@ -1,4 +1,11 @@
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
-body { font-family: var(--font); color: var(--text); background: linear-gradient(135deg, var(--bg-a), var(--bg-b)) fixed; overflow: hidden; user-select: none; }
+body {
+  font-family: var(--font); font-weight: 400; font-size: 14px; color: var(--text);
+  background: var(--glow), var(--bg); background-attachment: fixed;
+  overflow: hidden; user-select: none; -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .app { height: 100%; display: flex; flex-direction: column; }
+.muted { color: var(--muted); }

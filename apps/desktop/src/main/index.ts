@@ -23,7 +23,7 @@ function validateReplayPath(raw: unknown): string {
 function createWindow(): void {
   win = new BrowserWindow({
     width: 1280, height: 800, minWidth: 1000, minHeight: 680,
-    frame: false, backgroundColor: '#0b0b14', show: false,
+    frame: false, backgroundColor: '#0d0b10', show: false,
     webPreferences: { preload: join(__dirname, '../preload/index.js'), sandbox: true, contextIsolation: true },
   });
   win.on('ready-to-show', () => win?.show());
