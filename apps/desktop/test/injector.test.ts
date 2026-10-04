@@ -33,6 +33,15 @@ describe('injector', () => {
     expect(log).toHaveBeenCalledWith('E_INJECT_LOAD', 'Cannot find module');
     inj.key('VK_SPACE', true); inj.mouse('left', true); inj.move(1, 1);
     expect(inj.foreground()).toBe('');
+    expect(inj.foregroundElevated()).toBeNull();
+  });
+  it('foregroundElevated passes the addon answer through and degrades to null', () => {
+    const a = fakeAddon();
+    (a as { foregroundElevated?: unknown }).foregroundElevated = vi.fn(() => true);
+    expect(createInjector(vi.fn(), () => a).foregroundElevated()).toBe(true);
+    (a as { foregroundElevated?: unknown }).foregroundElevated = vi.fn(() => { throw new Error('x'); });
+    expect(createInjector(vi.fn(), () => a).foregroundElevated()).toBeNull();
+    expect(createInjector(vi.fn(), () => fakeAddon()).foregroundElevated()).toBeNull();   // old addon without the export
   });
 });
 

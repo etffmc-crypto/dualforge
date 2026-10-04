@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { EngineEvent, Profile, ProfileSummary, Settings } from '@dualforge/shared';
+import type { EngineEvent, HealthRepairRequest, HealthRepairResult, HealthState, Profile, ProfileSummary, Settings } from '@dualforge/shared';
 
 const api = {
   /** Fixed at launch from main's environment (the sandboxed preload sees it); no IPC. */
@@ -52,6 +52,18 @@ const api = {
     runMacro: (id: string): Promise<void> => ipcRenderer.invoke('engine:runMacro', id),
     /** Plays both rumble motors at the given levels (0..1) for `ms` (50..2000); ignored when settings.hasRumble is off. */
     testRumble: (req: { left: number; right: number; ms: number }): Promise<void> => ipcRenderer.invoke('engine:testRumble', req),
+  },
+  health: {
+    /** Cached check results (runs the checks first if none exist yet). */
+    get: (): Promise<HealthState> => ipcRenderer.invoke('health:get'),
+    run: (): Promise<HealthState> => ipcRenderer.invoke('health:run'),
+    repair: (req: HealthRepairRequest): Promise<HealthRepairResult> => ipcRenderer.invoke('health:repair', req),
+    /** Fires after every check run (startup, every 5 min, on demand, after a repair). */
+    onChanged(cb: (s: HealthState) => void): () => void {
+      const h = (_: unknown, s: HealthState) => cb(s);
+      ipcRenderer.on('health:changed', h);
+      return () => ipcRenderer.removeListener('health:changed', h);
+    },
   },
   window: {
     minimize: () => ipcRenderer.send('window:minimize'),

@@ -96,6 +96,29 @@ Napi::Value ForegroundProcessName(const Napi::CallbackInfo& info) {
   return Napi::String::New(env, reinterpret_cast<const char16_t*>(base.c_str()), base.size());
 }
 
+// true / false: whether the foreground window's process runs elevated (TokenElevation); null when it cannot be determined
+// (no foreground window, or the process is protected and cannot be opened).
+Napi::Value ForegroundElevated(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  HWND hwnd = ::GetForegroundWindow();
+  if (!hwnd) return env.Null();
+  DWORD pid = 0;
+  ::GetWindowThreadProcessId(hwnd, &pid);
+  if (!pid) return env.Null();
+  HANDLE proc = ::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+  if (!proc) return env.Null();
+  HANDLE token = nullptr;
+  BOOL opened = ::OpenProcessToken(proc, TOKEN_QUERY, &token);
+  ::CloseHandle(proc);
+  if (!opened) return env.Null();
+  TOKEN_ELEVATION elevation = {};
+  DWORD got = 0;
+  BOOL ok = ::GetTokenInformation(token, TokenElevation, &elevation, sizeof(elevation), &got);
+  ::CloseHandle(token);
+  if (!ok) return env.Null();
+  return Napi::Boolean::New(env, elevation.TokenIsElevated != 0);
+}
+
 }  // namespace
 
 Napi::Object Init(Napi::Env env, Napi::Object exports) {
@@ -103,6 +126,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set("sendMouseButton", Napi::Function::New(env, SendMouseButton));
   exports.Set("sendMouseMove", Napi::Function::New(env, SendMouseMove));
   exports.Set("foregroundProcessName", Napi::Function::New(env, ForegroundProcessName));
+  exports.Set("foregroundElevated", Napi::Function::New(env, ForegroundElevated));
   return exports;
 }
 

@@ -67,11 +67,12 @@ export function registerIpc(d: IpcDeps) {
     if (slot === engineProfileId) d.engine.send({ type: 'setProfile', profile: p });
     return p;
   });
-  h('profiles:reset', (id) => {
+  function resetProfile(id: unknown): void {
     const pid = IdSchema.parse(id);
     d.store.reset(pid);
     if (pid === engineProfileId) d.engine.send({ type: 'setProfile', profile: d.store.get(pid) });
-  });
+  }
+  h('profiles:reset', resetProfile);
   h('profiles:export', async (id) => {
     const pid = IdSchema.parse(id);
     const r = await d.dialog.showSaveDialog({ defaultPath: `${d.store.get(pid).name}.dualforge.json`, filters: [{ name: 'DualForge profile', extensions: ['json'] }] });
@@ -120,5 +121,11 @@ export function registerIpc(d: IpcDeps) {
   h('profile:get', () => d.store.get(engineProfileId));
   h('profile:set', saveProfile);
 
-  return { applyProfile, activate, flush: () => d.store.flush(), currentEngineProfile: () => engineProfileId };
+  /** Health repair: reset a slot, and when it is the running one tell the renderer to reload it. */
+  function repairResetProfile(id: string): void {
+    resetProfile(id);
+    if (id === engineProfileId) d.notifyActive(id);
+  }
+
+  return { applyProfile, activate, resetProfile: repairResetProfile, flush: () => d.store.flush(), currentEngineProfile: () => engineProfileId };
 }

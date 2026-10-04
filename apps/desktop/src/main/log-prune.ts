@@ -22,3 +22,19 @@ export function pruneLogs(dir: string, now: number, onError: (msg: string) => vo
   }
   return deleted;
 }
+
+/** Every `app*.log` except the newest (the one the logger is still writing). */
+export function selectLogsToClear(files: readonly LogFile[]): string[] {
+  const logs = files.filter((f) => /^app.*\.log$/.test(f.name)).sort((a, b) => b.mtimeMs - a.mtimeMs);
+  return logs.slice(1).map((f) => f.name);
+}
+
+/** Health "clear logs" repair; a file that cannot be deleted (still open) is skipped. Returns how many were removed. */
+export function clearLogs(dir: string): number {
+  let files: LogFile[];
+  try { files = readdirSync(dir).flatMap((name) => { try { return [{ name, mtimeMs: statSync(join(dir, name)).mtimeMs }]; } catch { return []; } }); }
+  catch { return 0; }
+  let n = 0;
+  for (const name of selectLogsToClear(files)) { try { unlinkSync(join(dir, name)); n++; } catch { /* in use */ } }
+  return n;
+}

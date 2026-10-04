@@ -64,6 +64,36 @@ describe('engine host', () => {
     expect(events.filter((e) => e.type === 'error' && e.code === 'E_INJECT_LOAD')).toHaveLength(2);
   });
 
+  it('stats() counts unplanned exits; restart() respawns at once, replays state and is not a crash', () => {
+    const { host } = setup();
+    host.start();
+    expect(host.stats()).toEqual({ alive: true, restartsLastHour: 0 });
+    host.send({ type: 'uiFocused', focused: true });
+    children[0]!.emit('exit', 1);
+    expect(host.stats()).toEqual({ alive: false, restartsLastHour: 1 });
+    vi.advanceTimersByTime(500);
+    expect(host.stats()).toEqual({ alive: true, restartsLastHour: 1 });
+    host.restart();
+    expect(children[1]!.kill).toHaveBeenCalled();
+    children[1]!.emit('exit', 0);
+    expect(children).toHaveLength(3);
+    expect(children[2]!.postMessage).toHaveBeenCalledWith({ type: 'uiFocused', focused: true });
+    expect(host.stats()).toEqual({ alive: true, restartsLastHour: 1 });   // the planned restart is not counted
+    vi.advanceTimersByTime(3_600_001);
+    expect(host.stats().restartsLastHour).toBe(0);
+  });
+
+  it('restart() recovers from a tripped restart limit', () => {
+    const { host } = setup();
+    host.start();
+    for (let i = 0; i < 4; i++) { children[i]!.emit('exit', 1); vi.advanceTimersByTime(500 * (i + 1)); }
+    children[4]!.emit('exit', 1);
+    expect(host.stats().alive).toBe(false);
+    host.restart();
+    expect(children).toHaveLength(6);
+    expect(host.stats().alive).toBe(true);
+  });
+
   it('stop() during a pending backoff cancels the respawn', () => {
     const { host } = setup();
     host.start();

@@ -6,6 +6,8 @@ export interface SendInputAddon {
   sendMouseButton(button: 0 | 1 | 2, down: boolean): void;
   sendMouseMove(dx: number, dy: number): void;
   foregroundProcessName(): string;
+  /** Absent in addon builds that predate it. */
+  foregroundElevated?(): boolean | null;
 }
 export interface Injector {
   readonly available: boolean;
@@ -13,6 +15,8 @@ export interface Injector {
   mouse(btn: 'left' | 'right' | 'middle', down: boolean): void;
   move(dx: number, dy: number): void;
   foreground(): string;
+  /** Whether the foreground process runs elevated; null when unknown (no addon, protected process, old addon). */
+  foregroundElevated(): boolean | null;
 }
 export type InjectLog = (code: string, msg: string) => void;
 
@@ -41,6 +45,7 @@ export function createInjector(log: InjectLog, load: () => SendInputAddon = load
     },
     mouse(btn, down) { addon?.sendMouseButton(BUTTON[btn], down); },
     move(dx, dy) { if (dx !== 0 || dy !== 0) addon?.sendMouseMove(dx, dy); },
+    foregroundElevated() { try { return addon?.foregroundElevated?.() ?? null; } catch { return null; } },
     foreground() { try { return addon?.foregroundProcessName() ?? ''; } catch { return ''; } },
   };
 }

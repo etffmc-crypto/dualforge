@@ -148,6 +148,41 @@ Could not open the data folder in Explorer. Fix: open `%APPDATA%\DualForge` manu
 ### E_PROCESSES
 Listing running programs for the auto-switch picker failed. Fix: type the exe name manually.
 
+## Health checks and repairs
+
+### E_HEALTH_TIMEOUT
+A health probe (`sc.exe`, PowerShell, HidHideCLI) did not answer within 5 s and was killed; the affected check shows "unknown". Cause: a busy or hung system. Fix: run the checks again.
+
+### E_HEALTH_SC
+`sc query ViGEmBus` failed for a reason other than "service not found". Fix: run the checks again; check that `sc.exe` works in a terminal.
+
+### E_HEALTH_PNP
+The PowerShell PnP query for the ViGEm bus device failed. Cause: PowerShell blocked by policy or unavailable. Fix: run the checks again; the service check still works.
+
+### E_HEALTH_HIDHIDE
+HidHideCLI.exe was found but `--app-list` or `--dev-list` failed. Cause: broken HidHide install. Fix: reinstall HidHide from the Health page.
+
+### E_HEALTH_ELEVATION
+The native addon threw while checking whether the foreground program is elevated; treated as unknown. Fix: none needed; reinstall if it repeats.
+
+### E_HEALTH_CHECK
+A whole health run failed unexpectedly; the previous results are kept. Fix: run again; report with a diagnostics bundle if it repeats.
+
+### E_HEALTH_REQUEST
+`health:repair` received a payload that failed validation (unknown repair id, extra fields, argument over 64 characters) and was rejected. Cause: a bug or tampered renderer.
+
+### E_HEALTH_BAD_ARG
+A repair got a missing or invalid argument (resetProfile needs a slot p1..p4).
+
+### E_HEALTH_REPAIR_UNAVAILABLE
+The requested repair is not available in this build (installers arrive in a later release, or the diagnostics bundle is not wired).
+
+### E_HEALTH_REPAIR_FAILED
+A repair threw an error (see `msg` in the log). Fix: retry; export a diagnostics bundle if it repeats.
+
+### E_HEALTH_OPEN_LOGS
+Explorer could not open the logs folder. Fix: open `%APPDATA%\DualForge\logs` manually.
+
 ## Process-level
 
 ### E_UNCAUGHT
@@ -163,6 +198,12 @@ Info: the engine reported a connection transition (`connected`, `vigemReady`).
 
 ### ENGINE_EXIT
 Warning: the engine process exited (`exitCode`); main restarts it unless stopping or past the restart limit.
+
+### HEALTH_RESULT
+Warning: a health run found an `error`-status check (`id`, `status`).
+
+### HEALTH_REPAIR
+Info: a repair completed (`id`, plus a result such as `deleted`).
 
 ### LOG_PRUNE
 Info/warning: startup removal of `app*.log` files older than 14 days (`deleted` count, or `msg` on failure).

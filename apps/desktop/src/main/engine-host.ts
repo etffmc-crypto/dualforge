@@ -15,6 +15,14 @@ export function createEngineHost(opts: { onEvent: (e: EngineEvent) => void; log:
   let killTimer: NodeJS.Timeout | null = null;
   // Codes that describe a permanent condition (a missing addon): every respawned engine re-reports them, but the log gets one line per run.
   const loggedOnce = new Set<string>();
+  // Unplanned exits over the last hour (Health reads this) and children we killed on purpose (restart()).
+  let exits: number[] = [];
+  const intentional = new WeakSet<object>();
+
+  function respawn() {
+    spawn();
+    for (const c of [last.setSettings, last.uiFocused, last.setProfile]) if (c) child?.postMessage(c);
+  }
 
   function spawn() {
     const thisChild = utilityProcess.fork(join(__dirname, 'engine-process.js'), [], { serviceName: 'dualforge-engine', stdio: 'pipe' });
@@ -38,7 +46,10 @@ export function createEngineHost(opts: { onEvent: (e: EngineEvent) => void; log:
       child = null;
       opts.onEvent({ type: 'status', connected: false, vigemReady: false });
       if (stopping) return;
+      if (intentional.has(thisChild)) { respawn(); return; }
       const now = Date.now();
+      exits = exits.filter((t) => now - t < 3_600_000);
+      exits.push(now);
       restarts = restarts.filter((t) => now - t < 60_000);
       restarts.push(now);
       if (restarts.length >= 5) {   // the 5th crash within 60 s trips the limit
@@ -50,8 +61,7 @@ export function createEngineHost(opts: { onEvent: (e: EngineEvent) => void; log:
       restartTimer = setTimeout(() => {
         restartTimer = null;
         if (stopping) return;
-        spawn();
-        for (const c of [last.setSettings, last.uiFocused, last.setProfile]) if (c) child?.postMessage(c);
+        respawn();
       }, 500 * restarts.length);
     });
   }
@@ -65,6 +75,21 @@ export function createEngineHost(opts: { onEvent: (e: EngineEvent) => void; log:
     send(cmd: EngineCommand) {
       if (cmd.type === 'setProfile' || cmd.type === 'setSettings' || cmd.type === 'uiFocused') last[cmd.type] = cmd;
       child?.postMessage(cmd);
+    },
+    /** Health snapshot: is a child running, and how many unplanned exits in the last hour. */
+    stats() {
+      const now = Date.now();
+      return { alive: child !== null, restartsLastHour: exits.filter((t) => now - t < 3_600_000).length };
+    },
+    /** User-requested restart: clears the crash window (so the restart limit can be left) and respawns at once. */
+    restart() {
+      stopping = false;
+      if (restartTimer) { clearTimeout(restartTimer); restartTimer = null; }
+      if (killTimer) { clearTimeout(killTimer); killTimer = null; }
+      restarts = [];
+      const old = child;
+      if (old) { intentional.add(old); old.kill(); }
+      else respawn();
     },
     stop() {
       stopping = true;

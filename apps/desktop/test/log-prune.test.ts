@@ -21,3 +21,13 @@ describe('selectLogsToPrune', () => {
     expect(selectLogsToPrune([], now)).toEqual([]);
   });
 });
+
+describe('selectLogsToClear', () => {
+  it('keeps the newest app log and ignores other files', async () => {
+    const { selectLogsToClear } = await import('../src/main/log-prune.js');
+    expect(selectLogsToClear([
+      { name: 'app.1.log', mtimeMs: 1 }, { name: 'app.3.log', mtimeMs: 3 }, { name: 'app.2.log', mtimeMs: 2 }, { name: 'x.txt', mtimeMs: 0 },
+    ])).toEqual(['app.2.log', 'app.1.log']);
+    expect(selectLogsToClear([{ name: 'app.1.log', mtimeMs: 1 }])).toEqual([]);
+  });
+});

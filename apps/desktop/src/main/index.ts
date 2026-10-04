@@ -3,7 +3,10 @@ import { basename, join, resolve, extname } from 'node:path';
 import { statSync } from 'node:fs';
 import { z } from 'zod';
 import { logger, LOG_DIR } from './logger.js';
-import { pruneLogs } from './log-prune.js';
+import { clearLogs, pruneLogs } from './log-prune.js';
+import { createHealthService, createEngineFeed } from './health/service.js';
+import { gatherInput, defaultExec } from './health/adapters.js';
+import { registerHealthIpc } from './health/ipc.js';
 import { createEngineHost } from './engine-host.js';
 import { createProfileStore } from './profile-store.js';
 import { createSettingsStore } from './settings-store.js';
@@ -13,7 +16,8 @@ import { createGameWatcher } from './game-watcher.js';
 import { createProcessLister } from './processes.js';
 
 let win: BrowserWindow | null = null;
-const engine = createEngineHost({ log: logger, onEvent: (e) => { if (win && !win.isDestroyed()) win.webContents.send('engine:event', e); } });
+const engine = createEngineHost({ log: logger, onEvent: (e) => { engineFeed.onEvent(e); if (win && !win.isDestroyed()) win.webContents.send('engine:event', e); } });
+const engineFeed = createEngineFeed(() => engine.stats());
 
 const dataDir = process.env.DUALFORGE_DATA_DIR ?? join(app.getPath('appData'), 'DualForge');
 const store = createProfileStore(dataDir, logger);
@@ -30,6 +34,23 @@ const watcher = createGameWatcher({
   foreground: () => injector.foreground(), settings: () => settings.get(), onSwitch: (id) => ipc.applyProfile(id, 'auto'), log: (code, msg) => logger.error({ code, msg }),
   available: injector.available,
 });
+
+const health = createHealthService({
+  gather: () => gatherInput({
+    exec: defaultExec, dataDir, logDir: LOG_DIR, ownExe: process.execPath, appVersion: app.getVersion(), engine: () => engineFeed.view(),
+    injector: { available: injector.available, foregroundElevated: () => injector.foregroundElevated() },
+    onError: (code, msg) => logger.warn({ code, msg }),
+  }),
+  emit: (s) => { if (win && !win.isDestroyed()) win.webContents.send('health:changed', s); },
+  log: logger,
+  repairs: {
+    restartEngine: () => engine.restart(),
+    resetProfile: (id) => { ipc.resetProfile(id); },
+    clearLogs: () => clearLogs(LOG_DIR),
+    openLogs: () => shell.openPath(LOG_DIR),
+  },
+});
+registerHealthIpc({ ipc: ipcMain, service: health, log: logger });
 
 const MAX_REPLAY_BYTES = 16 * 1024 * 1024;
 function validateReplayPath(raw: unknown): string {
@@ -85,8 +106,9 @@ if (!app.requestSingleInstanceLock()) {
     engine.send({ type: 'uiFocused', focused: win?.isFocused() ?? true });
     ipc.applyProfile(settings.get().activeProfile);
     watcher.start();
+    health.start();
   });
-  app.on('before-quit', () => { watcher.stop(); ipc.flush(); engine.stop(); });
+  app.on('before-quit', () => { health.stop(); watcher.stop(); ipc.flush(); engine.stop(); });
   app.on('window-all-closed', () => app.quit());
 }
 process.on('uncaughtException', (err) => logger.error({ code: 'E_UNCAUGHT', msg: err.message, stack: err.stack }));
