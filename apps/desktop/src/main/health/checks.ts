@@ -8,6 +8,8 @@ export interface HealthInput {
     cliPath: string | null;
     whitelisted: boolean | null;
     deviceHidden: boolean;
+    /** A quit could not un-cloak (no admin rights): the pad stays hidden from games while DualForge is closed. */
+    cloakStuck?: boolean;
   };
   /** `highestSeenHz` is the best report rate observed this session (kept by the service). */
   device: {
@@ -94,7 +96,7 @@ export function runChecks(i: HealthInput): HealthResult[] {
       status: 'warn',
       title: 'HidHide not installed',
       detail:
-        'Optional, but without it games also see the physical DualSense next to the virtual Xbox pad and may double-count input.',
+        'Optional, but without it games also see the physical DualSense next to the virtual Xbox pad and may double-count input. HidHide is admin-gated on most systems: the first enable shows a UAC prompt.',
       repair: 'installHidHide',
     });
   else if (h.whitelisted === null)
@@ -111,7 +113,7 @@ export function runChecks(i: HealthInput): HealthResult[] {
       status: 'warn',
       title: 'DualForge is not allowed through HidHide',
       detail:
-        'HidHide is installed but DualForge is not on its application list, so it cannot read the hidden pad.',
+        'HidHide is installed but DualForge is not on its application list, so it cannot read the hidden pad. Enabling may show a UAC prompt (HidHide needs administrator rights on most systems).',
       repair: 'enableHidHide',
     });
   else if (!h.deviceHidden)
@@ -119,7 +121,8 @@ export function runChecks(i: HealthInput): HealthResult[] {
       id: 'hidhide',
       status: 'warn',
       title: 'DualSense not hidden from games',
-      detail: 'HidHide is installed but the DualSense is not hidden, so games can see both pads.',
+      detail:
+        'HidHide is installed but the DualSense is not hidden, so games can see both pads. Enabling may show a UAC prompt (HidHide needs administrator rights on most systems).',
       repair: 'enableHidHide',
     });
   else
@@ -130,6 +133,14 @@ export function runChecks(i: HealthInput): HealthResult[] {
         'The DualSense is hidden from games; only the virtual pad is visible.',
       ),
     );
+  if (h.installed && h.cloakStuck)
+    out.push({
+      id: 'hidhideStuck',
+      status: 'warn',
+      title: 'DualSense stays hidden after DualForge closes',
+      detail:
+        'DualSense is hidden from games while DualForge is closed — open the HidHide Configuration Client to un-hide. Quitting could not switch HidHide off without administrator rights (E_HIDHIDE_CLOAK_STUCK).',
+    });
 
   // Device
   const d = i.device;

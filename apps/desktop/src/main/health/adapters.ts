@@ -33,14 +33,17 @@ const SYS32 = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32');
 export const SC_EXE = join(SYS32, 'sc.exe');
 export const POWERSHELL_EXE = join(SYS32, 'WindowsPowerShell', 'v1.0', 'powershell.exe');
 
-/** execFile with a hard timeout (E_HEALTH_TIMEOUT). Other failures keep their error (and `stdout`) for the caller to interpret. */
+/** Present in the data dir while a quit could not un-cloak HidHide (no admin rights); see E_HIDHIDE_CLOAK_STUCK. */
+export const HIDHIDE_STUCK_MARKER = 'hidhide-cloak-stuck';
+
+/** execFile with a hard timeout (E_HEALTH_TIMEOUT). Other failures keep their error (and `stdout`, `stderr`) for the caller to interpret. */
 export const defaultExec: Exec = (file, args, { timeoutMs }) =>
   new Promise((resolve, reject) => {
     execFile(
       file,
       args,
       { timeout: timeoutMs, windowsHide: true, maxBuffer: 1024 * 1024, encoding: 'utf8' },
-      (err, stdout) => {
+      (err, stdout, stderr) => {
         if (!err) {
           resolve({ stdout });
           return;
@@ -53,7 +56,7 @@ export const defaultExec: Exec = (file, args, { timeoutMs }) =>
           reject(
             new HealthAdapterError('E_HEALTH_TIMEOUT', `${file} timed out after ${timeoutMs} ms`),
           );
-        else reject(Object.assign(err, { stdout }));
+        else reject(Object.assign(err, { stdout, stderr }));
       },
     );
   });
@@ -264,7 +267,11 @@ export async function gatherInput(d: GatherDeps): Promise<GatheredInput> {
   }
   return {
     vigem: { serviceState, busDevicePresent },
-    hidhide,
+    hidhide: {
+      ...hidhide,
+      cloakStuck:
+        hidhide.installed && (d.fs ?? nodeFs).exists(join(d.dataDir, HIDHIDE_STUCK_MARKER)),
+    },
     device: {
       present: !!s && s.connected && s.source === 'device',
       reportHz: s?.reportHz ?? 0,

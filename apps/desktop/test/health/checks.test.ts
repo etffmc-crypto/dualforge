@@ -24,6 +24,30 @@ const mod = (patch: (i: HealthInput) => void): HealthInput => {
 const byId = (i: HealthInput, id: string) => runChecks(i).find((r) => r.id === id)!;
 
 describe('runChecks', () => {
+  it('a stuck cloak (quit could not un-hide without admin rights) is a persistent warning', () => {
+    const r = byId(
+      mod((i) => {
+        i.hidhide.cloakStuck = true;
+      }),
+      'hidhideStuck',
+    );
+    expect(r).toMatchObject({ status: 'warn' });
+    expect(r.title + ' ' + r.detail).toContain(
+      'DualSense is hidden from games while DualForge is closed — open the HidHide Configuration Client to un-hide',
+    );
+    expect(runChecks(GOOD).some((x) => x.id === 'hidhideStuck')).toBe(false);
+  });
+
+  it('HidHide copy says it is admin-gated and the first enable shows a UAC prompt', () => {
+    const r = byId(
+      mod((i) => {
+        i.hidhide.whitelisted = false;
+      }),
+      'hidhide',
+    );
+    expect(r.detail).toMatch(/UAC prompt/);
+  });
+
   it('is all ok for a healthy system', () => {
     const r = runChecks(GOOD);
     expect(r.filter((x) => x.status !== 'ok')).toEqual([]);

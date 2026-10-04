@@ -1,14 +1,22 @@
-import { existsSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { defaultExec, hidHideCliPath, POWERSHELL_EXE, type Exec } from './health/adapters.js';
 
 export const HIDHIDE_TIMEOUT_MS = 5000;
+/** The elevated setup waits for the user to answer the UAC prompt. */
+export const ELEVATION_TIMEOUT_MS = 120_000;
+export const SETUP_SCRIPT = 'hidhide-setup.cmd';
 /** DualSense (0CE6) and DualSense Edge (0DF2) HID instance paths, e.g. HID\VID_054C&PID_0CE6&MI_03\B&15810585&0&0000. */
 export const DUALSENSE_INSTANCE = /^HID\\VID_054C&PID_0(?:CE6|DF2)[A-Za-z0-9_&\\]*$/i;
+/** Compatible ID of a HID "game controller" collection (usage page 1, usage 5); unlike FriendlyName it is not localized. */
+export const GAME_CONTROLLER_COMPAT_ID = 'HID_DEVICE_UP:0001_U:0005';
 
 export interface HidHideResult {
   ok: boolean;
   code?: string;
   msg?: string;
+  /** Startup only: the pad is absent and was never hidden, so nothing was done (retried when it shows up). */
+  skipped?: boolean;
 }
 export interface HidHideDeps {
   exec?: Exec;
@@ -16,6 +24,11 @@ export interface HidHideDeps {
   /** The exe to whitelist: the app itself (the Electron exe in dev); the engine runs as a child of it. */
   ownExe: string;
   programFiles?: string;
+  /** Where the elevated setup script is written (the app data dir). */
+  dataDir?: string;
+  writeFile?: (p: string, data: string) => void;
+  /** true: a quit cloak-off was refused (the pad stays hidden); false: a later cloak-off worked. Drives a persistent Health warning. */
+  onCloakStuck?: (stuck: boolean) => void;
   log: { info(o: object): void; warn(o: object): void; error(o: object): void };
 }
 
@@ -23,6 +36,7 @@ class HidHideError extends Error {
   constructor(
     readonly code: string,
     msg: string,
+    readonly accessDenied = false,
   ) {
     super(msg);
   }
@@ -36,9 +50,48 @@ export function parseLines(stdout: string): string[] {
     .filter((l) => l.length > 0);
 }
 
+/** A failed exec that Windows refused for lack of rights: exit code 5 or "Access is denied" in stderr/message. */
+export function isAccessDenied(e: unknown): boolean {
+  const err = e as { code?: unknown; stderr?: unknown; message?: unknown } | null;
+  if (!err) return false;
+  if (err.code === 5) return true;
+  const text = `${typeof err.stderr === 'string' ? err.stderr : ''}\n${typeof err.message === 'string' ? err.message : ''}`;
+  return /access is denied/i.test(text);
+}
+
+/**
+ * PnP output lines `InstanceId|CompatibleIDs (;-joined)|FriendlyName`: the DualSense collection whose compatible IDs
+ * mark it as a game controller. FriendlyName is ignored (it is localized).
+ */
+export function parseDualSenseInstance(stdout: string): string | null {
+  for (const line of stdout.split(/\r?\n/)) {
+    const [id = '', compat = ''] = line.split('|');
+    const inst = id.trim();
+    if (!DUALSENSE_INSTANCE.test(inst)) continue;
+    if (compat.split(';').some((c) => c.trim().toUpperCase() === GAME_CONTROLLER_COMPAT_ID))
+      return inst;
+  }
+  return null;
+}
+
+/** `%` would be expanded by cmd.exe even inside quotes. */
+const cmdQuote = (s: string) => `"${s.replace(/%/g, '%%')}"`;
+
+/** The one-time elevated setup: the same three CLI calls enable makes, each aborting the script on failure. */
+export function composeElevatedSetup(cli: string, exe: string, instance: string): string {
+  return [
+    '@echo off',
+    `${cmdQuote(cli)} --app-reg ${cmdQuote(exe)} || exit /b 1`,
+    `${cmdQuote(cli)} --dev-hide ${cmdQuote(instance)} || exit /b 1`,
+    `${cmdQuote(cli)} --cloak-on || exit /b 1`,
+    '',
+  ].join('\r\n');
+}
+
 export function createHidHide(d: HidHideDeps) {
   const exec = d.exec ?? defaultExec;
   const exists = d.exists ?? existsSync;
+  const writeFile = d.writeFile ?? ((p: string, data: string) => writeFileSync(p, data, 'utf8'));
   const cliPath = hidHideCliPath(d.programFiles);
 
   const findCli = (): string | null => (exists(cliPath) ? cliPath : null);
@@ -49,7 +102,11 @@ export function createHidHide(d: HidHideDeps) {
     try {
       return (await exec(cli, args, { timeoutMs: HIDHIDE_TIMEOUT_MS })).stdout;
     } catch (e) {
-      throw new HidHideError('E_HIDHIDE_CLI', `${args[0]}: ${(e as Error).message}`);
+      throw new HidHideError(
+        'E_HIDHIDE_CLI',
+        `${args[0]}: ${(e as Error).message}`,
+        isAccessDenied(e),
+      );
     }
   }
 
@@ -59,10 +116,12 @@ export function createHidHide(d: HidHideDeps) {
   const appList = async () => parseLines(await run(['--app-list']));
   const devList = async () => parseLines(await run(['--dev-list']));
 
-  /** Instance path of the DualSense's "HID-compliant game controller" collection, from PnP (null when not connected). */
+  /** Instance path of the DualSense's game-controller collection, from PnP (null when not connected). */
   async function findDualSenseInstance(): Promise<string | null> {
     const cmd =
-      "Get-PnpDevice -PresentOnly -Class HIDClass -ErrorAction SilentlyContinue | Where-Object { $_.InstanceId -match '^HID\\\\VID_054C&PID_0(CE6|DF2)' -and $_.FriendlyName -eq 'HID-compliant game controller' } | Select-Object -ExpandProperty InstanceId";
+      "Get-PnpDevice -PresentOnly -Class HIDClass -ErrorAction SilentlyContinue | Where-Object { ($_.InstanceId -like 'HID\\VID_054C&PID_0CE6*' -or $_.InstanceId -like 'HID\\VID_054C&PID_0DF2*') -and ($_.CompatibleID -contains '" +
+      GAME_CONTROLLER_COMPAT_ID +
+      "') } | ForEach-Object { $_.InstanceId + '|' + ($_.CompatibleID -join ';') + '|' + $_.FriendlyName }";
     let out: string;
     try {
       out = (
@@ -73,13 +132,32 @@ export function createHidHide(d: HidHideDeps) {
     } catch (e) {
       throw new HidHideError('E_HIDHIDE_NO_DEVICE', `PnP query failed: ${(e as Error).message}`);
     }
-    return parseLines(out).find((l) => DUALSENSE_INSTANCE.test(l)) ?? null;
+    return parseDualSenseInstance(out);
   }
 
-  async function guarded(fn: () => Promise<void>): Promise<HidHideResult> {
+  /** Writes the setup script to the data dir and runs it elevated (UAC prompt); any failure means it did not happen. */
+  async function elevatedSetup(cli: string, instance: string): Promise<void> {
+    if (!d.dataDir)
+      throw new HidHideError('E_HIDHIDE_ELEVATION_DECLINED', 'no data folder for the setup script');
+    const script = join(d.dataDir, SETUP_SCRIPT);
     try {
-      await fn();
-      return { ok: true };
+      writeFile(script, composeElevatedSetup(cli, d.ownExe, instance));
+      const ps = `$p = Start-Process -FilePath '${script.replace(/'/g, "''")}' -Verb RunAs -Wait -PassThru -WindowStyle Hidden; exit $p.ExitCode`;
+      await exec(POWERSHELL_EXE, ['-NoProfile', '-NonInteractive', '-Command', ps], {
+        timeoutMs: ELEVATION_TIMEOUT_MS,
+      });
+    } catch (e) {
+      throw new HidHideError(
+        'E_HIDHIDE_ELEVATION_DECLINED',
+        `elevated HidHide setup did not complete: ${(e as Error).message}`,
+      );
+    }
+    d.log.info({ code: 'HIDHIDE_ELEVATED_SETUP', instance });
+  }
+
+  async function guarded(fn: () => Promise<HidHideResult | void>): Promise<HidHideResult> {
+    try {
+      return (await fn()) ?? { ok: true };
     } catch (e) {
       const code = e instanceof HidHideError ? e.code : 'E_HIDHIDE_CLI';
       d.log.error({ code, msg: (e as Error).message });
@@ -87,26 +165,79 @@ export function createHidHide(d: HidHideDeps) {
     }
   }
 
-  /** Register this app, hide the DualSense game controller, cloak on. */
-  const enable = (): Promise<HidHideResult> =>
+  /**
+   * Register this app, hide the DualSense game controller, cloak on. Without admin rights the CLI is refused: then the
+   * same steps run once from an elevated script (UAC). At startup an absent pad is not an error: a pad hidden earlier
+   * is cloaked again; one never hidden is skipped until it shows up.
+   */
+  const enableFlow = (startup: boolean): Promise<HidHideResult> =>
     guarded(async () => {
-      if (!findCli()) throw new HidHideError('E_HIDHIDE_NOT_INSTALLED', 'HidHide is not installed');
-      await appRegister(d.ownExe);
-      const inst = await findDualSenseInstance();
-      if (!inst)
-        throw new HidHideError(
-          'E_HIDHIDE_NO_DEVICE',
-          'no connected DualSense HID game controller found',
-        );
-      if (!(await devList()).some((l) => l.toLowerCase() === inst.toLowerCase()))
-        await devHide(inst);
-      await cloak(true);
+      const cli = findCli();
+      if (!cli) throw new HidHideError('E_HIDHIDE_NOT_INSTALLED', 'HidHide is not installed');
+      const locate = async (hidden?: string[]): Promise<string | null> => {
+        const present = await findDualSenseInstance();
+        if (present) return present;
+        if (!startup)
+          throw new HidHideError(
+            'E_HIDHIDE_NO_DEVICE',
+            'no connected DualSense HID game controller found',
+          );
+        return (hidden ?? (await devList())).find((l) => DUALSENSE_INSTANCE.test(l)) ?? null;
+      };
+      const skip = (): HidHideResult => {
+        d.log.info({
+          code: 'HIDHIDE_WAIT_DEVICE',
+          msg: 'no DualSense connected or hidden yet; HidHide is applied when it is plugged in',
+        });
+        return { ok: true, skipped: true };
+      };
+      let inst: string | null | undefined;
+      try {
+        await appRegister(d.ownExe);
+        const hidden = await devList();
+        inst = await locate(hidden);
+        if (!inst) return skip();
+        const target = inst.toLowerCase();
+        if (!hidden.some((l) => l.toLowerCase() === target)) await devHide(inst);
+        await cloak(true);
+      } catch (e) {
+        if (!(e instanceof HidHideError && e.accessDenied)) throw e;
+        d.log.warn({ code: 'HIDHIDE_ACCESS_DENIED', msg: e.message });
+        inst ??= await locate();
+        if (!inst) return skip();
+        await elevatedSetup(cli, inst);
+      }
       d.log.info({ code: 'HIDHIDE_ENABLED', instance: inst });
     });
 
+  const enable = () => enableFlow(false);
+  const startup = () => enableFlow(true);
+
   /** Cloak off; the registrations stay. Without HidHide there is nothing to undo. */
   const disable = (): Promise<HidHideResult> =>
-    findCli() ? guarded(() => cloak(false)) : Promise.resolve({ ok: true });
+    findCli()
+      ? guarded(async () => {
+          await cloak(false);
+          d.onCloakStuck?.(false);
+        })
+      : Promise.resolve({ ok: true });
+
+  /** Quit/logoff: cloak off without ever prompting. Refused for lack of rights → the pad stays hidden (E_HIDHIDE_CLOAK_STUCK). */
+  const quitCloakOff = (): Promise<HidHideResult> =>
+    findCli()
+      ? guarded(async () => {
+          try {
+            await cloak(false);
+          } catch (e) {
+            if (e instanceof HidHideError && e.accessDenied) {
+              d.onCloakStuck?.(true);
+              throw new HidHideError('E_HIDHIDE_CLOAK_STUCK', e.message);
+            }
+            throw e;
+          }
+          d.onCloakStuck?.(false);
+        })
+      : Promise.resolve({ ok: true });
 
   return {
     findCli,
@@ -117,7 +248,66 @@ export function createHidHide(d: HidHideDeps) {
     devList,
     findDualSenseInstance,
     enable,
+    startup,
     disable,
+    quitCloakOff,
   };
 }
 export type HidHide = ReturnType<typeof createHidHide>;
+
+export interface HidHideQueueDeps {
+  hidhide: Pick<HidHide, 'enable' | 'startup' | 'disable' | 'quitCloakOff'>;
+  /** The current `settings.hidHide`, read after each op to converge on it. */
+  desired: () => boolean;
+  log: { info(o: object): void };
+}
+
+/**
+ * Serializes every HidHide operation (toggle, startup, Health repair, quit) through one promise chain. After an op
+ * that established a cloak state, the current setting is re-applied if it changed meanwhile, so the last word wins.
+ */
+export function createHidHideQueue(d: HidHideQueueDeps) {
+  let tail: Promise<unknown> = Promise.resolve();
+  let cloaked = false;
+
+  const enqueue = <T>(op: () => Promise<T>): Promise<T> => {
+    const p = tail.then(op, op);
+    tail = p.catch(() => undefined);
+    return p;
+  };
+  const note = (on: boolean, r: HidHideResult): boolean | null => {
+    if (!r.ok || r.skipped) return null;
+    if (on) cloaked = true;
+    return on;
+  };
+  const apply = async (
+    on: boolean,
+    op: () => Promise<HidHideResult>,
+    onOk?: () => void,
+  ): Promise<HidHideResult> => {
+    const r = await op();
+    const established = note(on, r);
+    if (established === null) return r;
+    onOk?.();
+    const want = d.desired();
+    if (want !== established) {
+      const c = await (want ? d.hidhide.enable() : d.hidhide.disable());
+      note(want, c);
+      d.log.info({ code: 'HIDHIDE_CONVERGE', to: want, ok: c.ok });
+    }
+    return r;
+  };
+
+  return {
+    enable: () => enqueue(() => apply(true, d.hidhide.enable)),
+    startup: () => enqueue(() => apply(true, d.hidhide.startup)),
+    disable: () => enqueue(() => apply(false, d.hidhide.disable)),
+    /** Health "enable" repair; `persist` turns the setting on inside the queue so converge keeps it. */
+    repair: (persist: () => void) => enqueue(() => apply(true, d.hidhide.enable, persist)),
+    /** Quit/logoff cloak-off, needed whenever this session cloaked or the setting is on; null when there is nothing to do. */
+    quitCleanup: (settingOn: boolean): Promise<HidHideResult> | null =>
+      cloaked || settingOn ? enqueue(() => d.hidhide.quitCloakOff()) : null,
+    cloakedThisSession: () => cloaked,
+  };
+}
+export type HidHideQueue = ReturnType<typeof createHidHideQueue>;

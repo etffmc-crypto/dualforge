@@ -174,6 +174,10 @@ Main rejected a settings change; the UI reverted it. Fix: retry.
 
 The renderer could not load settings. Fix: restart.
 
+### E_SETTINGS_WRITE
+
+A failed HidHide enable tried to save `hidHide: false` so the switch tells the truth, but writing `settings.json` threw (see `msg`: disk full, file locked, read-only folder). The renderer re-reads the settings. Fix: check that `%APPDATA%\DualForge` is writable, then toggle again.
+
 ## UI actions
 
 ### E_MACRO_TEST
@@ -296,11 +300,19 @@ HidHide was asked to enable but `HidHideCLI.exe` was not found at its default pa
 
 ### E_HIDHIDE_NO_DEVICE
 
-No connected DualSense "HID-compliant game controller" was found through PnP, so there is nothing to hide. The setting stays off. Fix: connect the controller over USB and try again.
+No connected DualSense game-controller HID collection was found through PnP (matched by instance id `HID\VID_054C&PID_0CE6` / `0DF2` and compatible id `HID_DEVICE_UP:0001_U:0005`, so the Windows display language does not matter), so there is nothing to hide. The setting stays off. At startup an absent pad is not an error: a pad hidden earlier is cloaked again, otherwise HidHide is applied when the pad is plugged in. Fix: connect the controller over USB and try again.
 
 ### E_HIDHIDE_CLI
 
-A `HidHideCLI.exe` call failed or timed out (`msg` names the command). Cause: the driver service is stopped, or the CLI needs administrator rights. Fix: restart the PC or run DualForge as administrator, then retry.
+A `HidHideCLI.exe` call failed or timed out (`msg` names the command). Cause: the driver service is stopped. An "Access is denied" refusal (exit code 5) is not reported here: enable then runs the elevated setup instead (see E_HIDHIDE_ELEVATION_DECLINED). Fix: restart the PC, then retry.
+
+### E_HIDHIDE_ELEVATION_DECLINED
+
+HidHide refused the unelevated CLI call (access denied), so DualForge wrote `hidhide-setup.cmd` (the `--app-reg`, `--dev-hide`, `--cloak-on` calls) to `%APPDATA%\DualForge` and ran it with a UAC prompt, but the prompt was declined or the script failed. The setting stays off. Fix: enable again and accept the UAC prompt.
+
+### E_HIDHIDE_CLOAK_STUCK
+
+On quit or logoff, cloak-off was refused for lack of administrator rights, so the DualSense stays hidden from games while DualForge is closed. Health shows a persistent warning until a later cloak-off succeeds. Fix: open the HidHide Configuration Client and untick "Enable device hiding", or turn HidHide off in DualForge and accept the prompt.
 
 ## Startup, tray and updates
 
@@ -314,7 +326,7 @@ Switching profile from the tray menu failed (see `msg`). Fix: switch from the ap
 
 ### E_UPDATE_DISABLED
 
-"Check now" was used while Settings > Check for updates is off. Nothing was contacted. Fix: turn the setting on.
+"Check now" was used while Settings > Check for updates is off, or the build has no real publish owner (`__UPDATES_ENABLED__` false; the switch is hidden then). Nothing was contacted. Fix: turn the setting on (in a build that offers it).
 
 ### E_UPDATE_DEV
 
@@ -387,6 +399,26 @@ Warning: a health run found an `error`-status check (`id`, `status`).
 ### HIDHIDE_ENABLED
 
 Info: HidHide was enabled (`instance` is the hidden HID instance path).
+
+### HIDHIDE_ACCESS_DENIED
+
+Warning: a HidHide CLI call was refused for lack of administrator rights; enable continues with the elevated setup (UAC).
+
+### HIDHIDE_ELEVATED_SETUP
+
+Info: the elevated `hidhide-setup.cmd` completed (`instance`).
+
+### HIDHIDE_WAIT_DEVICE
+
+Info: at startup no DualSense was connected or hidden yet, so HidHide was skipped; it is applied when the pad shows up.
+
+### HIDHIDE_CONVERGE
+
+Info: the HidHide setting changed while an operation ran, so the current setting was re-applied (`to`, `ok`).
+
+### DRIVER_PRUNE
+
+Warning: a `run-*` download folder older than 24 h under `%TEMP%\DualForge` could not be removed (`msg`).
 
 ### DRIVER_DOWNLOADED
 
