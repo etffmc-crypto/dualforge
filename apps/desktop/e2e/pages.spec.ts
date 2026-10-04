@@ -28,6 +28,8 @@ test('Sticks page edits reach the engine profile live', async () => {
 test('Triggers page: Left hair trigger Fixed turns a partial L2 pull into a full LT', async () => {
   const app = await electron.launch({ args: [MAIN] });
   const page = await app.firstWindow();
+  // Default hardware profile is digital triggers; this test exercises the analog path (no UI toggle until Plan 3B).
+  await page.evaluate(async () => { const p = await window.dualforge.getProfile(); p.triggers.left.digital = false; await window.dualforge.setProfile(p); });
   await page.getByRole('tab', { name: 'Triggers' }).click();
   await page.getByRole('radiogroup', { name: 'Hair trigger mode' }).getByRole('radio', { name: 'Fixed' }).click();
   await page.getByRole('radiogroup', { name: 'Adaptive trigger effect' }).getByRole('radio', { name: 'Resistance' }).click();

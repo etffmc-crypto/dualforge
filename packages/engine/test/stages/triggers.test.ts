@@ -3,9 +3,14 @@ import { defaultProfile } from '@dualforge/shared';
 import { buildCurveLut, presetPoints } from '../../src/stages/stick-curve.js';
 import { applyTrigger, createTriggerState } from '../../src/stages/triggers.js';
 
-const cfg = () => defaultProfile('p', 'p').triggers.left;
+const cfg = () => ({ ...defaultProfile('p', 'p').triggers.left, digital: false });
 
 describe('applyTrigger', () => {
+  it('digital triggers ignore the analog value (button mapping drives output)', () => {
+    const c = { ...cfg(), digital: true };
+    expect(applyTrigger(0.6, c, buildCurveLut(presetPoints(c.curve)), createTriggerState())).toBe(0);
+    expect(applyTrigger(1, c, buildCurveLut(presetPoints(c.curve)), createTriggerState())).toBe(0);
+  });
   it('rescales deadzone window', () => {
     const c = cfg(); c.deadzone = { initial: 0.2, max: 0.8 };
     const s = createTriggerState();

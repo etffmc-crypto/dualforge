@@ -5,6 +5,7 @@ export interface TriggerState { engaged: boolean }
 export const createTriggerState = (): TriggerState => ({ engaged: false });
 
 export function applyTrigger(v: number, cfg: TriggerConfig, lut: Float32Array, s: TriggerState): number {
+  if (cfg.digital) return 0; // digital (click) triggers: the L2/R2 button mapping drives output
   const { initial, max } = cfg.deadzone;
   let t = v <= initial ? 0 : v >= max ? 1 : (v - initial) / Math.max(1e-6, max - initial);
 

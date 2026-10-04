@@ -1,5 +1,5 @@
-import type { RawState } from '@dualforge/shared';
-import { applyStickShaping } from './stages/stick-shape.js';
+import { emptyXInput, type RawState } from '@dualforge/shared';
+import { applyAntiDeadzone, applyStickShaping } from './stages/stick-shape.js';
 import { applyStickLut } from './stages/stick-curve.js';
 import { applyStickFilter, createFilterState, MIN_DT_MS, type FilterState } from './stages/stick-filter.js';
 import { applyTrigger, createTriggerState, type TriggerState } from './stages/triggers.js';
@@ -25,18 +25,16 @@ export function processReport(raw: RawState, cp: CompiledProfile, s: PipelineSta
   const L = cp.left, R = cp.right;
   let l = applyStickShaping(raw.lx, raw.ly, L.cfg);
   l = applyStickLut(l.x, l.y, L.lut);
+  l = applyAntiDeadzone(l.x, l.y, L.cfg.deadzone.anti);
   l = applyStickFilter(l.x, l.y, L.cfg.filter, s.filterL, dt);
   let r = applyStickShaping(raw.rx, raw.ry, R.cfg);
   r = applyStickLut(r.x, r.y, R.lut);
+  r = applyAntiDeadzone(r.x, r.y, R.cfg.deadzone.anti);
   r = applyStickFilter(r.x, r.y, R.cfg.filter, s.filterR, dt);
   const lt = applyTrigger(raw.l2, cp.lt.cfg, cp.lt.lut, s.trigL);
   const rt = applyTrigger(raw.r2, cp.rt.cfg, cp.rt.lut, s.trigR);
 
-  // Spec order: sticks -> triggers -> mappings last. Plan 3 will let applyMappings accept a pre-filled
-  // xinput so button->axis targets can override; assigning axes after is equivalent until then.
-  const frame = applyMappings(raw, cp.profile, s.mapping, nowMs);
-  frame.xinput.lx = l.x; frame.xinput.ly = l.y;
-  frame.xinput.rx = r.x; frame.xinput.ry = r.y;
-  frame.xinput.lt = lt; frame.xinput.rt = rt;
-  return frame;
+  const x = emptyXInput();
+  x.lx = l.x; x.ly = l.y; x.rx = r.x; x.ry = r.y; x.lt = lt; x.rt = rt;
+  return applyMappings(raw, cp.profile, s.mapping, nowMs, x);
 }
