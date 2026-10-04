@@ -12,6 +12,8 @@ export default tseslint.config(
       'native/**',
       'apps/desktop/resources/**',
       'apps/desktop/scripts/**',
+      'scripts/**',
+      '**/coverage/**',
     ],
   },
   js.configs.recommended,
