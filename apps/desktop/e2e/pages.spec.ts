@@ -1,7 +1,7 @@
-import { _electron as electron, expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
+import { launchApp } from './launch';
 import { resolve } from 'node:path';
 
-const MAIN = resolve(import.meta.dirname, '../out/main/index.js');
 
 /** Sets a React-controlled range input the way a user drag would (native setter + input event). */
 async function setRange(page: Page, name: string, value: number) {
@@ -13,7 +13,7 @@ async function setRange(page: Page, name: string, value: number) {
 }
 
 test('Sticks page edits reach the engine profile live', async () => {
-  const app = await electron.launch({ args: [MAIN] });
+  const app = await launchApp();
   const page = await app.firstWindow();
   await page.getByRole('tab', { name: 'Sticks' }).click();
   await expect(page.getByRole('heading', { name: 'Anti-Deadzone' })).toBeVisible();
@@ -26,7 +26,7 @@ test('Sticks page edits reach the engine profile live', async () => {
 });
 
 test('Triggers page: Left hair trigger Fixed turns a partial L2 pull into a full LT', async () => {
-  const app = await electron.launch({ args: [MAIN] });
+  const app = await launchApp();
   const page = await app.firstWindow();
   // Default hardware profile is digital triggers; this test exercises the analog path (no UI toggle until Plan 3B).
   await page.evaluate(async () => { const p = await window.dualforge.getProfile(); p.triggers.left.digital = false; await window.dualforge.setProfile(p); });

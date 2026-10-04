@@ -42,4 +42,10 @@ describe('share code', () => {
     expect(() => decodeShareCode('DUALFORGE:' + 'A'.repeat(40 * 1024), spy)).toThrow(/E_SHARE_CODE/);
     expect(spy).not.toHaveBeenCalled();
   });
+  it('round-trips regardless of base64 padding length (unpadded body is re-padded before decoding)', () => {
+    for (const n of ['a', 'ab', 'abc', 'abcd']) {
+      const q = decodeShareCode(encodeShareCode(defaultProfile('x', n), id), id);
+      expect(q.name).toBe(n);
+    }
+  });
 });

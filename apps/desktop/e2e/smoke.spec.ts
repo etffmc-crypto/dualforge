@@ -1,8 +1,9 @@
-import { _electron as electron, expect, test } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { launchApp } from './launch';
 import { resolve } from 'node:path';
 
 test('app launches, pages render, replay drives widgets', async () => {
-  const app = await electron.launch({ args: [resolve(import.meta.dirname, '../out/main/index.js')] });
+  const app = await launchApp();
   const page = await app.firstWindow();
   await expect(page.getByText('DUALFORGE', { exact: true })).toBeVisible();
   await expect(page.getByText(/Select controller|Connected/)).toBeVisible();
@@ -14,7 +15,7 @@ test('app launches, pages render, replay drives widgets', async () => {
 });
 
 test('face-lift tokens applied', async () => {
-  const app = await electron.launch({ args: [resolve(import.meta.dirname, '../out/main/index.js')] });
+  const app = await launchApp();
   const page = await app.firstWindow();
   const header = page.locator('header.header');
   expect(await header.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgb(23, 19, 24)');

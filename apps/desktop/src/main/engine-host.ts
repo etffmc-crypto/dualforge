@@ -7,7 +7,8 @@ export function createEngineHost(opts: { onEvent: (e: EngineEvent) => void; log:
   let child: UtilityProcess | null = null;
   let restarts: number[] = [];
   let stopping = false;
-  let lastProfileCmd: EngineCommand | null = null;
+  // Replayed to a respawned engine so it resumes with the current profile, settings and focus state.
+  const last: { setProfile?: EngineCommand; setSettings?: EngineCommand; uiFocused?: EngineCommand } = {};
   let restartTimer: NodeJS.Timeout | null = null;
   let killTimer: NodeJS.Timeout | null = null;
 
@@ -42,7 +43,8 @@ export function createEngineHost(opts: { onEvent: (e: EngineEvent) => void; log:
       restartTimer = setTimeout(() => {
         restartTimer = null;
         if (stopping) return;
-        spawn(); if (lastProfileCmd) child?.postMessage(lastProfileCmd);
+        spawn();
+        for (const c of [last.setSettings, last.uiFocused, last.setProfile]) if (c) child?.postMessage(c);
       }, 500 * restarts.length);
     });
   }
@@ -53,7 +55,10 @@ export function createEngineHost(opts: { onEvent: (e: EngineEvent) => void; log:
       if (killTimer) { clearTimeout(killTimer); killTimer = null; }
       spawn();
     },
-    send(cmd: EngineCommand) { if (cmd.type === 'setProfile') lastProfileCmd = cmd; child?.postMessage(cmd); },
+    send(cmd: EngineCommand) {
+      if (cmd.type === 'setProfile' || cmd.type === 'setSettings' || cmd.type === 'uiFocused') last[cmd.type] = cmd;
+      child?.postMessage(cmd);
+    },
     stop() {
       stopping = true;
       if (restartTimer) { clearTimeout(restartTimer); restartTimer = null; }
