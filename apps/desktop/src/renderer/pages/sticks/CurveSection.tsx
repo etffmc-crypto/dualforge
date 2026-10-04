@@ -1,18 +1,16 @@
 import { useRef, useState } from 'react';
-import { CURVE_PRESETS } from '@dualforge/shared';
 import { presetPoints } from '@dualforge/engine/curve';
 import { CurveEditor, type CurvePoints } from '../../components/controls/CurveEditor';
 import { Segmented } from '../../components/controls/Segmented';
+import { PRESET_OPTIONS, type CurvePreset as Preset } from '../../components/LiveCurve';
 import { PanelSection } from '../../components/SettingsLayout';
 import type { Side } from '../../store';
 import type { StickSectionProps } from './useStick';
 
-type Preset = (typeof CURVE_PRESETS)[number];
 type Choice = Preset | 'custom';
 
-export const PRESET_LABELS: Record<Preset, string> = { linear: 'Linear', aggressive: 'Aggressive', precise: 'Precise', scurve: 'S-Curve' };
 const OPTIONS: { value: Choice; label: string }[] = [
-  ...CURVE_PRESETS.map((p) => ({ value: p, label: PRESET_LABELS[p] })),
+  ...PRESET_OPTIONS,
   { value: 'custom', label: 'Custom' },
 ];
 
