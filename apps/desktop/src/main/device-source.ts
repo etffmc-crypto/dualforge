@@ -10,8 +10,9 @@ export function createDeviceSource(): InputSource {
   let stopped = false;
   let opening = false;
 
+  let report: (code: string, msg: string) => void = () => {};
   function logErr(code: string, e: unknown) {
-    process.stderr.write(`${code} ${e instanceof Error ? e.message : String(e)}\n`);
+    report(code, e instanceof Error ? e.message : String(e));
   }
 
   async function tryOpen(onReport: (b: Uint8Array, t: number) => void, onStatus: (c: boolean) => void) {
@@ -43,8 +44,8 @@ export function createDeviceSource(): InputSource {
   }
 
   return {
-    start(onReport, onStatus) {
-      stopped = false;
+    start(onReport, onStatus, onError) {
+      stopped = false; report = onError;
       void tryOpen(onReport, onStatus);
       timer = setInterval(() => void tryOpen(onReport, onStatus), POLL_MS);
     },

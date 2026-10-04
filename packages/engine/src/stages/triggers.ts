@@ -13,7 +13,8 @@ export function applyTrigger(v: number, cfg: TriggerConfig, s: TriggerState): nu
     t = t > 0 ? 1 : 0;
   } else if (ht.mode === 'adaptive') {
     const thr = ht.value / 100;
-    if (s.engaged) { if (t < thr - 0.1) s.engaged = false; }
+    const rel = Math.max(0, thr - 0.1);
+    if (s.engaged) { if (t <= rel) s.engaged = false; }
     else if (t >= thr) s.engaged = true;
     if (s.engaged) t = 1;
   }

@@ -25,6 +25,20 @@ describe('applyTrigger', () => {
     expect(applyTrigger(0.45, c, s)).toBe(1);        // still engaged (hysteresis)
     expect(applyTrigger(0.3, c, s)).toBeCloseTo(0.3, 6);
   });
+  it('adaptive hair trigger with low value (5) engages at 0.06 and releases at 0', () => {
+    const c = cfg(); c.deadzone = { initial: 0, max: 1 }; c.curve = 'linear'; c.hairTrigger = { mode: 'adaptive', value: 5 };
+    const s = createTriggerState();
+    expect(applyTrigger(0.06, c, s)).toBe(1);
+    expect(applyTrigger(0.03, c, s)).toBe(1);
+    expect(applyTrigger(0, c, s)).toBe(0);
+  });
+  it('adaptive hair trigger with value 100 engages only at 1.0 and releases at <= 0.9', () => {
+    const c = cfg(); c.deadzone = { initial: 0, max: 1 }; c.curve = 'linear'; c.hairTrigger = { mode: 'adaptive', value: 100 };
+    const s = createTriggerState();
+    expect(applyTrigger(0.99, c, s)).toBeCloseTo(0.99, 6);
+    expect(applyTrigger(1, c, s)).toBe(1);
+    expect(applyTrigger(0.9, c, s)).toBeCloseTo(0.9, 6);
+  });
   it('applies curve preset', () => {
     const c = cfg(); c.deadzone = { initial: 0, max: 1 }; c.curve = 'precise';
     expect(applyTrigger(0.5, c, createTriggerState())).toBeLessThan(0.5);

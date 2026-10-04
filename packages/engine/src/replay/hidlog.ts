@@ -2,13 +2,16 @@ export interface HidlogEntry { t: number; hex: string }
 
 export function parseHidlog(text: string): HidlogEntry[] {
   const out: HidlogEntry[] = [];
-  for (const line of text.split(/\r?\n/)) {
-    const s = line.trim();
+  const bad = (n: number) => new Error(`E_HIDLOG_LINE: line ${n}`);   // never include file content
+  const lines = text.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const s = lines[i]!.trim();
     if (!s || s.startsWith('#')) continue;
-    const j: unknown = JSON.parse(s);
-    if (typeof j !== 'object' || j === null) throw new Error('E_HIDLOG_LINE');
+    let j: unknown;
+    try { j = JSON.parse(s); } catch { throw bad(i + 1); }
+    if (typeof j !== 'object' || j === null) throw bad(i + 1);
     const { t, hex } = j as { t?: unknown; hex?: unknown };
-    if (typeof t !== 'number' || typeof hex !== 'string' || !/^([0-9a-f]{2})*$/i.test(hex)) throw new Error('E_HIDLOG_LINE');
+    if (typeof t !== 'number' || typeof hex !== 'string' || !/^([0-9a-f]{2})*$/i.test(hex)) throw bad(i + 1);
     out.push({ t, hex: hex.toLowerCase() });
   }
   return out;

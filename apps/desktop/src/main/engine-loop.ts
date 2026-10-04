@@ -1,8 +1,8 @@
 import { buildOutputReport, createPipelineState, parseDualSenseUsb, processReport, type Feedback } from '@dualforge/engine';
-import { type EngineEvent, type Profile, type RawState, type XInputState, emptyButtons } from '@dualforge/shared';
+import { type EngineEvent, type Profile, type RawState, type XInputState, emptyButtons, emptyXInput } from '@dualforge/shared';
 
 export interface InputSource {
-  start(onReport: (buf: Uint8Array, tMs: number) => void, onStatus: (connected: boolean) => void): void;
+  start(onReport: (buf: Uint8Array, tMs: number) => void, onStatus: (connected: boolean) => void, onError: (code: string, msg: string) => void): void;
   write(report: Uint8Array): void;
   stop(): void;
 }
@@ -17,6 +17,7 @@ export interface LoopDeps { source: InputSource; sink: PadSink; emit: (e: Engine
 
 const SNAPSHOT_MS = 1000 / 60;
 const KEEPALIVE_MS = 250;
+const ERROR_DEDUPE_MS = 30_000;
 
 export function createEngineLoop(d: LoopDeps) {
   let profile: Profile | null = null;
@@ -58,10 +59,29 @@ export function createEngineLoop(d: LoopDeps) {
     maybeWriteOutput(now);
     if (now - lastSnap >= SNAPSHOT_MS) { lastSnap = now; emitSnapshot(now); }
   }
+  function neutralize() {
+    if (d.sink.ready) d.sink.update(emptyXInput());
+    state = createPipelineState();
+    lastRaw = null; lastOut = null; reportHz = 0; reports = 0;
+  }
   function onStatus(c: boolean) {
     connected = c;
+    if (!c) {
+      // TODO(plan2): 2 s grace release of ViGEm target (spec §6)
+      neutralize();
+    }
     d.emit({ type: 'status', connected, vigemReady: d.sink.ready });
+    if (!c) { const now = d.now(); lastSnap = now; emitSnapshot(now); }
     if (c) maybeWriteOutput(d.now(), true);
+  }
+  const errSeen = new Map<string, { at: number; suppressed: number }>();
+  function onError(code: string, msg: string) {
+    const now = d.now();
+    const e = errSeen.get(code);
+    if (e && now - e.at < ERROR_DEDUPE_MS) { e.suppressed++; return; }
+    const n = e?.suppressed ?? 0;
+    errSeen.set(code, { at: now, suppressed: 0 });
+    d.emit({ type: 'error', code, msg: n > 0 ? `${msg} (x${n})` : msg });
   }
   function emitSnapshot(now: number) {
     const sorted = [...latencies].sort((a, b) => a - b);
@@ -83,15 +103,21 @@ export function createEngineLoop(d: LoopDeps) {
     async start() {
       try { await d.sink.connect(); } catch (e) { d.emit({ type: 'error', code: 'E_VIGEM_INIT', msg: (e as Error).message }); }
       d.sink.onRumble((large, small) => { rumble = { large, small }; maybeWriteOutput(d.now()); });
-      d.source.start(onReport, onStatus);
+      d.source.start(onReport, onStatus, onError);
       idle = setInterval(() => { const now = d.now(); if (now - lastSnap >= SNAPSHOT_MS) { lastSnap = now; emitSnapshot(now); } maybeWriteOutput(now); }, 100);
     },
-    stop() { if (idle) clearInterval(idle); d.source.stop(); d.sink.disconnect(); },
+    stop() {
+      if (idle) clearInterval(idle);
+      if (profile) d.source.write(buildOutputReport({ ...feedback(), rumbleLeft: 0, rumbleRight: 0 }));
+      d.source.stop(); d.sink.disconnect();
+    },
     swapSource(src: InputSource) {
       d.source.stop(); d.source = src;
       connected = false; lastOutHex = '';
+      neutralize();
       d.emit({ type: 'status', connected: false, vigemReady: d.sink.ready });
-      d.source.start(onReport, onStatus);
+      const now = d.now(); lastSnap = now; emitSnapshot(now);
+      d.source.start(onReport, onStatus, onError);
     },
   };
 }

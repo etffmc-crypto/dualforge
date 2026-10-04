@@ -1,25 +1,27 @@
 import { createRequire } from 'node:module';
 import type { XInputState } from '@dualforge/shared';
+import type { ViGEmClient } from 'vigemclient/lib/ViGEmClient';
+import type { X360Controller } from 'vigemclient/lib/X360Controller';
 import type { PadSink } from './engine-loop.js';
 
 const require = createRequire(import.meta.url);
 
 export function createViGEmSink(): PadSink {
-  let client: any = null;   // eslint-disable-line @typescript-eslint/no-explicit-any
-  let pad: any = null;      // eslint-disable-line @typescript-eslint/no-explicit-any
+  let pad: X360Controller | null = null;
   let rumbleCb: ((l: number, s: number) => void) | null = null;
   const sink: PadSink = {
     ready: false,
     async connect() {
-      const ViGEmClient = require('vigemclient');
-      client = new ViGEmClient();
-      const err = client.connect();
+      const Ctor = require('vigemclient') as new () => ViGEmClient;
+      const c = new Ctor();
+      const err = c.connect();
       if (err) throw new Error(`E_VIGEM_INIT ${err.message ?? err}`);
-      pad = client.createX360Controller();
-      pad.updateMode = 'manual';
-      const e2 = pad.connect();
+      const p = c.createX360Controller();
+      pad = p;
+      p.updateMode = 'manual';
+      const e2 = p.connect();
       if (e2) throw new Error(`E_VIGEM_TARGET ${e2.message ?? e2}`);
-      pad.on('vibration', (d: { largeMotor: number; smallMotor: number }) => rumbleCb?.(d.largeMotor / 255, d.smallMotor / 255));
+      p.on('vibration', (d: { large: number; small: number }) => rumbleCb?.(d.large / 255, d.small / 255));
       sink.ready = true;
     },
     update(x: XInputState) {
@@ -36,7 +38,7 @@ export function createViGEmSink(): PadSink {
       pad.update();
     },
     onRumble(cb) { rumbleCb = cb; },
-    disconnect() { try { pad?.disconnect(); } catch { /* ignore */ } pad = null; client = null; sink.ready = false; },
+    disconnect() { try { pad?.disconnect(); } catch { /* ignore */ } pad = null; sink.ready = false; },
   };
   return sink;
 }

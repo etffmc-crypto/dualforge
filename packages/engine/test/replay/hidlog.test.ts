@@ -15,4 +15,10 @@ describe('hidlog', () => {
   it('rejects malformed lines', () => {
     expect(() => parseHidlog('{"t":"x"}')).toThrow();
   });
+  it('reports bad lines by number only, never content', () => {
+    let msg = '';
+    try { parseHidlog('{"t":1,"hex":"00"}\nSECRET-garbage'); } catch (e) { msg = (e as Error).message; }
+    expect(msg).toMatch(/^E_HIDLOG_LINE: line \d+$/);
+    expect(msg).not.toContain('SECRET');
+  });
 });
