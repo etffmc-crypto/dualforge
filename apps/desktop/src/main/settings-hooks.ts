@@ -31,7 +31,14 @@ export function createSettingsHooks(d: SettingsHookDeps) {
       d.refreshHealth?.();
       if (!r.ok && next.hidHide) {
         // could not enable: persist hidHide=false so the toggle tells the truth, and tell the renderer why
-        d.engine.send({ type: 'setSettings', settings: d.settingsStore.set({ hidHide: false }) });
+        let saved: Settings;
+        try {
+          saved = d.settingsStore.set({ hidHide: false });
+        } catch (e) {
+          d.log.error({ code: 'E_SETTINGS_WRITE', msg: (e as Error).message });
+          throw new Error('E_SETTINGS_WRITE');
+        }
+        d.engine.send({ type: 'setSettings', settings: saved });
         throw new Error(r.code ?? 'E_HIDHIDE_CLI');
       }
     }

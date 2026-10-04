@@ -11,13 +11,18 @@ import {
 } from 'electron';
 import os from 'node:os';
 import { basename, join, resolve, extname } from 'node:path';
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { z } from 'zod';
 import { logger, LOG_DIR } from './logger.js';
 import { clearLogs, pruneLogs } from './log-prune.js';
 import { registerLogIpc } from './log-tail.js';
 import { createHealthService, createEngineFeed } from './health/service.js';
-import { gatherInput, defaultExec, queryVigemService } from './health/adapters.js';
+import {
+  gatherInput,
+  defaultExec,
+  queryVigemService,
+  HIDHIDE_STUCK_MARKER,
+} from './health/adapters.js';
 import { buildSystemInfo, createBundleExporter } from './bundle.js';
 import { startCrashReporter } from './crash-reporter.js';
 import { registerHealthIpc } from './health/ipc.js';
@@ -29,7 +34,7 @@ import { createInjector } from './injector.js';
 import { createFocusGate } from './focus-gate.js';
 import { createGameWatcher } from './game-watcher.js';
 import { createProcessLister } from './processes.js';
-import { createHidHide } from './hidhide.js';
+import { createHidHide, createHidHideQueue } from './hidhide.js';
 import { createSettingsHooks } from './settings-hooks.js';
 import { applyLoginItem, shouldHideOnClose, shouldStartHidden } from './startup.js';
 import { createTray, type AppTray } from './tray.js';
@@ -55,7 +60,7 @@ startCrashReporter(app, crashReporter, crashDir);
 const store = createProfileStore(dataDir, logger);
 const settings = createSettingsStore(dataDir, logger);
 const updater = createUpdater({
-  enabled: () => settings.get().updates,
+  enabled: () => __UPDATES_ENABLED__ && settings.get().updates, // build-time gate: off until a real publish owner is set
   isPackaged: app.isPackaged,
   currentVersion: app.getVersion(),
   log: logger,
@@ -65,7 +70,33 @@ const updater = createUpdater({
   },
 });
 ipcMain.handle('updates:check', () => updater.check());
-const hidhide = createHidHide({ ownExe: process.execPath, log: logger });
+const stuckMarker = join(dataDir, HIDHIDE_STUCK_MARKER);
+const hidhide = createHidHide({
+  ownExe: process.execPath,
+  dataDir,
+  log: logger,
+  onCloakStuck: (stuck) => {
+    try {
+      if (stuck) writeFileSync(stuckMarker, new Date().toISOString());
+      else rmSync(stuckMarker, { force: true });
+    } catch (e) {
+      logger.warn({ code: 'E_HIDHIDE_CLOAK_STUCK', msg: (e as Error).message });
+    }
+  },
+});
+// every HidHide operation (toggle, startup, repair, quit) goes through this one queue and converges on the setting
+const hidHideQueue = createHidHideQueue({
+  hidhide,
+  desired: () => settings.get().hidHide,
+  log: logger,
+});
+let hidHideWaitingForPad = false;
+const startupHidHide = () =>
+  hidHideQueue.startup().then((r) => {
+    if (!r.ok) logger.warn({ code: r.code, msg: r.msg });
+    hidHideWaitingForPad = !!r.skipped; // retried on the next device-present health change
+    void health.run();
+  });
 const ipc = registerIpc({
   ipc: ipcMain,
   dialog,
@@ -80,7 +111,7 @@ const ipc = registerIpc({
   },
   onProfilesChanged: () => tray?.refresh(),
   onSettingsChanged: createSettingsHooks({
-    hidhide,
+    hidhide: hidHideQueue,
     settingsStore: settings,
     engine,
     log: logger,
@@ -148,6 +179,17 @@ const health = createHealthService({
     }),
   emit: (s) => {
     if (win && !win.isDestroyed()) win.webContents.send('health:changed', s);
+    // startup skipped HidHide because the pad was absent: apply it once the pad is present
+    const snap = engineFeed.view().snapshot;
+    if (
+      hidHideWaitingForPad &&
+      settings.get().hidHide &&
+      snap?.connected &&
+      snap.source === 'device'
+    ) {
+      hidHideWaitingForPad = false;
+      void startupHidHide();
+    }
   },
   log: logger,
   repairs: {
@@ -159,12 +201,12 @@ const health = createHealthService({
     openLogs: () => shell.openPath(LOG_DIR),
     installViGEm: installRepair('vigem'),
     installHidHide: installRepair('hidhide'),
-    enableHidHide: async () => {
-      const r = await hidhide.enable();
-      if (r.ok && !settings.get().hidHide)
-        engine.send({ type: 'setSettings', settings: settings.set({ hidHide: true }) }); // the quit/startup logic follows the setting
-      return r;
-    },
+    enableHidHide: () =>
+      // the setting is turned on inside the queue, before converge reads it; the quit/startup logic follows it
+      hidHideQueue.repair(() => {
+        if (!settings.get().hidHide)
+          engine.send({ type: 'setSettings', settings: settings.set({ hidHide: true }) });
+      }),
     exportBundle: async () =>
       (await bundle.exportWithDialog()) ? { ok: true } : { ok: false, code: 'E_BUNDLE_CANCELLED' },
   },
@@ -245,6 +287,7 @@ function createWindow(): void {
   win.on('session-end', () => {
     quitting = true;
     ipc.flush(); // the process may be killed right after logoff/shutdown: write pending profile edits now
+    if (hidhide.findCli()) void hidHideQueue.quitCleanup(settings.get().hidHide); // un-hide the pad before we are killed
   }); // Windows logoff/shutdown must not be swallowed by close-to-tray
   win.on('focus', () => focusGate.windowFocus(true));
   win.on('blur', () => {
@@ -329,7 +372,8 @@ if (!app.requestSingleInstanceLock()) {
     });
     createWindow();
     applyLoginItem(app, settings.get(), logger);
-    if (settings.get().updates) setTimeout(() => void updater.check(), 10_000); // opt-in only
+    if (__UPDATES_ENABLED__ && settings.get().updates)
+      setTimeout(() => void updater.check(), 10_000); // opt-in only
     engine.start();
     engine.send({ type: 'setSettings', settings: settings.get() });
     focusGate.windowFocus(win?.isFocused() ?? true);
@@ -337,23 +381,22 @@ if (!app.requestSingleInstanceLock()) {
     ipc.applyProfile(settings.get().activeProfile);
     watcher.start();
     health.start();
-    if (settings.get().hidHide) {
-      // cloak is off after a quit/reboot: switch it on again
-      void hidhide.enable().then((r) => {
-        if (!r.ok) logger.warn({ code: r.code, msg: r.msg });
-        void health.run();
-      });
-    }
+    if (settings.get().hidHide) void startupHidHide(); // cloak is off after a quit/reboot: switch it on again
   });
-  // While DualForge is closed the DualSense must be visible to games again: cloak off first (best effort, 2 s), then really quit.
+  // While DualForge is closed the DualSense must be visible to games again: cloak off first (best effort, 2 s), then
+  // really quit. Runs whenever this session cloaked, even if the setting was switched off meanwhile.
   let quitCleanup: 'idle' | 'running' | 'done' = 'idle';
   app.on('before-quit', (e) => {
     quitting = true;
-    if (quitCleanup === 'idle' && settings.get().hidHide && hidhide.findCli()) {
+    const cloakOff =
+      quitCleanup === 'idle' && hidhide.findCli()
+        ? hidHideQueue.quitCleanup(settings.get().hidHide)
+        : null;
+    if (cloakOff) {
       e.preventDefault();
       quitCleanup = 'running';
       const timeout = new Promise<void>((r) => setTimeout(r, 2000));
-      void Promise.race([hidhide.disable(), timeout])
+      void Promise.race([cloakOff, timeout])
         .catch(() => undefined)
         .finally(() => {
           quitCleanup = 'done';

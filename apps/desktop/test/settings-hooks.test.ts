@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { defaultSettings, type Settings } from '@dualforge/shared';
 import { createSettingsHooks } from '../src/main/settings-hooks.js';
+import { createHidHideQueue } from '../src/main/hidhide.js';
 
 function rig(
   enable: { ok: boolean; code?: string } = { ok: true },
@@ -59,6 +60,62 @@ describe('settings hooks', () => {
       expect.objectContaining({ code: 'E_STARTUP_LOGIN_ITEM' }),
     );
   });
+  it('a throwing settings write while reverting becomes E_SETTINGS_WRITE (logged), not an uncoded error', async () => {
+    const log = { error: vi.fn() };
+    const hook = createSettingsHooks({
+      hidhide: {
+        enable: async () => ({ ok: false, code: 'E_HIDHIDE_NO_DEVICE' }),
+        disable: async () => ({ ok: true }),
+      },
+      settingsStore: {
+        set: () => {
+          throw new Error('EPERM: settings.json');
+        },
+      },
+      engine: { send: vi.fn() },
+      applyLoginItem: vi.fn(),
+      log,
+    });
+    const prev = defaultSettings();
+    await expect(hook(prev, { ...prev, hidHide: true })).rejects.toThrow(/^E_SETTINGS_WRITE$/);
+    expect(log.error).toHaveBeenCalledWith(expect.objectContaining({ code: 'E_SETTINGS_WRITE' }));
+  });
+
+  it('enable then disable queued: ends with cloak off and the setting false', async () => {
+    let stored: Settings = defaultSettings();
+    const cloak: string[] = [];
+    const slow = (name: string) => async () => {
+      await new Promise((r) => setTimeout(r, 5));
+      cloak.push(name);
+      return { ok: true };
+    };
+    const q = createHidHideQueue({
+      hidhide: {
+        enable: slow('on'),
+        startup: slow('on'),
+        disable: slow('off'),
+        quitCloakOff: slow('off'),
+      },
+      desired: () => stored.hidHide,
+      log: { info: vi.fn() },
+    });
+    const hook = createSettingsHooks({
+      hidhide: q,
+      settingsStore: { set: (p) => (stored = { ...stored, ...p }) },
+      engine: { send: vi.fn() },
+      applyLoginItem: vi.fn(),
+      log: { error: vi.fn() },
+    });
+    const run = (patch: Partial<Settings>) => {
+      const prev = stored;
+      stored = { ...stored, ...patch };
+      return hook(prev, stored);
+    };
+    await Promise.all([run({ hidHide: true }), run({ hidHide: false })]);
+    expect(cloak.at(-1)).toBe('off');
+    expect(stored.hidHide).toBe(false);
+  });
+
   it('does nothing for unrelated changes', async () => {
     const r = rig();
     await r.run({ theme: 'light' });

@@ -45,7 +45,8 @@ beforeEach(() => {
     health: healthApi,
     updates: updatesApi,
   });
-  useStore.setState({ settings: defaultSettings(), lastError: null });
+  vi.stubGlobal('__UPDATES_ENABLED__', true); // build-time define; a release with a real publish owner
+  useStore.setState({ settings: defaultSettings(), lastError: null, hidHidePending: false });
   delete document.documentElement.dataset.theme;
   localStorage.clear();
 });
@@ -83,6 +84,34 @@ describe('Settings page', () => {
     expect(settingsApi.set).toHaveBeenCalledWith({ hidHide: true });
     await waitFor(() => expect(stored.hidHide).toBe(true));
     expect(screen.getByText(/visible again/)).toBeTruthy();
+  });
+
+  it('the HidHide switch is disabled while its request is pending', async () => {
+    let finish!: (s: S) => void;
+    settingsApi.set.mockImplementationOnce(
+      (patch: Partial<S>) =>
+        new Promise<S>((res) => {
+          finish = () => res((stored = { ...stored, ...patch }));
+        }),
+    );
+    render(<Settings />);
+    await waitFor(() => expect(healthApi.get).toHaveBeenCalled());
+    fireEvent.click(sw('Hide the DualSense from games'));
+    await waitFor(() => expect(sw('Hide the DualSense from games').disabled).toBe(true));
+    expect(useStore.getState().hidHidePending).toBe(true);
+    fireEvent.click(sw('Hide the DualSense from games'));
+    expect(settingsApi.set).toHaveBeenCalledTimes(1); // a second click cannot queue another request
+    await act(async () => finish(stored));
+    await waitFor(() => expect(sw('Hide the DualSense from games').disabled).toBe(false));
+    expect(useStore.getState().hidHidePending).toBe(false);
+  });
+
+  it('hides the update switch and Check now unless the build enables updates', () => {
+    vi.stubGlobal('__UPDATES_ENABLED__', false);
+    render(<Settings />);
+    expect(screen.queryByRole('switch', { name: 'Check for updates' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Check now' })).toBeNull();
+    expect(sw('Start with Windows')).toBeTruthy(); // the rest of the page is still there
   });
 
   it('HidHide stays disabled with an install hint while the driver is missing', async () => {

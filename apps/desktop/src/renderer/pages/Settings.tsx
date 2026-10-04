@@ -19,6 +19,9 @@ export function Settings() {
   const settings = useStore((s) => s.settings);
   const updateSettings = useStore((s) => s.updateSettings);
   const loadSettings = useStore((s) => s.loadSettings);
+  const hidHidePending = useStore((s) => s.hidHidePending);
+  // build-time: false unless electron-builder.yml publishes to a real owner (not the `dualforge` placeholder)
+  const updatesEnabled = typeof __UPDATES_ENABLED__ !== 'undefined' && __UPDATES_ENABLED__;
   // null = unknown (Health not loaded); false = the HidHide driver is missing
   const [checking, setChecking] = useState(false);
   const [updateResult, setUpdateResult] = useState<UpdateResult | { error: string } | null>(null);
@@ -74,13 +77,13 @@ export function Settings() {
           )}
           <Toggle
             label="Hide the DualSense from games"
-            hint="Games would see only the virtual Xbox controller, so inputs are never doubled. While DualForge is closed the DualSense is visible again."
+            hint="Games would see only the virtual Xbox controller, so inputs are never doubled. While DualForge is closed the DualSense is visible again. HidHide needs administrator rights on most PCs, so the first enable shows a UAC prompt."
             note={
               hidHideInstalled === false ? 'Driver not installed — install from Health' : undefined
             }
             checked={settings.hidHide}
             onChange={(v) => void updateSettings({ hidHide: v })}
-            disabled={hidHideInstalled === false && !settings.hidHide}
+            disabled={hidHidePending || (hidHideInstalled === false && !settings.hidHide)}
             title={
               hidHideInstalled === false
                 ? 'Install the HidHide driver from the Health page first'
@@ -115,25 +118,27 @@ export function Settings() {
             onChange={(theme) => void updateSettings({ theme })}
           />
         </PanelSection>
-        <PanelSection title="Updates">
-          {flag(
-            'updates',
-            'Check for updates',
-            'Look for a new version when the app starts. Nothing is downloaded or installed without you.',
-          )}
-          <button
-            data-nav
-            type="button"
-            className="panel-btn"
-            disabled={checking}
-            onClick={checkNow}
-          >
-            {checking ? 'Checking…' : 'Check now'}
-          </button>
-          <p className="psec-hint" role="status" aria-live="polite">
-            {updateText(updateResult)}
-          </p>
-        </PanelSection>
+        {updatesEnabled && (
+          <PanelSection title="Updates">
+            {flag(
+              'updates',
+              'Check for updates',
+              'Look for a new version when the app starts. Nothing is downloaded or installed without you.',
+            )}
+            <button
+              data-nav
+              type="button"
+              className="panel-btn"
+              disabled={checking}
+              onClick={checkNow}
+            >
+              {checking ? 'Checking…' : 'Check now'}
+            </button>
+            <p className="psec-hint" role="status" aria-live="polite">
+              {updateText(updateResult)}
+            </p>
+          </PanelSection>
+        )}
         <PanelSection title="Data">
           <p className="psec-hint">Profiles, settings and logs are stored in one folder.</p>
           <button data-nav type="button" className="panel-btn with-icon" onClick={openDataDir}>

@@ -45,6 +45,8 @@ interface State {
   activeProfileId: string | null;
   profiles: ProfileSummary[];
   settings: Settings | null;
+  /** A hidHide change is in flight in main (enable may wait on a UAC prompt); the switch is disabled meanwhile. */
+  hidHidePending: boolean;
   subTab: Record<SubTabPage, Side>;
   /** Latest health-check results (header dot, Health page); null until the first answer from main. */
   health: HealthState | null;
@@ -119,6 +121,7 @@ export const useStore = create<State>((set, get) => {
     activeProfileId: null,
     profiles: [],
     settings: null,
+    hidHidePending: false,
     subTab: { sticks: 'left', triggers: 'left' },
     health: null,
     navHolds: 0,
@@ -143,13 +146,17 @@ export const useStore = create<State>((set, get) => {
     loadSettings: async () => set({ settings: await window.dualforge.settings.get() }),
     updateSettings: async (patch) => {
       const before = get().settings;
+      const hid = 'hidHide' in patch;
       if (before) set({ settings: { ...before, ...patch } });
+      if (hid) set({ hidHidePending: true });
       try {
         set({ settings: await window.dualforge.settings.set(patch) });
       } catch (err) {
         // main may have persisted a corrected value (e.g. hidHide forced off after a failed enable), so resync from it; fall back to the old value
         const actual = await window.dualforge.settings.get().catch(() => before);
         set({ settings: actual, lastError: { code: 'E_SETTINGS_SEND', msg: String(err) } });
+      } finally {
+        if (hid) set({ hidHidePending: false });
       }
     },
     refreshProfiles: async () => set({ profiles: await window.dualforge.profiles.list() }),
