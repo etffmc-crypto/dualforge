@@ -1,0 +1,54 @@
+/* ---------- Motion page (ss1): label rows with right-aligned pills, then shaping sections ---------- */
+.mbody { margin: 0; padding: 0; border: 0; min-width: 0; display: flex; flex-direction: column; transition: opacity 150ms ease; }
+.mbody:disabled { opacity: 0.42; }
+.mbody-sections { gap: 20px; }
+.mrows { display: flex; flex-direction: column; gap: 2px; }
+.mrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 46px; }
+.mrow-label { font-size: 15px; color: var(--text); white-space: nowrap; }
+.mrow-ctl { display: flex; justify-content: flex-end; min-width: 0; }
+.mrow-ctl .seg { flex-wrap: nowrap; gap: 6px; }
+.mrow-ctl .seg-btn { flex: none; height: 32px; padding: 0 12px; font-size: 13px; }
+.mrow-ctl .seg-btn:not(.active) { color: var(--text-secondary); }
+
+/* the GameSir square button pill; hot = required (Hold / Toggle) */
+.mpill {
+  min-width: 42px; height: 38px; padding: 0 10px; border-radius: 8px; border: 1.5px solid transparent;
+  background: var(--seg); color: var(--text-soft); font: inherit; font-size: 14px; font-weight: 500; cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+.mpill:hover:not(:disabled) { background: var(--hover); }
+.mpill.hot { border-color: var(--focus); color: var(--text-strong); }
+.mpill:disabled { cursor: default; color: var(--muted); }
+.mpill:focus-visible, .mbtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.mbtn-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
+.mbtn {
+  height: 40px; padding: 0 6px; border: 1px solid var(--card-border); border-radius: 8px;
+  background: var(--seg); color: var(--text-soft); font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap;
+  transition: background-color 120ms ease;
+}
+.mbtn:hover:not(.active) { background: var(--hover); }
+.mbtn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.msens { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.msens .rs-label + .rs { margin-bottom: 6px; }
+
+.mcal-run { display: flex; align-items: center; gap: 12px; }
+.mcal-run .cal-meter { flex: 1; margin: 0; }
+.mcal-error { margin: 0; font-size: 12px; color: var(--bad-text); }
+.mcal-bias { margin-top: 0; }
+
+/* ---------- live rotation meter ---------- */
+.gyro-meter { display: flex; flex-direction: column; gap: 10px; }
+.gm-head { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-secondary); }
+.gm-scale { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.gm-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) 64px; align-items: center; gap: 10px; font-size: 13px; }
+.gm-label { color: var(--text-secondary); }
+.gm-track { position: relative; height: 10px; border-radius: 5px; background: var(--plot-grid); overflow: hidden; }
+.gm-dz { position: absolute; top: 0; bottom: 0; background: var(--track); }
+.gm-fill { position: absolute; top: 0; bottom: 0; background: var(--accent); }
+.gm-fill.idle { background: var(--muted); opacity: 0.6; }
+.gm-mid { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--plot-frame); opacity: 0.5; }
+.gm-value { text-align: right; color: var(--text-soft); font-variant-numeric: tabular-nums; font-size: 12px; }
+
+@media (prefers-reduced-motion: reduce) { .mbody, .mpill, .mbtn { transition: none; } }

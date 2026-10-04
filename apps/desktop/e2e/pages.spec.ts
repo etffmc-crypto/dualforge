@@ -204,3 +204,18 @@ test('Macro Play test drives the virtual pad: a 600 ms B step shows up in the en
   expect(lag).toBeLessThan(500);
   await app.close();
 });
+
+test('Motion page: Aim with Mouse output and a horizontal sensitivity reach the engine profile', async () => {
+  const app = await launchApp();
+  const page = await app.firstWindow();
+  await page.getByRole('tab', { name: 'Motion' }).click();
+  await page.getByRole('radiogroup', { name: 'Motion mode' }).getByRole('radio', { name: 'Aim' }).click();
+  await page.getByRole('radiogroup', { name: 'Output' }).getByRole('radio', { name: 'Mouse' }).click();
+  await setRange(page, 'Horizontal sensitivity', 3.5);
+  await page.waitForTimeout(200);
+  const p = await page.evaluate(() => window.dualforge.getProfile());
+  expect(p.gyro.output).toBe('mouse');
+  expect(p.gyro.sensitivityX).toBe(3.5);
+  expect(p.gyro.sensitivityY).toBe(1);
+  await app.close();
+});
