@@ -31,6 +31,12 @@ export function MacroEditor({ macro, isNew, onClose }: MacroEditorProps) {
   const [recording, setRecording] = useState(false);
   const [saved, setSaved] = useState(!isNew);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const keepEditing = useRef<HTMLButtonElement>(null);
+  // the version the profile holds (the opened macro, then each successful save): closing a different draft asks first
+  const savedDraft = useRef(macro);
+  const dirty = JSON.stringify(draft) !== JSON.stringify(savedDraft.current);
+  const requestClose = () => { if (dirty) setConfirmDiscard(true); else onClose(); };
   const nameId = useId();
 
   const name = draft.name.trim();
@@ -44,6 +50,7 @@ export function MacroEditor({ macro, isNew, onClose }: MacroEditorProps) {
     }
     setSaveError(null);
     setSaved(true);
+    savedDraft.current = draft;
     return true;
   };
   // while a test run plays, its A / B / D-pad steps must not also drive gamepad navigation (B would close this dialog)
@@ -73,7 +80,7 @@ export function MacroEditor({ macro, isNew, onClose }: MacroEditorProps) {
   const seconds = (cycleMs(draft) / 1000).toFixed(2);
 
   return (
-    <Modal open title={isNew && !saved ? 'New macro' : 'Edit macro'} onClose={onClose} width={760} className="macro-editor">
+    <Modal open title={isNew && !saved ? 'New macro' : 'Edit macro'} onClose={requestClose} width={760} className="macro-editor">
       <div className="me-top">
         <label className="me-name" htmlFor={nameId}>
           <span>Name</span>
@@ -99,7 +106,7 @@ export function MacroEditor({ macro, isNew, onClose }: MacroEditorProps) {
       <div className="modal-actions">
         {problem && <span className="me-problem" role="status">{problem}</span>}
         {!problem && saveError && <span className="me-problem" role="alert">Not saved: {saveError}</span>}
-        <button data-nav type="button" className="panel-btn" onClick={onClose}>Cancel</button>
+        <button data-nav type="button" className="panel-btn" onClick={requestClose}>Cancel</button>
         <button data-nav type="button" className="panel-btn primary" disabled={!!problem} onClick={() => { if (save()) onClose(); }}>Save</button>
       </div>
 
@@ -107,6 +114,13 @@ export function MacroEditor({ macro, isNew, onClose }: MacroEditorProps) {
         {picking !== null && (
           <TargetPicker tab={pickTab} onTab={setPickTab} subject={`Step ${picking + 1}`} selected={[draft.steps[picking]!.target]} full={false} onPick={setTarget} />
         )}
+      </Modal>
+      <Modal open={confirmDiscard} title="Discard changes?" onClose={() => setConfirmDiscard(false)} width={420} initialFocus={keepEditing}>
+        <p className="modal-text">Your edits to {name ? `“${name}”` : 'this macro'} have not been saved.</p>
+        <div className="modal-actions">
+          <button data-nav type="button" className="panel-btn" onClick={onClose}>Discard</button>
+          <button data-nav type="button" className="panel-btn primary" ref={keepEditing} onClick={() => setConfirmDiscard(false)}>Keep editing</button>
+        </div>
       </Modal>
       <RecordDialog open={recording} onClose={() => setRecording(false)} onUse={(steps) => { setDraft((d) => ({ ...d, steps })); setRecording(false); }} />
     </Modal>

@@ -5,7 +5,6 @@ import { Battery } from '../components/Battery';
 export function Home() {
   const s = useStore((st) => st.snapshot);
   const p = useStore((st) => st.profile);
-  const lastError = useStore((st) => st.lastError);
   const connected = s?.connected ?? false;
   return (
     <div className="home">
@@ -28,7 +27,6 @@ export function Home() {
         <span className={`chip ${s?.vigemReady ? 'ok' : 'bad'}`}>ViGEm {s?.vigemReady ? 'ready' : 'unavailable'}</span>
         <span className="chip">Report rate {Math.round(s?.reportHz ?? 0)} Hz</span>
         <span className="chip">Pipeline p99 {(s?.pipelineP99Ms ?? 0).toFixed(2)} ms</span>
-        {lastError && <span className="chip bad" title={lastError.msg}>{lastError.code}</span>}
       </div>
       {!s?.vigemReady && (
         <p className="home-hint">Install the ViGEmBus driver to enable the virtual Xbox controller. Lights, triggers and live view still work without it.</p>

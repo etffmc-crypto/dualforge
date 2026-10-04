@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type PropsWithChildren } from 'react';
+import { useEffect, useId, useRef, type PropsWithChildren, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import '../styles/modal.css';
 
@@ -8,6 +8,8 @@ export interface ModalProps {
   onClose(): void;
   width?: number;
   className?: string;
+  /** Control focused on open (the safe choice in a confirm), instead of the dialog panel itself. */
+  initialFocus?: RefObject<HTMLElement | null>;
 }
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -30,19 +32,23 @@ export function closeTopModal(): boolean {
 }
 
 /** Shared dialog: focus moves in on open, Tab / Shift+Tab loop inside, Escape or a backdrop click closes, focus returns to the opener. */
-export function Modal({ open, title, onClose, width, className = '', children }: PropsWithChildren<ModalProps>) {
+export function Modal({ open, title, onClose, width, className = '', initialFocus, children }: PropsWithChildren<ModalProps>) {
   const titleId = useId();
   const panel = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
   close.current = onClose;
   const downOnBackdrop = useRef(false);
+  const firstFocus = useRef(initialFocus);
+  firstFocus.current = initialFocus;
 
   useEffect(() => {
     if (!open) return;
     const me: Open = { close: () => close.current(), panel: panel.current };
     stack.push(me);
     const opener = document.activeElement as HTMLElement | null;
-    panel.current?.focus();
+    const first = firstFocus.current?.current;
+    if (first) first.focus({ focusVisible: true } as FocusOptions);
+    else panel.current?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (stack.at(-1) !== me || !panel.current) return;
       if (e.key === 'Escape') { e.preventDefault(); close.current(); return; }

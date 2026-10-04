@@ -26,6 +26,8 @@ interface State {
    * else and navigation ignores it. Use `suspendNav()` / `navSuspended()` rather than this count.
    */
   navHolds: number;
+  /** Dismisses the error the footer chip shows. */
+  clearError(): void;
   /** Takes a hold; the returned release is idempotent, so each owner releases exactly its own. */
   suspendNav(): () => void;
   setPage(p: Page): void;
@@ -77,6 +79,7 @@ export const useStore = create<State>((set, get) => {
     profile: null, activeProfileId: null, profiles: [], settings: null,
     subTab: { sticks: 'left', triggers: 'left' },
     navHolds: 0,
+    clearError: () => set({ lastError: null }),
     suspendNav: () => {
       set((s) => ({ navHolds: s.navHolds + 1 }));
       let held = true;

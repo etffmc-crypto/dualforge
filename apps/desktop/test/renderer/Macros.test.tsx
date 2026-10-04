@@ -164,6 +164,37 @@ describe('Macros page', () => {
     expect(hold().value).toBe('10000');
   });
 
+  it('closing with unsaved edits asks first: Keep editing (focused) keeps the draft, Discard closes without saving', () => {
+    const before = useStore.getState().profile;
+    render(<Macros />);
+    fireEvent.click(within(row('Reload')).getByRole('button', { name: 'Edit Reload' }));
+    const ed = () => dialog('Edit macro');
+    setMs(ed().getByRole('spinbutton', { name: 'Step 1 hold (ms)' }), '300');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    const confirm = () => dialog('Discard changes?');
+    expect(confirm().getByRole('button', { name: 'Keep editing' })).toBe(document.activeElement);
+    fireEvent.click(confirm().getByRole('button', { name: 'Keep editing' }));
+    expect(screen.queryByRole('dialog', { name: 'Discard changes?' })).toBeNull();
+    expect((ed().getByRole('spinbutton', { name: 'Step 1 hold (ms)' }) as HTMLInputElement).value).toBe('300');
+    // Cancel (and B / backdrop, which share the same close path) ask again
+    fireEvent.click(ed().getByRole('button', { name: 'Cancel' }));
+    fireEvent.click(confirm().getByRole('button', { name: 'Discard' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(useStore.getState().profile).toBe(before);
+  });
+
+  it('closing an unchanged or just-saved editor does not ask', () => {
+    render(<Macros />);
+    fireEvent.click(within(row('Reload')).getByRole('button', { name: 'Edit Reload' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(within(row('Reload')).getByRole('button', { name: 'Edit Reload' }));
+    setMs(dialog('Edit macro').getByRole('spinbutton', { name: 'Step 1 hold (ms)' }), '90');
+    fireEvent.click(dialog('Edit macro').getByRole('button', { name: 'Play test' }));   // saves
+    fireEvent.click(dialog('Edit macro').getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
   it('shows an invitation when there are no macros', () => {
     const p = defaultProfile('p1', 'Profile 1');
     useStore.setState({ profile: p });

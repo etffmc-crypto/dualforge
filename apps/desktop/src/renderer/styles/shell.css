@@ -101,7 +101,22 @@
   flex: 0 0 56px; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 32px;
   background: var(--header-bg); border-top: 1px solid var(--hairline); font-size: 14px; color: var(--text-soft);
 }
-.footer-hints { display: flex; align-items: center; gap: 20px; }
+.footer-left { display: flex; align-items: center; gap: 24px; min-width: 0; }
+.footer-hints { display: flex; align-items: center; gap: 20px; flex: none; }
+/* error chip: right of the legend; the code reads like a fault readout, the message says what to do */
+.err-chip {
+  display: inline-flex; align-items: center; gap: 10px; min-width: 0; max-width: 560px; height: 30px; padding: 0 4px 0 12px;
+  border-radius: 999px; border: 1px solid rgba(226, 64, 63, 0.55); background: rgba(226, 64, 63, 0.1);
+  font-size: 12px; animation: err-in 160ms ease-out;
+}
+.err-code { flex: none; font-family: var(--mono); font-weight: 600; color: var(--bad-text); letter-spacing: 0.3px; }
+.err-msg { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); }
+.err-x {
+  flex: none; width: 24px; height: 24px; display: grid; place-items: center; border: 0; border-radius: 50%;
+  background: transparent; color: var(--text-secondary); cursor: pointer;
+}
+.err-x:hover { background: var(--hover); color: var(--text-strong); }
+@keyframes err-in { from { opacity: 0; transform: translateY(4px); } }
 .hint { display: inline-flex; align-items: center; gap: 6px; }
 .hint-dpad { color: var(--text-dim); }
 .badge {
@@ -130,4 +145,4 @@
 .crash-msg { color: var(--muted); }
 .crash-btn { align-self: flex-end; margin-top: 4px; }
 
-@media (prefers-reduced-motion: reduce) { .tab, .icon-btn, .ptab-btn, .ptab-edit { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .tab, .icon-btn, .ptab-btn, .ptab-edit { transition: none; } .err-chip { animation: none; } }
