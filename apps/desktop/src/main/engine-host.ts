@@ -8,6 +8,8 @@ export function createEngineHost(opts: { onEvent: (e: EngineEvent) => void; log:
   let restarts: number[] = [];
   let stopping = false;
   let lastProfileCmd: EngineCommand | null = null;
+  let restartTimer: NodeJS.Timeout | null = null;
+  let killTimer: NodeJS.Timeout | null = null;
 
   function spawn() {
     child = utilityProcess.fork(join(__dirname, 'engine-process.js'), [], { serviceName: 'dualforge-engine', stdio: 'pipe' });
@@ -32,6 +34,13 @@ export function createEngineHost(opts: { onEvent: (e: EngineEvent) => void; log:
   return {
     start() { stopping = false; spawn(); },
     send(cmd: EngineCommand) { if (cmd.type === 'setProfile') lastProfileCmd = cmd; child?.postMessage(cmd); },
-    stop() { stopping = true; child?.postMessage({ type: 'shutdown' } satisfies EngineCommand); setTimeout(() => child?.kill(), 500); },
+    stop() {
+      stopping = true;
+      if (restartTimer) { clearTimeout(restartTimer); restartTimer = null; }
+      if (killTimer) clearTimeout(killTimer);
+      const c = child;
+      c?.postMessage({ type: 'shutdown' } satisfies EngineCommand);
+      killTimer = setTimeout(() => { killTimer = null; c?.kill(); }, 500);
+    },
   };
 }

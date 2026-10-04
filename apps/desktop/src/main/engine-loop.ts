@@ -87,6 +87,11 @@ export function createEngineLoop(d: LoopDeps) {
       idle = setInterval(() => { const now = d.now(); if (now - lastSnap >= SNAPSHOT_MS) { lastSnap = now; emitSnapshot(now); } maybeWriteOutput(now); }, 100);
     },
     stop() { if (idle) clearInterval(idle); d.source.stop(); d.sink.disconnect(); },
-    swapSource(src: InputSource) { d.source.stop(); d.source = src; d.source.start(onReport, onStatus); },
+    swapSource(src: InputSource) {
+      d.source.stop(); d.source = src;
+      connected = false; lastOutHex = '';
+      d.emit({ type: 'status', connected: false, vigemReady: d.sink.ready });
+      d.source.start(onReport, onStatus);
+    },
   };
 }

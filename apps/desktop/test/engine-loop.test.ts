@@ -39,3 +39,34 @@ describe('engine loop', () => {
     loop.stop(); vi.useRealTimers();
   });
 });
+
+describe('engine loop output reports and source swap', () => {
+  it('writes output only on change or 250 ms keepalive', async () => {
+    vi.useFakeTimers();
+    const writes: Uint8Array[] = [];
+    const src: InputSource = { start(_r, s) { s(true); }, write(r) { writes.push(r); }, stop() {} };
+    const loop = createEngineLoop({ source: src, sink: fakeSink(), emit: () => {}, now: () => performance.now() });
+    loop.setProfile(defaultProfile('p', 'p'));
+    await loop.start();
+    await vi.advanceTimersByTimeAsync(600);
+    expect(writes.length).toBeGreaterThanOrEqual(3);
+    expect(writes.length).toBeLessThanOrEqual(4);
+    loop.stop(); vi.useRealTimers();
+  });
+  it('swapSource emits status false and forces an output write on the new source', async () => {
+    vi.useFakeTimers();
+    const events: { type: string; connected?: boolean }[] = [];
+    const writes: Uint8Array[] = [];
+    const first: InputSource = { start(_r, s) { s(true); }, write() {}, stop() {} };
+    const loop = createEngineLoop({ source: first, sink: fakeSink(), emit: (e) => events.push(e as never), now: () => performance.now() });
+    loop.setProfile(defaultProfile('p', 'p'));
+    await loop.start();
+    await vi.advanceTimersByTimeAsync(10);
+    events.length = 0;
+    const second: InputSource = { start(_r, s) { s(true); }, write(r) { writes.push(r); }, stop() {} };
+    loop.swapSource(second);
+    expect(events[0]).toMatchObject({ type: 'status', connected: false });
+    expect(writes.length).toBe(1);
+    loop.stop(); vi.useRealTimers();
+  });
+});
