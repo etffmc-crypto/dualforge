@@ -5,6 +5,7 @@ import { Home } from './pages/Home';
 import { InputTest } from './pages/InputTest';
 import './styles/shell.css';
 import './styles/pages.css';
+import './styles/controls.css';
 
 function Page() {
   const page = useStore((s) => s.page);

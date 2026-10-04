@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
-import { render } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { cleanup, render } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
 import { DualSenseTop } from '../../src/renderer/art/DualSenseTop';
+
+afterEach(cleanup);
 
 describe('DualSenseTop', () => {
   it('highlights pressed buttons and tints the lightbar', () => {

@@ -24,9 +24,10 @@
 .chip.ok { border-color: rgba(143, 209, 79, 0.5); color: #8fd14f; } .chip.bad { border-color: rgba(226, 64, 63, 0.6); color: #ff7a79; }
 .input-test { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .stick-row { display: flex; gap: 24px; justify-content: center; }
-.stick-circle { text-align: center; } .stick-label { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+.stick-label { color: var(--muted); font-size: 12px; margin-top: 4px; }
 .mono { font-family: var(--mono); font-size: 12px; }
-.trigger-bar { display: grid; grid-template-columns: 40px 1fr 48px; align-items: center; gap: 10px; margin: 8px 0; }
+.trigger-bar { display: grid; grid-template-columns: 64px 1fr 48px; align-items: center; gap: 10px; margin: 8px 0; }
 .track { height: 10px; border-radius: 5px; background: rgba(255,255,255,0.08); overflow: hidden; } .fill { height: 100%; background: var(--accent); }
 .btn-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
 .btn-grid .cell { padding: 8px; text-align: center; border-radius: 8px; border: 1px solid var(--card-border); font-size: 12px; }
