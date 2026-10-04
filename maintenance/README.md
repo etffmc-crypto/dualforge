@@ -7,8 +7,10 @@ A Claude Code routine that checks DualForge health, triages app logs and crashes
 From the repo root, with a restricted tool set (use this exact form, also for the scheduler):
 
 ```powershell
-claude -p (Get-Content maintenance/AGENT.md -Raw) --permission-mode acceptEdits --allowedTools "Bash(git status:*)" "Bash(git checkout:*)" "Bash(git pull:*)" "Bash(git add:*)" "Bash(git commit:*)" "Bash(git log:*)" "Bash(git diff:*)" "Bash(npm run check:*)" "Bash(npm ci)" "Bash(powershell -File maintenance/run-checks.ps1)" Read Write Edit Grep Glob
+claude -p (Get-Content maintenance/AGENT.md -Raw) --permission-mode acceptEdits --allowedTools "Bash(git status:*)" "Bash(git checkout:*)" "Bash(git pull:*)" "Bash(git add:*)" "Bash(git commit:*)" "Bash(git log:*)" "Bash(git diff:*)" "Bash(git remote:*)" "Bash(git branch:*)" "Bash(git rev-parse:*)" "Bash(npm run check:*)" "Bash(npm run typecheck)" "Bash(npm run lint)" "Bash(npm run test)" "Bash(npm run format:check)" "Bash(npm run coverage)" "Bash(npm run audit)" "Bash(npm ci)" "Bash(powershell -File maintenance/run-checks.ps1)" "Bash(powershell -NoProfile -Command Get-ChildItem*)" Read Write Edit Grep Glob --add-dir "%APPDATA%\DualForge"
 ```
+
+`--add-dir` makes the app logs and crash dumps readable; in PowerShell the same path is `"$env:APPDATA\DualForge"` (use that form if `%APPDATA%` is not expanded). The `Get-ChildItem` entry is for listing the crashes directory.
 
 Alternatively open Claude Code in the repo and paste the contents of `AGENT.md` as the prompt.
 
@@ -20,7 +22,7 @@ powershell -File maintenance/run-checks.ps1
 
 ## Schedule it
 
-Use the Claude Code scheduler (`/schedule`) with the contents of `AGENT.md` as the prompt and the same `--permission-mode acceptEdits` and `--allowedTools` list as above (the scheduled task on this PC must use them), repo `F:\DualForge`, daily at 09:00. The machine must be on and the repo checked out; the routine reads the local app logs, so it must run on this PC.
+Use the Claude Code scheduler (`/schedule`) with the contents of `AGENT.md` as the prompt and the same `--permission-mode acceptEdits`, `--allowedTools` list and `--add-dir` as above (the scheduled task on this PC must use them), repo `F:\DualForge`, daily at 09:00. The machine must be on and the repo checked out; the routine reads the local app logs, so it must run on this PC.
 
 ## Where reports go
 

@@ -20,7 +20,7 @@ Your job: verify the project is healthy, triage what the app logged in the last 
 
 ## Steps
 
-1. **Branch and tree.** Run `git checkout main`, then `git status --porcelain`. If the tree is dirty, do NOT commit anything: write the report to `maintenance/reports/YYYY-MM-DD.md`, leave it unstaged, and stop.
+1. **Branch and tree.** Run `git checkout main`; if it fails because of local changes, treat that as the dirty-tree case (report unstaged, stop). Then `git status --porcelain`. If the tree is dirty, do NOT commit anything: write the report to `maintenance/reports/YYYY-MM-DD.md`, leave it unstaged, and stop.
 2. **Update.** Run `git pull --ff-only` only if `git remote` lists `origin`. If it fails, stop and report.
 3. **Install.** `npm ci`.
 4. **Checks.** `powershell -File maintenance/run-checks.ps1` (typecheck, lint, format:check, test, coverage, test:ui, audit). It exits non-zero on any failure (2 if Node is missing).
