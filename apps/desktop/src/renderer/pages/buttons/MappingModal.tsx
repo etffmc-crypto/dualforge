@@ -5,18 +5,17 @@ import {
   type Macro,
   type Mapping,
   type Target,
+  turboOff,
 } from '@dualforge/shared';
 import { Modal } from '../../components/Modal';
-import { RangeSlider } from '../../components/controls/RangeSlider';
 import { Toggle } from '../../components/controls/Toggle';
 import { useStore } from '../../store';
 import { TargetPicker, type PickerTab } from './TargetPicker';
-import { MAX_TARGETS, TURBO_STEPS, mappingOf, pickTarget, targetKey, targetText } from './targets';
+import { TurboControls } from './TurboControls';
+import { MAX_TARGETS, mappingOf, pickTarget, targetKey, targetText } from './targets';
 
 const NO_MACROS: Macro[] = [];
-const CLEARED: Mapping = { targets: [{ type: 'none' }], turboHz: 0, continuous: false };
-const snapTurbo = (v: number) =>
-  TURBO_STEPS.reduce((a, b) => (Math.abs(b - v) < Math.abs(a - v) ? b : a));
+const CLEARED: Mapping = { targets: [{ type: 'none' }], turbo: turboOff(), continuous: false };
 const tabFor = (t: Target | undefined): PickerTab =>
   t?.type === 'key'
     ? 'keyboard'
@@ -134,28 +133,7 @@ export function MappingModal({ button, onClose }: MappingModalProps) {
           />
         </div>
         <div className="map-foot-turbo">
-          <div className="turbo-head">
-            <span>Turbo</span>
-            <span className="turbo-value">
-              {mapping.turboHz === 0 ? 'Off' : `${mapping.turboHz} Hz`}
-            </span>
-          </div>
-          <RangeSlider
-            ariaLabel="Turbo"
-            min={0}
-            max={30}
-            step={5}
-            value={snapTurbo(mapping.turboHz)}
-            onChange={(v) =>
-              edit((m) => {
-                m.turboHz = snapTurbo(v);
-              })
-            }
-          />
-          <div className="turbo-scale" aria-hidden="true">
-            <span>Off</span>
-            <span>30 Hz</span>
-          </div>
+          <TurboControls mapping={mapping} edit={edit} />
           <div className="map-actions">
             <button
               data-nav

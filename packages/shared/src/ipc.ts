@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { ProfileSchema } from './profile.js';
+import { DS_BUTTONS } from './dualsense.js';
+import { ProfileSchema, TurboEditSchema } from './profile.js';
 import { SettingsSchema } from './settings.js';
 
 /** A touchpad finger: x 0..1919, y 0..1079 (DualSense touchpad units). */
@@ -42,6 +43,10 @@ export const EngineSnapshotSchema = z.object({
     rt: z.number(),
     buttons: z.record(z.string(), z.boolean()),
   }),
+  /** Some turbo button is firing right now (held in hold mode, or latched in toggle mode). */
+  turboActive: z.boolean().optional(),
+  /** Some mapping of the running profile has turbo set. */
+  turboConfigured: z.boolean().optional(),
 });
 export type EngineSnapshot = z.infer<typeof EngineSnapshotSchema>;
 
@@ -67,10 +72,19 @@ export const EngineCommandSchema = z.discriminatedUnion('type', [
 ]);
 export type EngineCommand = z.infer<typeof EngineCommandSchema>;
 
+/** The on-pad turbo combo changed mappings of profile `profileId`; main persists them like a UI edit. */
+export const ProfileEditEventSchema = z.object({
+  type: z.literal('profileEdit'),
+  profileId: z.string().min(1),
+  edits: z.array(TurboEditSchema).min(1).max(DS_BUTTONS.length),
+});
+export type ProfileEditEvent = z.infer<typeof ProfileEditEventSchema>;
+
 export const EngineEventSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('snapshot'), snapshot: EngineSnapshotSchema }),
   z.object({ type: z.literal('status'), connected: z.boolean(), vigemReady: z.boolean() }),
   z.object({ type: z.literal('error'), code: z.string(), msg: z.string() }),
+  ProfileEditEventSchema,
 ]);
 export type EngineEvent = z.infer<typeof EngineEventSchema>;
 

@@ -1,6 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { launchApp } from './launch';
 import { resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+
+const HIDHIDE_CLI = 'C:\\Program Files\\Nefarius Software Solutions\\HidHide\\x64\\HidHideCLI.exe';
 
 /** Sets a React-controlled range input the way a user drag would (native setter + input event). */
 async function setRange(page: Page, name: string, value: number) {
@@ -322,7 +325,11 @@ test('Buttons page: map square to B in the mapping dialog; the replayed cross st
     .poll(async () => (await page.evaluate(() => window.dualforge.getProfile())).mappings.square, {
       timeout: 2000,
     })
-    .toEqual({ targets: [{ type: 'xbutton', button: 'B' }], turboHz: 0, continuous: false });
+    .toEqual({
+      targets: [{ type: 'xbutton', button: 'B' }],
+      turbo: { mode: 'off', hz: 12 },
+      continuous: false,
+    });
 
   await page.getByRole('tab', { name: 'Input Test' }).click();
   await page.evaluate(
@@ -492,7 +499,7 @@ test('Lights page: Rainbow animation and player LEDs reach the engine profile', 
   await app.close();
 });
 
-test('Health page: the attached DualSense is OK, HidHide (not installed) warns, Run checks now runs the checks', async () => {
+test('Health page: the attached DualSense is OK, HidHide is reported (warns when not installed), Run checks now runs the checks', async () => {
   const app = await launchApp();
   const page = await app.firstWindow();
   // the first connected snapshot routes Home → Overview: the real pad is up before the checks run
@@ -513,14 +520,20 @@ test('Health page: the attached DualSense is OK, HidHide (not installed) warns, 
 
   const device = page.getByRole('article', { name: 'DualSense connected' });
   await expect(device.getByRole('img', { name: 'OK' })).toBeVisible({ timeout: 10_000 });
-  const hid = page.getByRole('article', { name: 'HidHide not installed' });
-  await expect(hid.getByRole('img', { name: 'Warning' })).toBeVisible();
-  await expect(hid.getByRole('button', { name: 'Install HidHide' })).toBeEnabled(); // offered, never clicked here
+  if (existsSync(HIDHIDE_CLI)) {
+    // the machine has HidHide installed: the check reports on it (state depends on the machine), never "not installed"
+    await expect(page.getByRole('article', { name: /^HidHide/ }).first()).toBeVisible();
+    await expect(page.getByRole('article', { name: 'HidHide not installed' })).toHaveCount(0);
+  } else {
+    const hid = page.getByRole('article', { name: 'HidHide not installed' });
+    await expect(hid.getByRole('img', { name: 'Warning' })).toBeVisible();
+    await expect(hid.getByRole('button', { name: 'Install HidHide' })).toBeEnabled(); // offered, never clicked here
+  }
   await expect(page.getByTestId('health-lamp')).toHaveClass(/warn|error/);
   await expect(
     page.getByRole('region', { name: 'Recent log lines' }).getByRole('listitem').first(),
   ).toBeVisible();
-  await expect(page.locator('.footer .version')).toHaveText('V0.2.0');
+  await expect(page.locator('.footer .version')).toHaveText('V0.3.0');
   await app.close();
 });
 
@@ -563,5 +576,85 @@ test('Gamepad navigation: the replayed raw cross clicks the focused tab', async 
   await page.evaluate((f) => window.dualforge.replay(f), FIXTURE);
   await expect(tab('Overview')).toHaveAttribute('aria-selected', 'true', { timeout: 5000 });
   expect(await page.evaluate(() => document.activeElement?.textContent)).toBe('Overview');
+  await app.close();
+});
+
+const CROSS_HELD = resolve(
+  import.meta.dirname,
+  '../../../packages/engine/test/fixtures/cross-held.hidlog',
+);
+
+/**
+ * Watches the virtual A over `ms` of replay snapshots: rising edges, how many snapshots had it down, the replay's report
+ * rate (reports per real second) and whether the engine said turbo was firing.
+ */
+function watchA(page: Page, ms: number) {
+  return page.evaluate(
+    (ms) =>
+      new Promise<{ edges: number; on: number; samples: number; hz: number; active: boolean }>(
+        (done) => {
+          let prev: boolean | null = null;
+          const r = { edges: 0, on: 0, samples: 0, hz: 0, active: false };
+          const off = window.dualforge.onEngineEvent((e) => {
+            if (e.type !== 'snapshot' || !e.snapshot.connected || e.snapshot.source !== 'replay')
+              return;
+            const a = e.snapshot.out.buttons.A === true;
+            if (prev === false && a) r.edges++;
+            prev = a;
+            r.samples++;
+            if (a) r.on++;
+            r.hz = e.snapshot.reportHz;
+            r.active ||= e.snapshot.turboActive === true;
+          });
+          setTimeout(() => {
+            off();
+            done(r);
+          }, ms);
+        },
+      ),
+    ms,
+  );
+}
+
+test('Turbo page: Hold 20 Hz on cross makes a held cross blink A at 20 Hz', async () => {
+  const app = await launchApp();
+  const page = await app.firstWindow();
+  await page.getByRole('tablist', { name: 'Sections' }).getByRole('tab', { name: 'Turbo' }).click();
+  await page.getByRole('button', { name: 'Turbo ✕: Off' }).click();
+  const dlg = page.getByRole('dialog', { name: 'Turbo ✕' });
+  await dlg.getByRole('radio', { name: 'Hold' }).click();
+  await dlg.getByRole('radio', { name: 'Fast 20' }).click();
+  await dlg.getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByRole('button', { name: 'Turbo ✕: Hold 20 Hz' })).toBeVisible();
+  await expect
+    .poll(async () => (await page.evaluate(() => window.dualforge.getProfile())).mappings.cross)
+    .toMatchObject({ turbo: { mode: 'hold', hz: 20 } });
+
+  // The fixture holds cross down the whole time, one frame per 2 ms of log time: only turbo can make A blink. Turbo runs
+  // on report time and a replay delivers one frame per timer tick, so 20 Hz of report time is
+  // 20 × reportHz × 2 / 1000 blinks per real second.
+  await page.evaluate((f) => window.dualforge.replay(f), CROSS_HELD);
+  await expect(page.getByRole('status').filter({ hasText: /^Turbo / })).toHaveText('Turbo active', {
+    timeout: 5000,
+  });
+  await page.waitForTimeout(1200); // reportHz needs one full 1 s window
+  const SECS = 3;
+  const r = await watchA(page, SECS * 1000);
+  expect(r.active).toBe(true);
+  expect(r.on / r.samples).toBeGreaterThan(0.3); // 50 % duty
+  expect(r.on / r.samples).toBeLessThan(0.7);
+  expect(r.edges).toBeGreaterThanOrEqual(2);
+  const expected = ((20 * r.hz * 2) / 1000) * SECS;
+  // snapshots come at most ~60 per second: the edge count is exact only when they sample each blink several times
+  if (r.samples >= 4 * expected) expect(Math.abs(r.edges - expected)).toBeLessThanOrEqual(4);
+
+  // control: turbo off, the same held cross is one long press
+  await page.getByRole('button', { name: 'Clear all turbo' }).click();
+  await expect(page.getByRole('status').filter({ hasText: /^Turbo / })).toHaveText('Turbo idle', {
+    timeout: 5000,
+  });
+  const c = await watchA(page, 1000);
+  expect(c.edges).toBeLessThanOrEqual(1);
+  expect(c.on / c.samples).toBeGreaterThan(0.95);
   await app.close();
 });

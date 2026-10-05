@@ -53,7 +53,7 @@ describe('profile store', () => {
     );
     expect(p.mappings.cross).toEqual({
       targets: [{ type: 'none' }],
-      turboHz: 5,
+      turbo: { mode: 'hold', hz: 5 }, // a legacy turboHz is migrated on the way in
       continuous: false,
     });
     expect(p.mappings.circle).toEqual(defaultProfile('p2', 'x').mappings.circle);

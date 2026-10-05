@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import {
+  applyTurboEdits,
   ensureDenseMappings,
   ProfileSchema,
   type EngineSnapshot,
@@ -13,6 +14,7 @@ export const PAGES = [
   'home',
   'overview',
   'buttons',
+  'turbo',
   'sticks',
   'triggers',
   'motion',
@@ -203,9 +205,19 @@ export const useStore = create<State>((set, get) => {
         set({ activeProfileId: id });
         get().loadProfile().catch(fail('E_PROFILE_LOAD'));
       });
+      // on-pad turbo combo: main saved it already; rebase it onto our copy so an edit still waiting for its debounce
+      // survives (a reload would drop one, a flush would overwrite the pad edit)
+      const offTurbo = window.dualforge.profiles.onTurboEdit?.((e) => {
+        const s = get();
+        if (e.profileId !== (s.activeProfileId ?? s.profile?.id)) return;
+        s.updateProfile((d) => {
+          Object.assign(d, applyTurboEdits(d, e.edits));
+        });
+      });
       return () => {
         offEngine();
         offActive();
+        offTurbo?.();
       };
     },
     updateProfile: (mutate) => {

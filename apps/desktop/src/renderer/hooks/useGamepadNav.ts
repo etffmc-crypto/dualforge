@@ -218,6 +218,13 @@ export function useGamepadNav(): void {
         armed = true;
         return;
       }
+      // the on-pad turbo combo (mode button + a button) is for the engine, not the UI: while the mode button is held
+      // every frame is a baseline, so neither the combo press nor its later release counts
+      const turbo = useStore.getState().settings?.turbo;
+      if (turbo?.onPadAssign && turbo.modeButton && s.raw.buttons[turbo.modeButton]) {
+        stopRepeat();
+        return;
+      }
       const rising = (k: NavKey) => (now & BIT[k]) !== 0 && (was & BIT[k]) === 0;
 
       if (held && (now & BIT[DPAD[held]]) === 0) stopRepeat();

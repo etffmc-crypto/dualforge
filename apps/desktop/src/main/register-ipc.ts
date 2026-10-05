@@ -1,12 +1,15 @@
 import { z } from 'zod';
 import {
   PROFILE_IDS,
+  ProfileEditEventSchema,
   ProfileSchema,
   SettingsSchema,
   TestRumbleSchema,
+  applyTurboEdits,
   type EngineCommand,
   type Profile,
   type Settings,
+  type TurboEdit,
 } from '@dualforge/shared';
 import type { ProfileStore } from './profile-store.js';
 import type { SettingsStore } from './settings-store.js';
@@ -35,7 +38,9 @@ export interface IpcDeps {
   engine: { send(cmd: EngineCommand): void };
   /** Tells the renderer which profile the engine is now running. */
   notifyActive: (id: string) => void;
-  log: { error(o: object): void };
+  /** Tells the renderer the on-pad turbo combo changed the running profile (it rebases instead of reloading). */
+  notifyTurboEdit?: (e: { profileId: string; edits: TurboEdit[] }) => void;
+  log: { error(o: object): void; warn?(o: object): void };
   /** Running exe basenames for the auto-switch picker (see processes.ts). */
   processes: () => Promise<string[]>;
   /** Runs after settings:set persisted (HidHide, login item, tray); the reply waits for it and a rejection reaches the renderer. */
@@ -173,6 +178,36 @@ export function registerIpc(d: IpcDeps) {
   h('profile:get', () => d.store.get(engineProfileId));
   h('profile:set', saveProfile);
 
+  /**
+   * On-pad turbo assignment from the engine: validated, merged into the running profile and saved exactly like a renderer
+   * `profiles:set` (engine push, tray refresh, debounced write), then the renderer is told to reload it. Edits for a profile
+   * the engine no longer runs (a switch raced the event) are dropped.
+   */
+  function applyProfileEdit(raw: unknown): boolean {
+    const parsed = ProfileEditEventSchema.safeParse(raw);
+    if (!parsed.success) {
+      d.log.error({ code: 'E_PROFILE_EDIT', msg: parsed.error.message });
+      return false;
+    }
+    if (parsed.data.profileId !== engineProfileId) {
+      // a profile switch raced the combo: expected now and then, not a fault
+      (d.log.warn ?? d.log.error)({
+        code: 'E_PROFILE_EDIT',
+        msg: 'profileEdit for a profile not running',
+      });
+      return false;
+    }
+    try {
+      saveProfile(applyTurboEdits(d.store.get(engineProfileId), parsed.data.edits));
+    } catch (e) {
+      d.log.error({ code: 'E_PROFILE_EDIT', msg: (e as Error).message });
+      return false;
+    }
+    // the renderer rebases the edit onto its own copy (keeping an edit still waiting for its debounce)
+    d.notifyTurboEdit?.({ profileId: engineProfileId, edits: parsed.data.edits });
+    return true;
+  }
+
   /** Health repair: reset a slot, and when it is the running one tell the renderer to reload it. */
   function repairResetProfile(id: string): void {
     resetProfile(id);
@@ -181,6 +216,7 @@ export function registerIpc(d: IpcDeps) {
 
   return {
     applyProfile,
+    applyProfileEdit,
     activate,
     resetProfile: repairResetProfile,
     flush: () => d.store.flush(),

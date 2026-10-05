@@ -51,3 +51,11 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 - Health: crash dumps never pruned (bundle UI should say dumps included); done-state releases nav hold before installer closes; failing probe logs every 5 min; access-denied counted as elevated.
 - Persistence: rename retry rethrows uncoded; quarantine rename no retry; per-rule autoSwitch salvage.
 - Updates toggle hidden until a real publish owner is configured.
+
+## From Turbo mode review (2026-10-05)
+
+- Toggle-latched analog trigger (digital=false) has no visible effect (hold mode works).
+- Trigger used as the pressed button in an on-pad combo: analog pull not swallowed (digital press is).
+- Consider skipping turboConfigured/pulse for mappings whose targets are all none.
+- TurboControls 'Custom' state can go stale if a pad combo lands while the modal is open.
+- E2E edge-count assertion only runs when snapshot sampling is dense enough (engine unit tests carry the precise checks).

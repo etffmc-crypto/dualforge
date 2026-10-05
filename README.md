@@ -2,7 +2,7 @@
 
 DualForge is a Windows desktop app (Electron) that configures a PlayStation 5 DualSense controller over USB. It reads the pad, applies your profile (button mappings, macros, stick curves, deadzones, calibration, trigger effects, gyro, lights), and presents the result to games as a virtual Xbox 360 controller through ViGEm.
 
-Version 0.2.0. See [CHANGELOG.md](CHANGELOG.md).
+Version 0.3.0. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
 
@@ -40,6 +40,7 @@ DualForge lives in the notification area. In **Settings** you can start it with 
 - **Home** - controller status (USB / replay, battery) and driver hints.
 - **Overview** - dashboard: live pad render with tiles summarising Buttons, Sticks, Triggers, Motion and Lights, with quick edits.
 - **Buttons** - remap any DualSense button to Xbox buttons, keys, mouse buttons or a macro, with turbo.
+- **Turbo** - turbo mode and speed for every button at a glance (see [Turbo](#turbo)).
 - **Sticks** - per-stick deadzones, response curves (presets or custom points), calibration, invert, smoothing.
 - **Triggers** - per-trigger digital (mouse-click) mode, hair trigger, ranges and adaptive trigger effects.
 - **Motion** - gyro aim / steering to the right stick or the mouse, sensitivities and calibration.
@@ -50,6 +51,22 @@ DualForge lives in the notification area. In **Settings** you can start it with 
 - **Health** - status of the controller, drivers, native addon, startup and updates; driver install; recent log lines; diagnostics bundle.
 - **Profiles** (header) - four slots: rename, duplicate, reset, share codes, per-game auto-switch rules.
 - **Settings** (header) - theme (dark / light), hardware (rumble motors, HidHide), startup, tray, the optional update check (off by default; never downloads or installs; shown only in builds whose `electron-builder.yml` publishes to a real owner, not the `dualforge` placeholder) and data folder.
+
+## Turbo
+
+Each button has its own turbo, saved in the profile:
+
+- **Off** - one press, one output.
+- **Hold** - while the button is held its outputs fire on and off (50 % duty) at the chosen speed.
+- **Toggle** - one press starts auto-fire that keeps going after you let go; the next press stops it.
+
+Speeds are Slow 8 Hz, Medium 12 Hz, Fast 20 Hz or Custom (1-30 Hz). Set them on the **Turbo** page or in the Buttons mapping dialog; both use the same controls. Many games read the controller once per frame, so at 60 fps speeds above about 20 Hz can alias (presses merge or get skipped); stay at or below Fast if a game misses presses.
+
+Turbo repeats every output of the button: controller buttons, keys and mouse buttons (each repeat is a fresh key / click). An analog trigger in non-digital mode is released in the off phase and keeps its pull in the on phase. Macros are never re-triggered by turbo: a button mapped only to macros has no turbo (its controls are greyed out).
+
+**On the controller:** hold the mode button (Touchpad by default) and press any other button to step its turbo Slow → Medium → Fast → Off. Double-tap the mode button to clear all turbo. The mode button's own output is held back while you use it this way: a quick tap (under 250 ms) still sends it as a short press, a longer hold without a combo sends it normally, and any press used for a combo is swallowed, as is the button you pressed with it. Changes made on the pad are saved to the running profile and appear in the app at once (an edit you are making in the app at the same moment is kept). While the mode button is held, the pad does not navigate the DualForge window. Settings → Turbo picks the mode button (or None) and can switch the shortcut off; it warns when the chosen button has an output of its own (a face or shoulder button, or any mapping), because that output is delayed or swallowed while the button acts as the mode button.
+
+**Lightbar:** while any button has turbo set, the lightbar pulses red twice a second instead of the profile colour (turn this off in Settings → Turbo). The Turbo page shows a live "Turbo active" dot while turbo is firing.
 
 ## Profiles, share codes and auto-switch
 

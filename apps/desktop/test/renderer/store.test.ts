@@ -6,6 +6,7 @@ import {
   defaultSettings,
   type EngineEvent,
   type EngineSnapshot,
+  type TurboEdit,
 } from '@dualforge/shared';
 import { DEBOUNCE_MS, useStore } from '../../src/renderer/store';
 
@@ -32,7 +33,14 @@ const profilesApi = {
       activeCb = null;
     };
   }),
+  onTurboEdit: vi.fn((cb: (e: { profileId: string; edits: TurboEdit[] }) => void) => {
+    turboCb = cb;
+    return () => {
+      turboCb = null;
+    };
+  }),
 };
+let turboCb: ((e: { profileId: string; edits: TurboEdit[] }) => void) | null = null;
 const settingsApi = {
   get: vi.fn(async () => defaultSettings()),
   set: vi.fn(async (patch: object) => ({ ...defaultSettings(), ...patch })),
@@ -176,6 +184,24 @@ describe('store profiles + settings', () => {
     expect(engineCb).toBeNull();
   });
 
+  it('an on-pad turbo edit is rebased onto a pending UI edit: both survive the next debounced save, no reload', () => {
+    const unsub = useStore.getState().subscribe();
+    useStore.setState({ activeProfileId: 'p1' });
+    useStore.getState().updateProfile((d) => {
+      d.vibration.left = 40; // still waiting for its debounce
+    });
+    turboCb!({ profileId: 'p1', edits: [{ button: 'cross', turbo: { mode: 'hold', hz: 8 } }] });
+    turboCb!({ profileId: 'p3', edits: [{ button: 'r1', turbo: { mode: 'hold', hz: 8 } }] }); // not ours
+    expect(set).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(DEBOUNCE_MS);
+    expect(set).toHaveBeenCalledTimes(1);
+    const sent = (set.mock.calls[0] as unknown[])[0] as ReturnType<typeof defaultProfile>;
+    expect(sent.vibration.left).toBe(40);
+    expect(sent.mappings.cross!.turbo).toEqual({ mode: 'hold', hz: 8 });
+    expect(sent.mappings.r1!.turbo.mode).toBe('off');
+    expect(profilesApi.get).not.toHaveBeenCalled(); // rebased, not reloaded
+    unsub();
+  });
   it('loadSettings / updateSettings round-trip through settings.set', async () => {
     await useStore.getState().loadSettings();
     expect(useStore.getState().settings!.theme).toBe('dark');

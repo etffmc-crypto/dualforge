@@ -2,6 +2,9 @@ import {
   type OutputFrame,
   buildOutputReport,
   reconcileMacros,
+  reconcileTurbo,
+  applyTurboEdits,
+  applyTurboPulse,
   startMacro,
   compileProfile,
   computeLightbar,
@@ -93,6 +96,7 @@ export function createEngineLoop(d: LoopDeps) {
     null;
   let lastRaw: RawState | null = null,
     lastOut: XInputState | null = null;
+  let turboActive = false;
   let settings: Settings = defaultSettings();
   // Safe until main reports otherwise: never type into the DualForge window itself.
   let uiFocused = true;
@@ -109,11 +113,9 @@ export function createEngineLoop(d: LoopDeps) {
 
   function feedback(now: number): Feedback {
     const p = profile!;
-    const lb = computeLightbar(
-      p.lights,
-      Math.floor((now - t0) / ANIM_MS) * ANIM_MS,
-      lastRaw?.battery ?? { percent: 0, state: 'unknown' },
-    );
+    const tAnim = Math.floor((now - t0) / ANIM_MS) * ANIM_MS;
+    let lb = computeLightbar(p.lights, tAnim, lastRaw?.battery ?? { percent: 0, state: 'unknown' });
+    if (settings.turbo.lightbarPulse && compiled?.turboConfigured) lb = applyTurboPulse(lb, tAnim);
     animated = lb.animated;
     const rl = !settings.hasRumble
       ? 0
@@ -223,6 +225,17 @@ export function createEngineLoop(d: LoopDeps) {
     }
     lastRaw = raw;
     lastOut = out.xinput;
+    turboActive = out.turboActive;
+    // On-pad turbo assignment: take effect at once (the next combo cycles from here), and let main persist it. A replay
+    // never edits the user's profile.
+    if (out.turboEdits.length && d.source.kind === 'device' && profile && compiled) {
+      const prev = profile;
+      profile = applyTurboEdits(profile, out.turboEdits);
+      compiled = compileProfile(profile, settings);
+      reconcileTurbo(state.mapping, prev, profile);
+      dirty = true;
+      d.emit({ type: 'profileEdit', profileId: profile.id, edits: out.turboEdits });
+    }
     latencies[latIdx] = d.now() - start;
     latIdx = (latIdx + 1) % LAT_RING;
     if (latCount < LAT_RING) latCount++;
@@ -246,6 +259,7 @@ export function createEngineLoop(d: LoopDeps) {
     state = createPipelineState();
     lastRaw = null;
     lastOut = null;
+    turboActive = false;
     reportHz = 0;
     reports = 0;
   }
@@ -358,6 +372,8 @@ export function createEngineLoop(d: LoopDeps) {
               buttons: out.buttons,
             }
           : { lx: 0, ly: 0, rx: 0, ry: 0, lt: 0, rt: 0, buttons: {} },
+        turboActive,
+        turboConfigured: compiled?.turboConfigured ?? false,
       },
     });
   }
@@ -367,8 +383,10 @@ export function createEngineLoop(d: LoopDeps) {
   return {
     // Pipeline state (filters, hair-trigger hysteresis, turbo) is deliberately preserved so live edits do not jump.
     setSettings(s: Settings) {
+      const turboChanged = JSON.stringify(s.turbo) !== JSON.stringify(settings.turbo);
       settings = s;
       dirty = true;
+      if (turboChanged && profile) compiled = compileProfile(profile, settings); // the mapping stage reads settings.turbo
       if (!s.hasRumble) {
         rumble = { large: 0, small: 0 };
         endTestPulse();
@@ -385,9 +403,15 @@ export function createEngineLoop(d: LoopDeps) {
       if (prev && prev.profile.gyro.activate !== p.gyro.activate) state.gyro.toggled = false;
       profile = p;
       dirty = true;
-      compiled = compileProfile(p);
-      if (prev)
+      compiled = compileProfile(p, settings);
+      if (prev) {
         reconcileMacros(state.macros, prev.macros, compiled.macros, Math.max(0, state.lastMs));
+        if (prev.profile.id !== p.id) {
+          // another profile (switch / auto-switch): no auto-fire latch or hold phase carries over
+          state.mapping.latched = {};
+          state.mapping.turboStart = {};
+        } else reconcileTurbo(state.mapping, prev.profile, p);
+      }
       maybeWriteOutput(d.now(), true);
     },
     /**

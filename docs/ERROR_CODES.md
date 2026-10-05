@@ -110,6 +110,10 @@ An unknown profile id was requested. Cause: a bug or tampered IPC. Fix: none for
 
 A profile failed validation: a file on disk (moved to `profiles/corrupt/`, defaults restored), an imported file, or a `profiles:set` rejected by main. Fix: re-import a good copy or reset the slot.
 
+### E_PROFILE_EDIT
+
+An on-pad turbo assignment (hold the turbo mode button + press a button) was not saved. Logged as an **error** when the engine's edit failed validation (should not happen; report it with a diagnostics bundle), and as a **warning** when it named a profile the engine had already switched away from: a profile switch (manual or per-game auto-switch) raced the combo, which can happen now and then. Either way the newly loaded profile is unchanged. Fix: repeat the combo, or set turbo on the Turbo page.
+
 ### E_PROFILE_WRITE
 
 Saving a profile to disk failed (logged, never thrown). Cause: disk full, folder read-only or locked by antivirus. Fix: free space; check folder permissions.

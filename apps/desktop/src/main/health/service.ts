@@ -198,7 +198,7 @@ export function createEngineFeed(
         };
       } else if (e.type === 'status') {
         if (!e.connected && snapshot) snapshot = { ...snapshot, connected: false };
-      } else {
+      } else if (e.type === 'error') {
         const at = codes.indexOf(e.code);
         if (at >= 0) codes.splice(at, 1);
         codes.push(e.code);

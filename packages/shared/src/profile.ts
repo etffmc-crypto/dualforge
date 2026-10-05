@@ -150,11 +150,65 @@ export const GyroConfigSchema = z
     message: 'hold/toggle gyro activation needs an activate button',
   });
 export type GyroConfig = z.infer<typeof GyroConfigSchema>;
-export const MappingSchema = z.object({
-  targets: z.array(TargetSchema).min(1).max(3),
-  turboHz: z.number().min(0).max(30), // 0 = off
-  continuous: z.boolean(),
+/** Turbo speed presets (Hz) shared by the Turbo page, the mapping modal and the on-pad combo. */
+export const TURBO_PRESETS = { slow: 8, medium: 12, fast: 20 } as const;
+export const TURBO_MODES = ['off', 'hold', 'toggle'] as const;
+export const TURBO_MIN_HZ = 1;
+export const TURBO_MAX_HZ = 30;
+/** hold: fires at `hz` (50 % duty) while held; toggle: a press latches auto-fire, the next press stops it. */
+export const TurboSchema = z.object({
+  mode: z.enum(TURBO_MODES),
+  hz: z.number().min(TURBO_MIN_HZ).max(TURBO_MAX_HZ),
 });
+export type Turbo = z.infer<typeof TurboSchema>;
+export type TurboMode = Turbo['mode'];
+export const turboOff = (): Turbo => ({ mode: 'off', hz: TURBO_PRESETS.medium });
+
+/**
+ * Turbo only gates outputs it can repeat: a mapping whose targets are all macros is never turbo'd (macros run on their
+ * own timing and are started once per press), so it never counts as turbo set or firing.
+ */
+export const turboApplies = (m: { targets: readonly { type: string }[] }): boolean =>
+  m.targets.some((t) => t.type !== 'macro');
+
+/** One button's new turbo, as set by the on-pad combo (engine → main → renderer). */
+export const TurboEditSchema = z.object({ button: z.enum(DS_BUTTONS), turbo: TurboSchema });
+export type TurboEdit = z.infer<typeof TurboEditSchema>;
+
+/** `profile` with the edits applied (pure; mappings that are absent are skipped; the same object when nothing changes). */
+export function applyTurboEdits<P extends { mappings: Partial<Record<DsButton, Mapping>> }>(
+  profile: P,
+  edits: readonly TurboEdit[],
+): P {
+  if (edits.length === 0) return profile;
+  const mappings = { ...profile.mappings };
+  for (const e of edits) {
+    const m = mappings[e.button];
+    if (m) mappings[e.button] = { ...m, turbo: { ...e.turbo } };
+  }
+  return { ...profile, mappings };
+}
+
+/** Profiles written before 0.3.0 store a bare `turboHz` (0 = off): turn it into the `turbo` object and drop it. */
+function migrateTurboHz(v: unknown): unknown {
+  if (!v || typeof v !== 'object' || !('turboHz' in v)) return v;
+  const { turboHz, ...rest } = v as Record<string, unknown>;
+  if ('turbo' in rest) return rest;
+  const hz = typeof turboHz === 'number' ? turboHz : 0;
+  return {
+    ...rest,
+    turbo: hz > 0 ? { mode: 'hold', hz: Math.max(TURBO_MIN_HZ, hz) } : turboOff(),
+  };
+}
+
+export const MappingSchema = z.preprocess(
+  migrateTurboHz,
+  z.object({
+    targets: z.array(TargetSchema).min(1).max(3),
+    turbo: TurboSchema.default(turboOff),
+    continuous: z.boolean(),
+  }),
+);
 export type Mapping = z.infer<typeof MappingSchema>;
 
 export const ProfileSchema = z
@@ -265,7 +319,10 @@ export function defaultProfile(id: string, name: string): Profile {
       micLed: 0,
     },
     mappings: Object.fromEntries(
-      DS_BUTTONS.map((b) => [b, { targets: [DEFAULT_TARGET[b]], turboHz: 0, continuous: false }]),
+      DS_BUTTONS.map((b) => [
+        b,
+        { targets: [DEFAULT_TARGET[b]], turbo: turboOff(), continuous: false },
+      ]),
     ) as Record<DsButton, Mapping>,
     gyro: GyroConfigSchema.parse({}),
     macros: [],
@@ -282,7 +339,7 @@ export function ensureDenseMappings(profile: Profile): Profile {
   const mappings = Object.fromEntries(
     DS_BUTTONS.map((b) => [
       b,
-      have[b] ?? { targets: [{ ...DEFAULT_TARGET[b] }], turboHz: 0, continuous: false },
+      have[b] ?? { targets: [{ ...DEFAULT_TARGET[b] }], turbo: turboOff(), continuous: false },
     ]),
   ) as Record<DsButton, Mapping>;
   return { ...profile, mappings };

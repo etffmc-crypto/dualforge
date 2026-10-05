@@ -1,4 +1,13 @@
-import type { Macro, Profile, Target, StickConfig, TriggerConfig } from '@dualforge/shared';
+import {
+  defaultSettings,
+  turboApplies,
+  type Macro,
+  type Profile,
+  type Target,
+  type StickConfig,
+  type TriggerConfig,
+  type TurboSettings,
+} from '@dualforge/shared';
 import { buildCurveLut, presetPoints, LUT_SIZE } from './stages/stick-curve.js';
 
 export { LUT_SIZE };
@@ -21,6 +30,10 @@ export interface CompiledProfile {
   gyroLut: Float32Array;
   /** Mapping targets (by identity) that must not override the analog trigger value (analog hardware + xtrigger on its own side). */
   analogTargets: Set<Target>;
+  /** On-pad turbo settings (from Settings) the mapping stage runs with. */
+  turbo: TurboSettings;
+  /** Some mapping has turbo set (drives the red lightbar pulse). */
+  turboConfigured: boolean;
 }
 
 const stick = (cfg: StickConfig): CompiledStick => ({
@@ -46,8 +59,16 @@ function analogTargetsOf(profile: Profile): Set<Target> {
   return out;
 }
 
-export function compileProfile(profile: Profile): CompiledProfile {
+/** `settings` supplies the on-pad turbo settings the mapping stage needs (defaults when omitted). */
+export function compileProfile(
+  profile: Profile,
+  settings?: { turbo: TurboSettings },
+): CompiledProfile {
   return {
+    turbo: settings?.turbo ?? defaultSettings().turbo,
+    turboConfigured: Object.values(profile.mappings).some(
+      (m) => m.turbo.mode !== 'off' && turboApplies(m),
+    ),
     analogTargets: analogTargetsOf(profile),
     profile,
     left: stick(profile.sticks.left),

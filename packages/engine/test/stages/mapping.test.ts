@@ -65,7 +65,7 @@ describe('applyMappings', () => {
         { type: 'xbutton', button: 'A' },
         { type: 'xbutton', button: 'X' },
       ],
-      turboHz: 0,
+      turbo: { mode: 'off', hz: 12 },
       continuous: false,
     };
     const o = applyMappings(raw(['cross']), p, createMappingState(), 0, emptyXInput());
@@ -75,7 +75,7 @@ describe('applyMappings', () => {
     const p = defaultProfile('p', 'p');
     p.mappings.square = {
       targets: [{ type: 'key', code: 'VK_SPACE' }],
-      turboHz: 0,
+      turbo: { mode: 'off', hz: 12 },
       continuous: false,
     };
     const s = createMappingState();
@@ -91,7 +91,7 @@ describe('applyMappings', () => {
     const p = defaultProfile('p', 'p');
     p.mappings.cross = {
       targets: [{ type: 'xbutton', button: 'A' }],
-      turboHz: 10,
+      turbo: { mode: 'hold', hz: 10 },
       continuous: false,
     }; // 100 ms period
     const s = createMappingState();
@@ -101,7 +101,11 @@ describe('applyMappings', () => {
   });
   it('mouse targets emit transitions', () => {
     const p = defaultProfile('p', 'p');
-    p.mappings.r1 = { targets: [{ type: 'mouse', button: 'left' }], turboHz: 0, continuous: false };
+    p.mappings.r1 = {
+      targets: [{ type: 'mouse', button: 'left' }],
+      turbo: { mode: 'off', hz: 12 },
+      continuous: false,
+    };
     const s = createMappingState();
     expect(applyMappings(raw(['r1']), p, s, 0, emptyXInput()).mouse).toEqual([
       { button: 'left', down: true },
@@ -136,7 +140,7 @@ describe('applyMappings', () => {
     ];
     p.mappings.triangle = {
       targets: [{ type: 'macro', macroId: 'm1' }],
-      turboHz: 0,
+      turbo: { mode: 'off', hz: 12 },
       continuous: false,
     };
     const s = createMappingState();

@@ -2,16 +2,17 @@ import {
   VK_NAMES,
   X_BUTTONS,
   defaultProfile,
+  turboOff,
   type DsButton,
   type Macro,
   type Mapping,
   type Target,
+  type Turbo,
   type XButton,
 } from '@dualforge/shared';
 
 export type VkName = (typeof VK_NAMES)[number];
 export const MAX_TARGETS = 3;
-export const TURBO_STEPS = [0, 5, 10, 15, 20, 25, 30] as const;
 
 export const X_LABELS: Record<XButton, string> = {
   A: 'A',
@@ -138,12 +139,18 @@ const DEFAULTS = defaultProfile('defaults', 'defaults').mappings;
 export const defaultTarget = (b: DsButton): Target => DEFAULTS[b]!.targets[0]!;
 /** A button's mapping; the schema allows a missing entry, which behaves as the stock output. */
 export const mappingOf = (mappings: Partial<Record<DsButton, Mapping>>, b: DsButton): Mapping =>
-  mappings[b] ?? { targets: [defaultTarget(b)], turboHz: 0, continuous: false };
+  mappings[b] ?? { targets: [defaultTarget(b)], turbo: turboOff(), continuous: false };
 export const isDefaultMapping = (b: DsButton, m: Mapping) =>
-  m.turboHz === 0 &&
+  m.turbo.mode === 'off' &&
   !m.continuous &&
   m.targets.length === 1 &&
   targetKey(m.targets[0]!) === targetKey(defaultTarget(b));
+
+const MODE_NAMES = { off: 'Off', hold: 'Hold', toggle: 'Toggle' } as const;
+export const turboModeName = (t: Turbo): string => MODE_NAMES[t.mode];
+/** `Off`, `Hold 12 Hz`, `Toggle 20 Hz`. */
+export const turboText = (t: Turbo): string =>
+  t.mode === 'off' ? 'Off' : `${MODE_NAMES[t.mode]} ${t.hz} Hz`;
 
 export interface MappingSummary {
   text: string;
@@ -159,7 +166,7 @@ export function summarize(m: Mapping, macros: readonly Macro[]): MappingSummary 
     text: targetText(first, macros),
     macro: first.type === 'macro',
     more: m.targets.length - 1,
-    turbo: m.turboHz > 0,
+    turbo: m.turbo.mode !== 'off',
     continuous: m.continuous,
   };
 }

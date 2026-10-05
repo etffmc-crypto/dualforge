@@ -7,6 +7,7 @@ import type {
   Profile,
   ProfileSummary,
   Settings,
+  TurboEdit,
 } from '@dualforge/shared';
 
 export interface DriverStatus {
@@ -55,6 +56,12 @@ const api = {
       const h = (_: unknown, id: string) => cb(id);
       ipcRenderer.on('profiles:active', h);
       return () => ipcRenderer.removeListener('profiles:active', h);
+    },
+    /** Fires when the on-pad turbo combo changed the running profile (main already saved it). */
+    onTurboEdit(cb: (e: { profileId: string; edits: TurboEdit[] }) => void): () => void {
+      const h = (_: unknown, e: { profileId: string; edits: TurboEdit[] }) => cb(e);
+      ipcRenderer.on('profiles:turboEdit', h);
+      return () => ipcRenderer.removeListener('profiles:turboEdit', h);
     },
   },
   settings: {

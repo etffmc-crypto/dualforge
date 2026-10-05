@@ -2,7 +2,7 @@
 import { act, cleanup, render, screen } from '@testing-library/react';
 import { useState, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { defaultProfile, type EngineSnapshot } from '@dualforge/shared';
+import { defaultProfile, defaultSettings, type EngineSnapshot } from '@dualforge/shared';
 import { navSuspended, useStore } from '../../src/renderer/store';
 import { NAV_REPEAT_MS, useGamepadNav } from '../../src/renderer/hooks/useGamepadNav';
 import { Modal } from '../../src/renderer/components/Modal';
@@ -152,6 +152,7 @@ beforeEach(() => {
     page: 'buttons',
     subTab: { sticks: 'left', triggers: 'left' },
     navHolds: 0,
+    settings: null,
   });
 });
 afterEach(() => {
@@ -168,10 +169,10 @@ describe('gamepad navigation', () => {
   it('L1 / R1 cycle the header pages on the rising edge, wrapping at the ends', () => {
     mount();
     feed(['r1']);
-    expect(page()).toBe('sticks');
+    expect(page()).toBe('turbo'); // the page after Buttons
     feed(['r1']); // still held: no repeat
     feed(['r1']);
-    expect(page()).toBe('sticks');
+    expect(page()).toBe('turbo'); // the page after Buttons
     feed([]);
     tap('l1');
     tap('l1');
@@ -210,7 +211,7 @@ describe('gamepad navigation', () => {
     expect(page()).toBe('buttons');
     feed([]);
     feed(['r1']);
-    expect(page()).toBe('sticks');
+    expect(page()).toBe('turbo'); // the page after Buttons
   });
 
   it('replayed input is ignored unless the navReplay flag is set', () => {
@@ -228,7 +229,7 @@ describe('gamepad navigation', () => {
     render(<Nav />);
     feedReplay([]);
     feedReplay(['r1']);
-    expect(page()).toBe('sticks');
+    expect(page()).toBe('turbo'); // the page after Buttons
   });
 
   it('L2 / R2 switch the Sticks sub-tab: as digital buttons, or as analog pulls past half', () => {
@@ -265,6 +266,31 @@ describe('gamepad navigation', () => {
     expect(onBottom).toHaveBeenCalledTimes(1);
     feed(['cross']);
     feed(['cross']); // held A clicks once
+    expect(onBottom).toHaveBeenCalledTimes(2);
+  });
+
+  it('the on-pad turbo combo (touchpad + cross) is not a click, nor is releasing the touchpad first', () => {
+    useStore.setState({ settings: defaultSettings() }); // turbo mode button: touchpad
+    const onBottom = vi.fn();
+    mount(<Stacked onBottom={onBottom} />);
+    screen.getByRole('button', { name: 'Bottom' }).focus();
+    feed([]);
+    feed(['touchpad']);
+    feed(['touchpad', 'cross']);
+    feed(['touchpad']);
+    feed(['touchpad', 'cross', 'r1']);
+    feed(['cross', 'r1']); // touchpad let go while cross and R1 are still down: not presses
+    feed([]);
+    expect(onBottom).not.toHaveBeenCalled();
+    expect(useStore.getState().page).toBe('buttons');
+    tap('cross'); // a plain press still clicks
+    expect(onBottom).toHaveBeenCalledTimes(1);
+    // with on-pad assignment off the touchpad is no modifier
+    useStore.setState({
+      settings: { ...defaultSettings(), turbo: { ...defaultSettings().turbo, onPadAssign: false } },
+    });
+    feed(['touchpad']);
+    feed(['touchpad', 'cross']);
     expect(onBottom).toHaveBeenCalledTimes(2);
   });
 
@@ -345,7 +371,7 @@ describe('gamepad navigation', () => {
     vi.mocked(document.hasFocus).mockReturnValue(true);
     feed([]); // baseline after regaining focus
     tap('r1');
-    expect(page()).toBe('sticks');
+    expect(page()).toBe('turbo'); // the page after Buttons
   });
 
   it('suspension holds count: one owner releasing does not lift another’s hold; releases are idempotent', () => {
@@ -393,7 +419,7 @@ describe('gamepad navigation', () => {
       remapped = useStore.getState().updateProfile((p) => {
         p.mappings.cross = {
           targets: [{ type: 'key', code: 'VK_SPACE' }],
-          turboHz: 20,
+          turbo: { mode: 'hold', hz: 20 },
           continuous: false,
         };
       });

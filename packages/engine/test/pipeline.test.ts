@@ -161,7 +161,7 @@ describe('processReport', () => {
     ];
     p.mappings.triangle = {
       targets: [{ type: 'macro', macroId: 'm' }],
-      turboHz: 0,
+      turbo: { mode: 'off', hz: 12 },
       continuous: false,
     };
     const cp = compileProfile(p);
@@ -189,7 +189,7 @@ describe('processReport', () => {
     ];
     p.mappings.triangle = {
       targets: [{ type: 'macro', macroId: 'm' }],
-      turboHz: 0,
+      turbo: { mode: 'off', hz: 12 },
       continuous: false,
     };
     const cp = compileProfile(p);
@@ -270,7 +270,7 @@ describe('analog trigger passthrough with default xtrigger mapping', () => {
         { type: 'xbutton', button: 'A' },
         { type: 'xtrigger', trigger: 'rt' },
       ],
-      turboHz: 0,
+      turbo: { mode: 'off', hz: 12 },
       continuous: false,
     };
     const o = processReport(
@@ -282,5 +282,65 @@ describe('analog trigger passthrough with default xtrigger mapping', () => {
     expect(o.xinput.lt).toBeCloseTo(0.4, 1);
     expect(o.xinput.buttons.A).toBe(true);
     expect(o.xinput.rt).toBe(1);
+  });
+});
+
+describe('turbo through the pipeline', () => {
+  const ON_PAD = { modeButton: 'touchpad' as const, lightbarPulse: true, onPadAssign: true };
+  const tp = parseDualSenseUsb(
+    report((b) => {
+      b[10] = 0x02;
+    }),
+  );
+  const tpCross = parseDualSenseUsb(
+    report((b) => {
+      b[8] = 0x28;
+      b[10] = 0x02;
+    }),
+  );
+  it('compileProfile records turbo settings (default when omitted) and whether any turbo is set', () => {
+    const p = defaultProfile('p', 'p');
+    expect(compileProfile(p).turbo).toEqual({
+      modeButton: 'touchpad',
+      lightbarPulse: true,
+      onPadAssign: true,
+    });
+    expect(compileProfile(p).turboConfigured).toBe(false);
+    p.macros = [
+      {
+        id: 'm',
+        name: 'm',
+        steps: [{ target: { type: 'key', code: 'VK_A' }, holdMs: 10, delayMs: 0 }],
+        loop: false,
+      },
+    ];
+    p.mappings.square = {
+      targets: [{ type: 'macro', macroId: 'm' }],
+      turbo: { mode: 'hold', hz: 12 },
+      continuous: false,
+    };
+    expect(compileProfile(p).turboConfigured).toBe(false); // macros are never turbo'd
+    p.mappings.r1!.turbo = { mode: 'toggle', hz: 12 };
+    const cp = compileProfile(p, { turbo: { ...ON_PAD, modeButton: null } });
+    expect(cp.turboConfigured).toBe(true);
+    expect(cp.turbo.modeButton).toBeNull();
+  });
+  it('the on-pad combo reaches the frame as turboEdits', () => {
+    const cp = compileProfile(defaultProfile('p', 'p'), { turbo: ON_PAD });
+    const s = createPipelineState();
+    expect(processReport(tp, cp, s, 0).turboEdits).toEqual([]);
+    expect(processReport(tpCross, cp, s, 10).turboEdits).toEqual([
+      { button: 'cross', turbo: { mode: 'hold', hz: 8 } },
+    ]);
+  });
+  it('the combo is off when the compiled settings disable it', () => {
+    const cp = compileProfile(defaultProfile('p', 'p'), {
+      turbo: { ...ON_PAD, onPadAssign: false },
+    });
+    const s = createPipelineState();
+    processReport(tp, cp, s, 0);
+    const o = processReport(tpCross, cp, s, 10);
+    expect(o.turboEdits).toEqual([]);
+    expect(o.xinput.buttons.A).toBe(true);
   });
 });

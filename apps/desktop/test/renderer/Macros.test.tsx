@@ -31,13 +31,17 @@ function stubProfile(): Profile {
       steps: [{ target: { type: 'xbutton', button: 'A' }, holdMs: 30, delayMs: 30 }],
     },
   ];
-  p.mappings.l3 = { targets: [{ type: 'macro', macroId: 'm1' }], turboHz: 0, continuous: false };
+  p.mappings.l3 = {
+    targets: [{ type: 'macro', macroId: 'm1' }],
+    turbo: { mode: 'off', hz: 12 },
+    continuous: false,
+  };
   p.mappings.r3 = {
     targets: [
       { type: 'xbutton', button: 'RS' },
       { type: 'macro', macroId: 'm1' },
     ],
-    turboHz: 0,
+    turbo: { mode: 'off', hz: 12 },
     continuous: false,
   };
   return p;
@@ -305,7 +309,7 @@ describe('RecordDialog', () => {
     const p = stubProfile();
     p.mappings.circle = {
       targets: [{ type: 'key', code: 'VK_SPACE' }],
-      turboHz: 0,
+      turbo: { mode: 'off', hz: 12 },
       continuous: false,
     };
     useStore.setState({ profile: p, snapshot: snap(1000) });

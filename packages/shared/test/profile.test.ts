@@ -106,7 +106,7 @@ describe('plan 3A schema additions', () => {
     const p = defaultProfile('p', 'p');
     p.mappings.cross = {
       targets: [{ type: 'macro', macroId: 'nope' }],
-      turboHz: 0,
+      turbo: { mode: 'off', hz: 12 },
       continuous: false,
     };
     expect(ProfileSchema.safeParse(p).success).toBe(false);
@@ -138,13 +138,13 @@ describe('final-review schema hardening', () => {
     const p = defaultProfile('p', 'p');
     p.mappings.cross = {
       targets: [{ type: 'key', code: 'constructor' }],
-      turboHz: 0,
+      turbo: { mode: 'off', hz: 12 },
       continuous: false,
     };
     expect(ProfileSchema.safeParse(p).success).toBe(false);
     p.mappings.cross = {
       targets: [{ type: 'key', code: 'VK_SPACE' }],
-      turboHz: 0,
+      turbo: { mode: 'off', hz: 12 },
       continuous: false,
     };
     expect(ProfileSchema.safeParse(p).success).toBe(true);
@@ -175,7 +175,11 @@ describe('final-review schema hardening', () => {
 describe('ensureDenseMappings', () => {
   it('fills every missing button with its default mapping and keeps the ones present', () => {
     const p = defaultProfile('p1', 'Profile 1');
-    const custom = { targets: [{ type: 'none' as const }], turboHz: 10, continuous: true };
+    const custom = {
+      targets: [{ type: 'none' as const }],
+      turbo: { mode: 'hold' as const, hz: 10 },
+      continuous: true,
+    };
     const sparse = { ...p, mappings: { cross: custom } as typeof p.mappings };
     const dense = ensureDenseMappings(sparse);
     for (const b of DS_BUTTONS) expect(dense.mappings[b]).toBeDefined();
