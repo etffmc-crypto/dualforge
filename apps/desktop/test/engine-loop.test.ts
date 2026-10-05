@@ -693,7 +693,7 @@ function keyProfile() {
   const p = defaultProfile('p', 'p');
   p.mappings.cross = {
     targets: [{ type: 'key', code: 'VK_SPACE' }],
-    turboHz: 0,
+    turbo: { mode: 'off', hz: 12 },
     continuous: false,
   };
   return p;
@@ -921,7 +921,7 @@ describe('engine loop final review: replay never injects, macros survive profile
     ];
     p.mappings.cross = {
       targets: [{ type: 'macro', macroId: 'm' }],
-      turboHz: 0,
+      turbo: { mode: 'off', hz: 12 },
       continuous: false,
     };
     return p;

@@ -78,9 +78,9 @@ export function applyMappings(
     if (!was) for (const t of m.targets) if (t.type === 'macro') frame.macroStarts.push(t.macroId);
 
     let active = true;
-    if (m.turboHz > 0) {
+    if (m.turbo.mode !== 'off') {
       const start = s.turboStart[b] ?? (s.turboStart[b] = nowMs);
-      const period = 1000 / m.turboHz;
+      const period = 1000 / m.turbo.hz;
       active = (nowMs - start) % period < period / 2;
     }
     if (!active) continue;

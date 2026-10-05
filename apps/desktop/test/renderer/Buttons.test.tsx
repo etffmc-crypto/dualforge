@@ -140,7 +140,7 @@ describe('Buttons page', () => {
     fireEvent.click(pill('R1'));
     fireEvent.change(dialog().getByRole('slider', { name: 'Turbo' }), { target: { value: '15' } });
     fireEvent.click(dialog().getByRole('switch', { name: 'Continuous trigger' }));
-    expect(mapping('r1')).toMatchObject({ turboHz: 15, continuous: true });
+    expect(mapping('r1')).toMatchObject({ turbo: { mode: 'hold', hz: 15 }, continuous: true });
     fireEvent.click(dialog().getByRole('button', { name: 'Close' }));
     expect(pill('R1').textContent).toMatch(/RB.*⟳.*∞/);
     fireEvent.click(pill('R1'));
@@ -150,7 +150,11 @@ describe('Buttons page', () => {
       dialog().getByRole('switch', { name: 'Continuous trigger' }).getAttribute('aria-checked'),
     ).toBe('true');
     fireEvent.click(dialog().getByRole('button', { name: 'Clear' }));
-    expect(mapping('r1')).toEqual({ targets: [{ type: 'none' }], turboHz: 0, continuous: false });
+    expect(mapping('r1')).toEqual({
+      targets: [{ type: 'none' }],
+      turbo: { mode: 'off', hz: 12 },
+      continuous: false,
+    });
     expect(document.querySelector('.turbo-value')!.textContent).toBe('Off');
   });
 
@@ -221,7 +225,7 @@ describe('button target helpers', () => {
           { type: 'key', code: 'VK_SPACE' },
           { type: 'mouse', button: 'left' },
         ],
-        turboHz: 10,
+        turbo: { mode: 'hold', hz: 10 },
         continuous: true,
       },
       [],

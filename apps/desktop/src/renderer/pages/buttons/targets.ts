@@ -2,6 +2,7 @@ import {
   VK_NAMES,
   X_BUTTONS,
   defaultProfile,
+  turboOff,
   type DsButton,
   type Macro,
   type Mapping,
@@ -138,9 +139,9 @@ const DEFAULTS = defaultProfile('defaults', 'defaults').mappings;
 export const defaultTarget = (b: DsButton): Target => DEFAULTS[b]!.targets[0]!;
 /** A button's mapping; the schema allows a missing entry, which behaves as the stock output. */
 export const mappingOf = (mappings: Partial<Record<DsButton, Mapping>>, b: DsButton): Mapping =>
-  mappings[b] ?? { targets: [defaultTarget(b)], turboHz: 0, continuous: false };
+  mappings[b] ?? { targets: [defaultTarget(b)], turbo: turboOff(), continuous: false };
 export const isDefaultMapping = (b: DsButton, m: Mapping) =>
-  m.turboHz === 0 &&
+  m.turbo.mode === 'off' &&
   !m.continuous &&
   m.targets.length === 1 &&
   targetKey(m.targets[0]!) === targetKey(defaultTarget(b));
@@ -159,7 +160,7 @@ export function summarize(m: Mapping, macros: readonly Macro[]): MappingSummary 
     text: targetText(first, macros),
     macro: first.type === 'macro',
     more: m.targets.length - 1,
-    turbo: m.turboHz > 0,
+    turbo: m.turbo.mode !== 'off',
     continuous: m.continuous,
   };
 }

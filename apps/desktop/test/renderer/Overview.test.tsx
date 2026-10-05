@@ -25,16 +25,24 @@ function stubProfile(): Profile {
     sensitivityX: 1.5,
     sensitivityY: 2,
   };
-  p.mappings.cross = { targets: [{ type: 'xbutton', button: 'B' }], turboHz: 0, continuous: false };
+  p.mappings.cross = {
+    targets: [{ type: 'xbutton', button: 'B' }],
+    turbo: { mode: 'off', hz: 12 },
+    continuous: false,
+  };
   p.mappings.square = {
     targets: [
       { type: 'key', code: 'VK_SPACE' },
       { type: 'mouse', button: 'left' },
     ],
-    turboHz: 0,
+    turbo: { mode: 'off', hz: 12 },
     continuous: false,
   };
-  p.mappings.r2 = { targets: [{ type: 'xtrigger', trigger: 'lt' }], turboHz: 0, continuous: false };
+  p.mappings.r2 = {
+    targets: [{ type: 'xtrigger', trigger: 'lt' }],
+    turbo: { mode: 'off', hz: 12 },
+    continuous: false,
+  };
   return p;
 }
 
@@ -141,7 +149,11 @@ describe('Overview cards', () => {
       'create',
       'options',
     ] as const) {
-      p.mappings[b] = { targets: [{ type: 'none' }], turboHz: 0, continuous: false };
+      p.mappings[b] = {
+        targets: [{ type: 'none' }],
+        turbo: { mode: 'off', hz: 12 },
+        continuous: false,
+      };
     }
     useStore.setState({ profile: p });
     render(<Overview />);
@@ -240,12 +252,12 @@ describe('overview format helpers', () => {
     expect(mappingChips(p)).toEqual([]);
     p.mappings.dpadUp = {
       targets: [{ type: 'key', code: 'VK_UP' }],
-      turboHz: 0,
+      turbo: { mode: 'off', hz: 12 },
       continuous: false,
     };
     p.mappings.cross = {
       targets: [{ type: 'xbutton', button: 'A' }],
-      turboHz: 10,
+      turbo: { mode: 'hold', hz: 10 },
       continuous: false,
     }; // same target, turbo only
     expect(mappingChips(p).map((c) => c.text)).toEqual(['D-Pad ↑ ▸ Up']);

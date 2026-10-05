@@ -161,7 +161,7 @@ describe('processReport', () => {
     ];
     p.mappings.triangle = {
       targets: [{ type: 'macro', macroId: 'm' }],
-      turboHz: 0,
+      turbo: { mode: 'off', hz: 12 },
       continuous: false,
     };
     const cp = compileProfile(p);
@@ -189,7 +189,7 @@ describe('processReport', () => {
     ];
     p.mappings.triangle = {
       targets: [{ type: 'macro', macroId: 'm' }],
-      turboHz: 0,
+      turbo: { mode: 'off', hz: 12 },
       continuous: false,
     };
     const cp = compileProfile(p);
@@ -270,7 +270,7 @@ describe('analog trigger passthrough with default xtrigger mapping', () => {
         { type: 'xbutton', button: 'A' },
         { type: 'xtrigger', trigger: 'rt' },
       ],
-      turboHz: 0,
+      turbo: { mode: 'off', hz: 12 },
       continuous: false,
     };
     const o = processReport(

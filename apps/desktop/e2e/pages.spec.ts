@@ -1,6 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { launchApp } from './launch';
 import { resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+
+const HIDHIDE_CLI = 'C:\\Program Files\\Nefarius Software Solutions\\HidHide\\x64\\HidHideCLI.exe';
 
 /** Sets a React-controlled range input the way a user drag would (native setter + input event). */
 async function setRange(page: Page, name: string, value: number) {
@@ -322,7 +325,11 @@ test('Buttons page: map square to B in the mapping dialog; the replayed cross st
     .poll(async () => (await page.evaluate(() => window.dualforge.getProfile())).mappings.square, {
       timeout: 2000,
     })
-    .toEqual({ targets: [{ type: 'xbutton', button: 'B' }], turboHz: 0, continuous: false });
+    .toEqual({
+      targets: [{ type: 'xbutton', button: 'B' }],
+      turbo: { mode: 'off', hz: 12 },
+      continuous: false,
+    });
 
   await page.getByRole('tab', { name: 'Input Test' }).click();
   await page.evaluate(
@@ -492,7 +499,7 @@ test('Lights page: Rainbow animation and player LEDs reach the engine profile', 
   await app.close();
 });
 
-test('Health page: the attached DualSense is OK, HidHide (not installed) warns, Run checks now runs the checks', async () => {
+test('Health page: the attached DualSense is OK, HidHide is reported (warns when not installed), Run checks now runs the checks', async () => {
   const app = await launchApp();
   const page = await app.firstWindow();
   // the first connected snapshot routes Home → Overview: the real pad is up before the checks run
@@ -513,9 +520,15 @@ test('Health page: the attached DualSense is OK, HidHide (not installed) warns, 
 
   const device = page.getByRole('article', { name: 'DualSense connected' });
   await expect(device.getByRole('img', { name: 'OK' })).toBeVisible({ timeout: 10_000 });
-  const hid = page.getByRole('article', { name: 'HidHide not installed' });
-  await expect(hid.getByRole('img', { name: 'Warning' })).toBeVisible();
-  await expect(hid.getByRole('button', { name: 'Install HidHide' })).toBeEnabled(); // offered, never clicked here
+  if (existsSync(HIDHIDE_CLI)) {
+    // the machine has HidHide installed: the check reports on it (state depends on the machine), never "not installed"
+    await expect(page.getByRole('article', { name: /^HidHide/ }).first()).toBeVisible();
+    await expect(page.getByRole('article', { name: 'HidHide not installed' })).toHaveCount(0);
+  } else {
+    const hid = page.getByRole('article', { name: 'HidHide not installed' });
+    await expect(hid.getByRole('img', { name: 'Warning' })).toBeVisible();
+    await expect(hid.getByRole('button', { name: 'Install HidHide' })).toBeEnabled(); // offered, never clicked here
+  }
   await expect(page.getByTestId('health-lamp')).toHaveClass(/warn|error/);
   await expect(
     page.getByRole('region', { name: 'Recent log lines' }).getByRole('listitem').first(),

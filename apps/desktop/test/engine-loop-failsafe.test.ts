@@ -63,7 +63,7 @@ describe('engine loop fail-safe', () => {
     const p = defaultProfile('p', 'p');
     p.mappings.cross = {
       targets: [{ type: 'key', code: 'VK_SPACE' }],
-      turboHz: 0,
+      turbo: { mode: 'off', hz: 12 },
       continuous: false,
     };
     loop.setProfile(p);

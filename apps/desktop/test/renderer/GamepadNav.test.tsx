@@ -393,7 +393,7 @@ describe('gamepad navigation', () => {
       remapped = useStore.getState().updateProfile((p) => {
         p.mappings.cross = {
           targets: [{ type: 'key', code: 'VK_SPACE' }],
-          turboHz: 20,
+          turbo: { mode: 'hold', hz: 20 },
           continuous: false,
         };
       });
