@@ -1,0 +1,47 @@
+name: watchdog
+
+# Every 30 minutes: download page up, latest release consistent (installer hash verified once per new tag), check.yml
+# green on main. Failures open/update one `watchdog` issue per check; it closes itself when the check passes again.
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+  actions: read
+
+concurrency:
+  group: watchdog
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      # the last verified release tag, so the ~110 MB installer is only downloaded when a new release appears
+      - name: Restore watchdog state
+        uses: actions/cache/restore@v4
+        with:
+          path: .watchdog
+          key: watchdog-state-${{ github.run_id }}
+          restore-keys: watchdog-state-
+      - name: Run checks
+        run: node scripts/watchdog.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WATCHDOG_STATE: .watchdog/state.json
+      - name: Save watchdog state
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .watchdog
+          key: watchdog-state-${{ github.run_id }}

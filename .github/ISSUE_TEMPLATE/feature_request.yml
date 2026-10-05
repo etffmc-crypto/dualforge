@@ -1,0 +1,23 @@
+name: Feature request
+description: Suggest something DualForge should do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The game or situation, and what gets in the way today.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would help?
+      description: How you imagine it working in the app.
+    validations:
+      required: true
+  - type: input
+    id: controller
+    attributes:
+      label: Controller
+      description: Model and any hardware mods, if it matters for the idea.

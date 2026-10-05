@@ -1,0 +1,69 @@
+name: Bug report
+description: Something in DualForge does not work as expected.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Before you file: open **Health** in the app and try the suggested repair.
+        Do not paste passwords, keys or other personal data; the diagnostics bundle contains logs, settings and profiles only.
+  - type: input
+    id: version
+    attributes:
+      label: DualForge version
+      description: Shown in the app's footer, e.g. V0.3.3.
+      placeholder: 0.3.3
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version and build
+      description: Press Win+R, type `winver`, Enter.
+      placeholder: Windows 11 24H2 (26100.1234)
+    validations:
+      required: true
+  - type: input
+    id: controller
+    attributes:
+      label: Controller
+      description: Model, how it is connected, and any hardware mods (paddles, digital triggers, no rumble motors).
+      placeholder: DualSense CFI-ZCT1W over USB, stock
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the Sticks page
+        2. Set smoothing to -40
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: code
+    attributes:
+      label: Error code
+      description: The code on the red chip in the app's footer, or on the Health card, if any.
+      placeholder: E_VIGEM_INIT
+  - type: textarea
+    id: bundle
+    attributes:
+      label: Diagnostics bundle
+      description: Health > Export diagnostics bundle, then drag the .zip here.
+      placeholder: Drop dualforge-diagnostics-....zip here
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Checks
+      options:
+        - label: I ran **Run checks now** on the Health page and tried the suggested repair.
+          required: false
