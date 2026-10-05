@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DualForge — DualSense tuning for Windows</title>
+    <meta
+      name="description"
+      content="Download DualForge: remap, tune and calibrate a PS5 DualSense on Windows. Every PC game sees it as an Xbox controller."
+    />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0d0b10" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d0b10'/%3E%3Cpath d='M6 24 C 14 24, 16 8, 26 8' stroke='%23e2403f' stroke-width='3.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <div class="lightbar" aria-hidden="true"></div>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="top">
+      <a class="wordmark" href="./" aria-label="DualForge home">
+        <svg viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
+          <rect width="32" height="32" rx="8" fill="#1a1418" />
+          <path
+            d="M6 24 C 14 24, 16 8, 26 8"
+            stroke="#e2403f"
+            stroke-width="3.5"
+            fill="none"
+            stroke-linecap="round"
+          />
+        </svg>
+        DualForge
+      </a>
+      <nav aria-label="Project links">
+        <a href="#start">Quick start</a>
+        <a href="https://github.com/etffmc-crypto/dualforge/blob/main/CHANGELOG.md">Changelog</a>
+        <a href="https://github.com/etffmc-crypto/dualforge">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">PS5 DualSense &rarr; virtual Xbox controller &middot; Windows</p>
+          <h1 id="hero-title">Tune the pad. <span>Every game feels it.</span></h1>
+          <p class="lead">
+            Remaps, stick curves and deadzones, calibration, triggers, gyro, turbo and macros, with
+            profiles that switch per game. DualForge drives a virtual Xbox controller, so any PC
+            game sees your tuned input.
+          </p>
+
+          <div class="cta">
+            <a
+              id="download"
+              class="btn-download"
+              href="https://github.com/etffmc-crypto/dualforge/releases/latest"
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <path
+                  d="M12 3v12m0 0-5-5m5 5 5-5M4 20h16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+              Download for Windows
+            </a>
+            <p id="release-meta" class="meta" aria-live="polite">
+              Latest release on GitHub &middot; Windows 10/11, 64-bit
+            </p>
+          </div>
+          <p class="alt-links">
+            <a href="https://github.com/etffmc-crypto/dualforge/releases">All releases</a>
+            <a href="https://github.com/etffmc-crypto/dualforge/blob/main/CHANGELOG.md"
+              >What changed</a
+            >
+          </p>
+        </div>
+
+        <figure class="curve" aria-labelledby="curve-cap">
+          <svg viewBox="0 0 320 320" role="img" aria-labelledby="curve-title">
+            <title id="curve-title">
+              A stick response curve: input on the horizontal axis, output on the vertical axis,
+              with a deadzone at the start and a steeper finish.
+            </title>
+            <defs>
+              <linearGradient id="curve-stroke" x1="0" y1="1" x2="1" y2="0">
+                <stop offset="0" stop-color="#f08a3c" />
+                <stop offset="1" stop-color="#e2403f" />
+              </linearGradient>
+            </defs>
+            <g class="grid">
+              <path
+                d="M40 40V280M80 40V280M120 40V280M160 40V280M200 40V280M240 40V280M280 40V280"
+              />
+              <path
+                d="M40 40H280M40 80H280M40 120H280M40 160H280M40 200H280M40 240H280M40 280H280"
+              />
+            </g>
+            <rect class="deadzone" x="40" y="40" width="22" height="240" />
+            <path class="ref" d="M40 280 L280 40" />
+            <path class="frame" d="M40 40V280H280" />
+            <path
+              class="line"
+              d="M40 280 L62 280 C 120 278, 168 236, 200 176 S 252 64, 280 40"
+              stroke="url(#curve-stroke)"
+            />
+            <circle class="knob" cx="200" cy="176" r="7" />
+            <text x="40" y="304">0</text>
+            <text x="280" y="304" text-anchor="end">input</text>
+            <text x="30" y="46" text-anchor="end">out</text>
+          </svg>
+          <figcaption id="curve-cap">
+            Sticks &middot; response curve &middot; deadzone 9%
+          </figcaption>
+        </figure>
+      </section>
+
+      <section class="trust" aria-labelledby="trust-title">
+        <h2 id="trust-title" class="visually-hidden">Before you run the installer</h2>
+        <div class="note">
+          <h3>Windows will warn you once</h3>
+          <p>
+            The installer is not code-signed yet, so SmartScreen says &ldquo;unknown
+            publisher&rdquo;. Click <strong>More info</strong>, then <strong>Run anyway</strong>. It
+            installs for your user only; the app itself needs no administrator rights.
+          </p>
+        </div>
+        <div class="note">
+          <h3>Check the file</h3>
+          <p id="checksum-text">
+            Every release lists SHA-256 checksums in
+            <a href="https://github.com/etffmc-crypto/dualforge/releases/latest">SHA256SUMS.txt</a>.
+            Compare with <code>Get-FileHash .\DualForge-Setup-*.exe</code> in PowerShell.
+          </p>
+          <div id="checksum" class="hash" hidden>
+            <code id="sha256"></code>
+            <button id="copy-sha" type="button">Copy</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="start" class="steps" aria-labelledby="start-title">
+        <h2 id="start-title">Quick start</h2>
+        <ol>
+          <li>
+            <h3>Install</h3>
+            <p>
+              Run <code>DualForge-Setup-&lt;version&gt;.exe</code> and get past SmartScreen as
+              above.
+            </p>
+          </li>
+          <li>
+            <h3>Plug in over USB</h3>
+            <p>
+              Connect the DualSense with a USB cable (Bluetooth is not supported yet) and open
+              DualForge. Home should say &ldquo;Connected &middot; USB&rdquo;.
+            </p>
+          </li>
+          <li>
+            <h3>Install the drivers from Health</h3>
+            <p>
+              Open <strong>Health</strong>. Click <strong>Install ViGEmBus</strong> (required:
+              without it games cannot see the virtual controller) and accept the Windows prompt.
+              <strong>Install HidHide</strong> is recommended: reboot if it asks, then turn on
+              <em>Hide the DualSense from games</em> in Settings so games never see two pads.
+            </p>
+          </li>
+          <li>
+            <h3>Match your controller</h3>
+            <p>
+              On a stock DualSense: on the Triggers page turn
+              <strong>Digital (mouse-click) trigger</strong> off for Left and Right, turn on
+              <em>This controller has rumble motors</em> in Settings, and calibrate both sticks once
+              on the Sticks page.
+            </p>
+          </li>
+          <li>
+            <h3>Turn on updates</h3>
+            <p>
+              In Settings &rarr; Updates, turn on <em>Check for updates</em>. When a new version is
+              out you click <strong>Download</strong>, then <strong>Install &amp; restart</strong>;
+              nothing installs without you.
+            </p>
+          </li>
+        </ol>
+      </section>
+
+      <section class="reqs" aria-labelledby="reqs-title">
+        <h2 id="reqs-title">You need</h2>
+        <dl>
+          <div>
+            <dt>Windows</dt>
+            <dd>10 or 11, 64-bit</dd>
+          </div>
+          <div>
+            <dt>Controller</dt>
+            <dd>PS5 DualSense on a USB cable</dd>
+          </div>
+          <div>
+            <dt>Driver</dt>
+            <dd>ViGEmBus, installed from the Health page in one click</dd>
+          </div>
+          <div>
+            <dt>Optional</dt>
+            <dd>HidHide, so games see only the virtual controller</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="problem" aria-labelledby="problem-title">
+        <h2 id="problem-title">Something not working?</h2>
+        <p>
+          Open <strong>Health</strong> in the app first: it shows what is wrong and offers a repair.
+          If that does not fix it, click <strong>Export diagnostics bundle</strong> and attach the
+          zip to an issue, with the error code from the app's footer.
+        </p>
+        <a class="btn-ghost" href="https://github.com/etffmc-crypto/dualforge/issues/new/choose"
+          >Report a problem</a
+        >
+      </section>
+    </main>
+
+    <footer class="foot">
+      <p>
+        <a href="https://github.com/etffmc-crypto/dualforge">Source on GitHub</a>
+        <a href="https://github.com/etffmc-crypto/dualforge/blob/main/CHANGELOG.md">Changelog</a>
+        <a href="https://github.com/etffmc-crypto/dualforge/issues/new/choose">Report a problem</a>
+      </p>
+      <p class="fine">Not affiliated with Sony, Microsoft or GameSir.</p>
+    </footer>
+  </body>
+</html>
