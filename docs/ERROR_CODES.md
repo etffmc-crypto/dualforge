@@ -112,7 +112,7 @@ A profile failed validation: a file on disk (moved to `profiles/corrupt/`, defau
 
 ### E_PROFILE_EDIT
 
-An on-pad turbo assignment (hold the turbo mode button + press a button) could not be saved: the engine's edit failed validation, or it named a profile the engine had already switched away from (a profile switch raced the combo). The pad keeps the change until the next profile load. Fix: repeat the combo, or set turbo on the Turbo page.
+An on-pad turbo assignment (hold the turbo mode button + press a button) was not saved. Logged as an **error** when the engine's edit failed validation (should not happen; report it with a diagnostics bundle), and as a **warning** when it named a profile the engine had already switched away from: a profile switch (manual or per-game auto-switch) raced the combo, which can happen now and then. Either way the newly loaded profile is unchanged. Fix: repeat the combo, or set turbo on the Turbo page.
 
 ### E_PROFILE_WRITE
 

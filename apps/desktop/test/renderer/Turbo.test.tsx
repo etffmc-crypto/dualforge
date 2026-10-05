@@ -206,6 +206,61 @@ describe('Settings: turbo', () => {
   });
 });
 
+describe('turbo decisions', () => {
+  it('a macro-only button has its turbo controls disabled with a hint, and counts as no turbo', () => {
+    act(() => {
+      useStore.getState().updateProfile((p) => {
+        p.macros = [
+          {
+            id: 'm',
+            name: 'Reload',
+            steps: [{ target: { type: 'key', code: 'VK_R' }, holdMs: 10, delayMs: 0 }],
+            loop: false,
+          },
+        ];
+        p.mappings.square = {
+          targets: [{ type: 'macro', macroId: 'm' }],
+          turbo: { mode: 'hold', hz: 12 },
+          continuous: false,
+        };
+      });
+    });
+    render(<Turbo />);
+    expect(chip('□').getAttribute('aria-label')).toBe('Turbo □: Macro (no turbo)');
+    expect(screen.getByText('No button has turbo')).toBeTruthy();
+    fireEvent.click(chip('□'));
+    expect(dialog().getByText(/Macros run on their own timing/)).toBeTruthy();
+    const hold = radio('Turbo mode', 'Off');
+    expect(hold.matches(':disabled')).toBe(true);
+    fireEvent.click(hold);
+    expect(turbo('square')).toEqual({ mode: 'hold', hz: 12 }); // unchanged
+  });
+  it('Settings warns when the mode button has an output of its own', () => {
+    const at = (modeButton: S['turbo']['modeButton']) =>
+      act(() =>
+        useStore.setState({
+          settings: { ...defaultSettings(), turbo: { ...defaultSettings().turbo, modeButton } },
+        }),
+      );
+    render(<TurboPrefs />);
+    const warn = () => screen.queryByText(/own output will be delayed or suppressed/);
+    expect(warn()).toBeNull(); // touchpad sends nothing by default
+    at('ps'); // mapped to Guide
+    expect(warn()).toBeTruthy();
+    at('cross');
+    expect(warn()).toBeTruthy();
+    at('mic'); // no output by default
+    expect(warn()).toBeNull();
+    act(() => {
+      useStore.getState().updateProfile((p) => {
+        p.mappings.l2!.targets = [{ type: 'none' }];
+      });
+    });
+    at('l2'); // a shoulder button warns even when unmapped
+    expect(warn()).toBeTruthy();
+  });
+});
+
 describe('Overview chips', () => {
   it('show ⟳ Hz for mappings with turbo set, even with the stock output', () => {
     const p = defaultProfile('p', 'P');

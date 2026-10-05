@@ -115,6 +115,9 @@ const ipc = registerIpc({
     if (win && !win.isDestroyed()) win.webContents.send('profiles:active', id);
     tray?.refresh();
   },
+  notifyTurboEdit: (e) => {
+    if (win && !win.isDestroyed()) win.webContents.send('profiles:turboEdit', e);
+  },
   onProfilesChanged: () => tray?.refresh(),
   onSettingsChanged: createSettingsHooks({
     hidhide: hidHideQueue,

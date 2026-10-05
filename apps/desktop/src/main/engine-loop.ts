@@ -406,7 +406,11 @@ export function createEngineLoop(d: LoopDeps) {
       compiled = compileProfile(p, settings);
       if (prev) {
         reconcileMacros(state.macros, prev.macros, compiled.macros, Math.max(0, state.lastMs));
-        reconcileTurbo(state.mapping, prev.profile, p);
+        if (prev.profile.id !== p.id) {
+          // another profile (switch / auto-switch): no auto-fire latch or hold phase carries over
+          state.mapping.latched = {};
+          state.mapping.turboStart = {};
+        } else reconcileTurbo(state.mapping, prev.profile, p);
       }
       maybeWriteOutput(d.now(), true);
     },

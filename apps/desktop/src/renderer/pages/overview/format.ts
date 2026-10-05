@@ -1,6 +1,7 @@
 import {
   BUTTON_LABELS,
   DS_BUTTONS,
+  turboApplies,
   defaultProfile,
   type DsButton,
   type Profile,
@@ -79,7 +80,7 @@ export function mappingChips(p: Profile): { button: DsButton; text: string }[] {
     const m = p.mappings[b];
     const d = DEFAULTS[b];
     if (!m || !d) return [];
-    const turbo = m.turbo.mode !== 'off';
+    const turbo = m.turbo.mode !== 'off' && turboApplies(m);
     if (!turbo && same(m.targets, d.targets)) return [];
     const out = m.targets.map((t) => formatTarget(t, b, p)).join(' + ');
     return [

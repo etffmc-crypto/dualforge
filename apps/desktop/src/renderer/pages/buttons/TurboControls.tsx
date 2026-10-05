@@ -3,6 +3,7 @@ import {
   TURBO_MAX_HZ,
   TURBO_MIN_HZ,
   TURBO_PRESETS,
+  turboApplies,
   type Mapping,
   type Turbo,
   type TurboMode,
@@ -47,10 +48,12 @@ export interface TurboControlsProps {
 /** Turbo mode + speed for one mapping; shared by the Turbo page and the mapping modal so both always agree. */
 export function TurboControls({ mapping, edit, withContinuous = false }: TurboControlsProps) {
   const t = mapping.turbo;
+  const applies = turboApplies(mapping);
   // "Custom" stays picked (slider shown) even when the slider lands on a preset value
   const [custom, setCustom] = useState(() => presetOf(t.hz) === 'custom');
   const speed: Speed = custom ? 'custom' : presetOf(t.hz);
   const set = (next: Partial<Turbo>) =>
+    applies &&
     edit((m) => {
       m.turbo = { ...m.turbo, ...next };
     });
@@ -67,27 +70,32 @@ export function TurboControls({ mapping, edit, withContinuous = false }: TurboCo
         <span>Turbo</span>
         <span className="turbo-value">{turboText(t)}</span>
       </div>
-      <Segmented
-        label="Turbo mode"
-        options={MODES}
-        value={t.mode}
-        onChange={(mode) => set({ mode })}
-      />
-      <p className="turbo-hint">{MODE_HINT[t.mode]}</p>
-      <div className="turbo-speed">
-        <Segmented label="Turbo speed" options={SPEEDS} value={speed} onChange={pickSpeed} />
-        {speed === 'custom' && (
-          <RangeSlider
-            ariaLabel="Turbo speed (Hz)"
-            min={TURBO_MIN_HZ}
-            max={TURBO_MAX_HZ}
-            step={1}
-            value={t.hz}
-            format={(v) => `${v} Hz`}
-            onChange={(hz) => set({ hz })}
-          />
-        )}
-      </div>
+      {/* turbo never re-triggers a macro, so a macro-only button has nothing for it to repeat */}
+      <fieldset className="turbo-fields" disabled={!applies}>
+        <Segmented
+          label="Turbo mode"
+          options={MODES}
+          value={t.mode}
+          onChange={(mode) => set({ mode })}
+        />
+        <p className="turbo-hint">
+          {applies ? MODE_HINT[t.mode] : 'Macros run on their own timing, so turbo does not apply.'}
+        </p>
+        <div className="turbo-speed">
+          <Segmented label="Turbo speed" options={SPEEDS} value={speed} onChange={pickSpeed} />
+          {speed === 'custom' && (
+            <RangeSlider
+              ariaLabel="Turbo speed (Hz)"
+              min={TURBO_MIN_HZ}
+              max={TURBO_MAX_HZ}
+              step={1}
+              value={t.hz}
+              format={(v) => `${v} Hz`}
+              onChange={(hz) => set({ hz })}
+            />
+          )}
+        </div>
+      </fieldset>
       {withContinuous && (
         <Toggle
           label="Continuous trigger"

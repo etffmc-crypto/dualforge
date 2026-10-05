@@ -1,5 +1,11 @@
 import { useCallback, useState } from 'react';
-import { BUTTON_LABELS, DS_BUTTONS, type DsButton, type TurboSettings } from '@dualforge/shared';
+import {
+  BUTTON_LABELS,
+  DS_BUTTONS,
+  turboApplies,
+  type DsButton,
+  type TurboSettings,
+} from '@dualforge/shared';
 import { useStore } from '../store';
 import { PadDiagram } from './buttons/PadDiagram';
 import { TurboModal } from './turbo/TurboModal';
@@ -19,7 +25,10 @@ export function Turbo() {
   const [editing, setEditing] = useState<DsButton | null>(null);
   const onEdit = useCallback((b: DsButton) => setEditing(b), []);
   if (!mappings || !macros || !lights) return null; // still loading
-  const configured = DS_BUTTONS.filter((b) => mappings[b] && mappings[b].turbo.mode !== 'off');
+  const configured = DS_BUTTONS.filter((b) => {
+    const m = mappings[b];
+    return m && m.turbo.mode !== 'off' && turboApplies(m);
+  });
   // the drawn pad shows the lightbar the way the controller does: red while turbo is set
   const padLights =
     configured.length > 0 && turbo?.lightbarPulse ? { ...lights, ...TURBO_RED } : lights;

@@ -135,6 +135,22 @@
   flex-direction: column;
   gap: 10px;
 }
+.turbo-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.turbo-fields:disabled .seg,
+.turbo-fields:disabled .rs {
+  opacity: 0.45;
+}
+.turbo-fields:disabled .seg-btn {
+  cursor: not-allowed;
+}
 .turbo-hint {
   margin: -2px 0 0;
   font-size: 12px;
@@ -177,6 +193,15 @@
   flex-direction: column;
   gap: 3px;
   min-width: 0;
+}
+.turbo-warn {
+  margin: -4px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(226, 64, 63, 0.12);
+  color: var(--bad-text);
+  font-size: 12px;
+  line-height: 1.45;
 }
 .mode-grid {
   display: grid;

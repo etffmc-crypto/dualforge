@@ -204,7 +204,11 @@ describe('engine profileEdit (on-pad turbo)', () => {
   const edit = (profileId: string, edits: unknown) => ({ type: 'profileEdit', profileId, edits });
   it('merges into the running profile like a UI save: engine, renderer push, tray refresh, debounced write', () => {
     const onProfilesChanged = vi.fn();
-    const { call, sent, active, api } = rig(nodeIo, undefined, { onProfilesChanged });
+    const notifyTurboEdit = vi.fn();
+    const { call, sent, active, api } = rig(nodeIo, undefined, {
+      onProfilesChanged,
+      notifyTurboEdit,
+    });
     api.applyProfile('p1');
     sent.length = 0;
     active.length = 0;
@@ -216,7 +220,12 @@ describe('engine profileEdit (on-pad turbo)', () => {
     expect(p.mappings.cross!.targets).toEqual(defaultProfile('p1', 'x').mappings.cross!.targets);
     expect(sent).toHaveLength(1);
     expect(sent[0]).toMatchObject({ type: 'setProfile', profile: { id: 'p1' } });
-    expect(active).toEqual(['p1']);
+    // the renderer gets the edit to rebase (keeping its pending draft), not a reload
+    expect(active).toEqual([]);
+    expect(notifyTurboEdit).toHaveBeenCalledWith({
+      profileId: 'p1',
+      edits: [{ button: 'cross', turbo: { mode: 'hold', hz: 8 } }],
+    });
     expect(onProfilesChanged).toHaveBeenCalled();
     api.flush();
     expect(
@@ -239,7 +248,10 @@ describe('engine profileEdit (on-pad turbo)', () => {
     ).toBe(false);
     expect(sent).toEqual([]);
     expect(active).toEqual(['p1']);
+    expect(log.error).toHaveBeenCalledTimes(3); // malformed payloads are errors
     expect(log.error).toHaveBeenCalledWith(expect.objectContaining({ code: 'E_PROFILE_EDIT' }));
+    // a profile switch racing the combo is only a warning
+    expect(log.warn).toHaveBeenCalledWith(expect.objectContaining({ code: 'E_PROFILE_EDIT' }));
   });
 });
 

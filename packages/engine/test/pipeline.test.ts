@@ -306,6 +306,20 @@ describe('turbo through the pipeline', () => {
       onPadAssign: true,
     });
     expect(compileProfile(p).turboConfigured).toBe(false);
+    p.macros = [
+      {
+        id: 'm',
+        name: 'm',
+        steps: [{ target: { type: 'key', code: 'VK_A' }, holdMs: 10, delayMs: 0 }],
+        loop: false,
+      },
+    ];
+    p.mappings.square = {
+      targets: [{ type: 'macro', macroId: 'm' }],
+      turbo: { mode: 'hold', hz: 12 },
+      continuous: false,
+    };
+    expect(compileProfile(p).turboConfigured).toBe(false); // macros are never turbo'd
     p.mappings.r1!.turbo = { mode: 'toggle', hz: 12 };
     const cp = compileProfile(p, { turbo: { ...ON_PAD, modeButton: null } });
     expect(cp.turboConfigured).toBe(true);

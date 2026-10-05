@@ -1,5 +1,6 @@
 import {
   defaultSettings,
+  turboApplies,
   type Macro,
   type Profile,
   type Target,
@@ -65,7 +66,9 @@ export function compileProfile(
 ): CompiledProfile {
   return {
     turbo: settings?.turbo ?? defaultSettings().turbo,
-    turboConfigured: Object.values(profile.mappings).some((m) => m.turbo.mode !== 'off'),
+    turboConfigured: Object.values(profile.mappings).some(
+      (m) => m.turbo.mode !== 'off' && turboApplies(m),
+    ),
     analogTargets: analogTargetsOf(profile),
     profile,
     left: stick(profile.sticks.left),

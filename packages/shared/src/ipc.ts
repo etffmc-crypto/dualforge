@@ -1,9 +1,6 @@
 import { z } from 'zod';
 import { DS_BUTTONS } from './dualsense.js';
-import { ProfileSchema, TurboSchema } from './profile.js';
-
-export const TurboEditSchema = z.object({ button: z.enum(DS_BUTTONS), turbo: TurboSchema });
-export type TurboEdit = z.infer<typeof TurboEditSchema>;
+import { ProfileSchema, TurboEditSchema } from './profile.js';
 import { SettingsSchema } from './settings.js';
 
 /** A touchpad finger: x 0..1919, y 0..1079 (DualSense touchpad units). */

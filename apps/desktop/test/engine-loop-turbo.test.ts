@@ -149,6 +149,22 @@ describe('engine loop turbo', () => {
     expect(Array.from({ length: 20 }, () => r.send({}, 10)).some(Boolean)).toBe(false);
     await r.loop.stop();
   });
+  it('switching to another profile drops a toggle latch even when that profile has the same turbo', async () => {
+    const p = defaultProfile('p1', 'P1');
+    p.mappings.cross!.turbo = { mode: 'toggle', hz: 10 };
+    const r = await rig('device', p);
+    r.send({ cross: true });
+    r.send({});
+    const same = structuredClone(p);
+    r.loop.setProfile(same); // same profile re-sent (a save): the latch stays
+    expect(Array.from({ length: 20 }, () => r.send({}, 10)).some(Boolean)).toBe(true);
+    const other = structuredClone(p);
+    other.id = 'p2';
+    r.loop.setProfile(other);
+    expect(Array.from({ length: 20 }, () => r.send({}, 10)).some(Boolean)).toBe(false);
+    expect(r.lastSnap()).toMatchObject({ turboActive: false });
+    await r.loop.stop();
+  });
   it('the lightbar pulses red while turbo is set, unless the pulse is switched off', async () => {
     const p = defaultProfile('p1', 'P1');
     p.mappings.cross!.turbo = { mode: 'hold', hz: 10 };

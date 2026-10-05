@@ -1,6 +1,7 @@
 import {
   DS_BUTTONS,
   TURBO_PRESETS,
+  turboApplies,
   type Profile,
   type RawState,
   type Target,
@@ -90,16 +91,8 @@ export function nextTurbo(t: Turbo): Turbo {
   return faster === undefined ? { mode: 'off', hz: t.hz } : { mode: 'hold', hz: faster };
 }
 
-/** `profile` with the edits applied (pure; mappings that are absent are skipped; the same object when nothing changes). */
-export function applyTurboEdits(profile: Profile, edits: readonly TurboEdit[]): Profile {
-  if (edits.length === 0) return profile;
-  const mappings = { ...profile.mappings };
-  for (const e of edits) {
-    const m = mappings[e.button];
-    if (m) mappings[e.button] = { ...m, turbo: { ...e.turbo } };
-  }
-  return { ...profile, mappings };
-}
+/** Lives in shared (the renderer rebases on it too); re-exported for the engine's callers. */
+export { applyTurboEdits } from '@dualforge/shared';
 
 /**
  * Called when the profile changes: a button whose turbo mode changed loses its toggle latch and hold phase; a speed-only
@@ -119,8 +112,14 @@ function trackModeButton(
   s: MappingState,
   profile: Profile,
   nowMs: number,
-): TurboEdit[] {
+): readonly TurboEdit[] {
   const ms = s.mode;
+  if (nowMs < ms.at || nowMs < ms.lastTap) {
+    // the clock went back (a looping replay): start the timings over instead of holding a pulse or a deferral forever
+    ms.at = nowMs;
+    ms.tapUntil = -Infinity;
+    ms.lastTap = -Infinity;
+  }
   if (held && !ms.down) {
     ms.down = true;
     ms.at = nowMs;
@@ -141,8 +140,10 @@ function trackModeButton(
       ms.tapUntil = nowMs + TURBO_TAP_PULSE_MS;
     }
   }
-  return [];
+  return NO_EDITS;
 }
+/** Shared result for the (per-report, common) no-edit case: no allocation. */
+const NO_EDITS: readonly TurboEdit[] = Object.freeze([]);
 
 /**
  * Applies button mappings INTO the passed (already axis/trigger-filled) xinput.
@@ -188,7 +189,7 @@ export function applyMappings(
     else if (!rawWas && mb && b !== mb && s.mode.down) {
       s.mode.combo = true;
       s.comboHeld.add(b);
-      if (m) frame.turboEdits.push({ button: b, turbo: nextTurbo(m.turbo) });
+      if (m && turboApplies(m)) frame.turboEdits.push({ button: b, turbo: nextTurbo(m.turbo) });
     }
     if (!m) continue;
 
@@ -202,6 +203,8 @@ export function applyMappings(
     if (edge) for (const t of m.targets) if (t.type === 'macro') frame.macroStarts.push(t.macroId);
 
     let active = held;
+    /** turbo is driving this button now (latched, or held in hold mode) */
+    let firing = false;
     if (m.turbo.mode === 'toggle') {
       if (edge) {
         if (s.latched[b] === undefined) s.latched[b] = nowMs;
@@ -210,7 +213,7 @@ export function applyMappings(
       let start = s.latched[b];
       if (start !== undefined && start > nowMs) start = s.latched[b] = nowMs;
       active = start !== undefined && phaseOn(nowMs - start, m.turbo.hz);
-      if (start !== undefined) frame.turboActive = true;
+      firing = start !== undefined;
     } else {
       delete s.latched[b];
       if (!held) delete s.turboStart[b];
@@ -218,10 +221,16 @@ export function applyMappings(
         let start = s.turboStart[b];
         if (start === undefined || start > nowMs) start = s.turboStart[b] = nowMs; // clock went back: new phase
         active = phaseOn(nowMs - start, m.turbo.hz);
-        frame.turboActive = true;
+        firing = true;
       }
     }
-    if (!active) continue;
+    if (firing && turboApplies(m)) frame.turboActive = true;
+    if (!active) {
+      // an analog trigger output (digital=false keeps the pull, see `skip`) follows the turbo gate too: off phase = 0
+      if (firing && skip)
+        for (const t of m.targets) if (t.type === 'xtrigger' && skip.has(t)) xinput[t.trigger] = 0;
+      continue;
+    }
 
     for (const t of m.targets) if (!skip?.has(t)) activate(t, xinput, s.wantKeys, s.wantMouse);
   }

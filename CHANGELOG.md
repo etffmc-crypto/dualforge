@@ -11,6 +11,9 @@
 - The lightbar pulses red while any button has turbo set; the Turbo page shows a live "Turbo active" indicator. Overview lists turbo buttons with their speed.
 - Settings → Turbo: on-pad assignment on/off, mode button (or None), lightbar pulse on/off.
 - Profiles from 0.2.0 load unchanged: a button's old turbo speed becomes Hold at that speed.
+- Turbo never re-triggers a macro; buttons mapped only to macros have no turbo. Key and mouse outputs repeat with turbo like controller buttons.
+- While the mode button is held the pad does not navigate the DualForge window, so a combo never clicks anything.
+- Share codes and exported profiles from 0.3.0 cannot be imported by 0.2.0 (the turbo format changed); 0.3.0 still imports 0.2.0 ones.
 
 ## 0.2.0
 

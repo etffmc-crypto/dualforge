@@ -276,6 +276,70 @@ describe('on-pad turbo assignment', () => {
   });
 });
 
+describe('turbo edge cases', () => {
+  it('an analog trigger (digital=false: xtrigger target skipped) follows the turbo gate', () => {
+    const p = defaultProfile('p', 'p');
+    p.mappings.r2!.turbo = { mode: 'hold', hz: 10 };
+    const s = createMappingState();
+    const skip = new Set([p.mappings.r2!.targets[0]!]);
+    const frame = (t: number, pull: number) => {
+      const x = emptyXInput();
+      x.rt = pull; // the analog stage already filled the pull
+      return applyMappings(raw(['r2']), p, s, t, x, skip).xinput.rt;
+    };
+    expect(frame(0, 0.6)).toBe(0.6); // on phase: the analog pull is kept, not forced to 1
+    expect(frame(60, 0.6)).toBe(0); // off phase: released
+    expect(frame(100, 0.7)).toBe(0.7);
+    // without turbo the pull always passes
+    p.mappings.r2!.turbo = { mode: 'off', hz: 10 };
+    expect(frame(160, 0.6)).toBe(0.6);
+    // a light pull below the button threshold (button not held) is never gated
+    p.mappings.r2!.turbo = { mode: 'hold', hz: 10 };
+    const x = emptyXInput();
+    x.rt = 0.1;
+    expect(applyMappings(raw([]), p, s, 260, x, skip).xinput.rt).toBe(0.1);
+  });
+  it('macro-only mappings never count as turbo, and the combo leaves them alone', () => {
+    const p = defaultProfile('p', 'p');
+    p.macros = [
+      {
+        id: 'm',
+        name: 'm',
+        steps: [{ target: { type: 'key', code: 'VK_A' }, holdMs: 10, delayMs: 0 }],
+        loop: false,
+      },
+    ];
+    p.mappings.square = {
+      targets: [{ type: 'macro', macroId: 'm' }],
+      turbo: { mode: 'hold', hz: 20 },
+      continuous: false,
+    };
+    const r = rig(p, ON_PAD);
+    const o = r.frame(['square'], 0);
+    expect(o.turboActive).toBe(false);
+    expect(o.macroStarts).toEqual(['m']);
+    expect(r.frame(['square'], 30).macroStarts).toEqual([]); // turbo never re-triggers a macro
+    r.frame([], 40);
+    r.frame(['touchpad'], 50);
+    expect(r.frame(['touchpad', 'square'], 60).turboEdits).toEqual([]);
+  });
+  it('the mode-button timings start over when the clock goes back', () => {
+    const p = defaultProfile('p', 'p');
+    p.mappings.touchpad = {
+      targets: [{ type: 'xbutton', button: 'Y' }],
+      turbo: { mode: 'off', hz: 12 },
+      continuous: false,
+    };
+    const r = rig(p, ON_PAD);
+    r.frame(['touchpad'], 5000);
+    r.frame([], 5100); // tap: pulse until 5150, lastTap 5100
+    // replay looped: time is now far behind; no stuck pulse, and the next tap is a single tap, not a double
+    expect(r.frame([], 10).xinput.buttons.Y).toBe(false);
+    r.frame(['touchpad'], 20);
+    expect(r.frame(['touchpad'], 20 + TURBO_TAP_MS).xinput.buttons.Y).toBe(true); // long hold passes through
+  });
+});
+
 describe('reconcileTurbo', () => {
   it('keeps a latch when only the speed changed, drops it when the mode changed', () => {
     const p = defaultProfile('p', 'p');

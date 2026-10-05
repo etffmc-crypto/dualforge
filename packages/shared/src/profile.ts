@@ -164,6 +164,31 @@ export type Turbo = z.infer<typeof TurboSchema>;
 export type TurboMode = Turbo['mode'];
 export const turboOff = (): Turbo => ({ mode: 'off', hz: TURBO_PRESETS.medium });
 
+/**
+ * Turbo only gates outputs it can repeat: a mapping whose targets are all macros is never turbo'd (macros run on their
+ * own timing and are started once per press), so it never counts as turbo set or firing.
+ */
+export const turboApplies = (m: { targets: readonly { type: string }[] }): boolean =>
+  m.targets.some((t) => t.type !== 'macro');
+
+/** One button's new turbo, as set by the on-pad combo (engine → main → renderer). */
+export const TurboEditSchema = z.object({ button: z.enum(DS_BUTTONS), turbo: TurboSchema });
+export type TurboEdit = z.infer<typeof TurboEditSchema>;
+
+/** `profile` with the edits applied (pure; mappings that are absent are skipped; the same object when nothing changes). */
+export function applyTurboEdits<P extends { mappings: Partial<Record<DsButton, Mapping>> }>(
+  profile: P,
+  edits: readonly TurboEdit[],
+): P {
+  if (edits.length === 0) return profile;
+  const mappings = { ...profile.mappings };
+  for (const e of edits) {
+    const m = mappings[e.button];
+    if (m) mappings[e.button] = { ...m, turbo: { ...e.turbo } };
+  }
+  return { ...profile, mappings };
+}
+
 /** Profiles written before 0.3.0 store a bare `turboHz` (0 = off): turn it into the `turbo` object and drop it. */
 function migrateTurboHz(v: unknown): unknown {
   if (!v || typeof v !== 'object' || !('turboHz' in v)) return v;

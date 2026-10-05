@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { BUTTON_LABELS, DS_BUTTONS, type DsButton, type TurboSettings } from '@dualforge/shared';
+import {
+  BUTTON_LABELS,
+  DS_BUTTONS,
+  type DsButton,
+  type Profile,
+  type TurboSettings,
+} from '@dualforge/shared';
 import { Modal } from '../../components/Modal';
 import { Toggle } from '../../components/controls/Toggle';
 import { PanelSection } from '../../components/SettingsLayout';
@@ -7,10 +13,25 @@ import { useStore } from '../../store';
 import '../../styles/turbo.css';
 
 const nameOf = (b: DsButton | null) => (b ? BUTTON_LABELS[b] : 'None');
+/** Buttons games lean on: as the mode button their press is deferred (tap) or swallowed (combo). */
+const GAME_BUTTONS = new Set<DsButton>([
+  'cross',
+  'circle',
+  'square',
+  'triangle',
+  'l1',
+  'r1',
+  'l2',
+  'r2',
+]);
+/** The mode button sends something of its own (a mapping other than "no output", or a face / shoulder button). */
+const busy = (b: DsButton | null, mappings: Profile['mappings'] | undefined): boolean =>
+  !!b && (GAME_BUTTONS.has(b) || (mappings?.[b]?.targets.some((t) => t.type !== 'none') ?? false));
 
 /** Settings → Turbo: which button is the on-pad turbo modifier, and whether the combo and the red pulse are on. */
 export function TurboPrefs() {
   const turbo = useStore((s) => s.settings?.turbo);
+  const mappings = useStore((s) => s.profile?.mappings);
   const updateSettings = useStore((s) => s.updateSettings);
   const [picking, setPicking] = useState(false);
   if (!turbo) return null;
@@ -46,6 +67,11 @@ export function TurboPrefs() {
           {nameOf(turbo.modeButton)}
         </button>
       </div>
+      {turbo.onPadAssign && busy(turbo.modeButton, mappings) && (
+        <p className="turbo-warn" role="note">
+          This button's own output will be delayed or suppressed while it is the Turbo button.
+        </p>
+      )}
       <Toggle
         label="Pulse the lightbar red"
         hint="While any button has turbo set, the lightbar flashes red instead of the profile colour."

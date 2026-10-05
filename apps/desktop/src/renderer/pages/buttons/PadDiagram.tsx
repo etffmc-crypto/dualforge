@@ -1,6 +1,7 @@
 import { memo, type CSSProperties, type ReactNode } from 'react';
 import {
   BUTTON_LABELS,
+  turboApplies,
   type DsButton,
   type Macro,
   type Mapping,
@@ -171,6 +172,12 @@ function mapPill(b: DsButton, m: Mapping, macros: readonly Macro[]): PillContent
 /** Turbo page pill: a mode tag and the speed, or Off. */
 function turboPill(m: Mapping): PillContent {
   const t = m.turbo;
+  if (!turboApplies(m))
+    return {
+      cls: 'tpill',
+      line: 'Macro (no turbo)',
+      dst: <span className="bpill-text">Macro</span>,
+    };
   const on = t.mode !== 'off';
   return {
     cls: `tpill${on ? ' turbo-on' : ''}`,
