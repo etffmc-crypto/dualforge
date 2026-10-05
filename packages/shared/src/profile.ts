@@ -17,16 +17,16 @@ export const StickCurveSchema = z.union([
 ]);
 
 export const MAX_CURVE_POINTS = 8;
-const pct = z.number().min(0).max(100);
+const signedPct = z.number().min(-100).max(100);
 
 export const StickFilterSchema = z
   .object({
     enabled: z.boolean(),
     mode: z.enum(['basic', 'advanced']).default('basic'),
-    strength: pct, // 0 = off, 100 = heavy smoothing
-    // advanced mode: [speed 0..1, strength 0..100] x 5
+    strength: signedPct, // 0 = off, 100 = heavy smoothing, -100 = max overshoot (negative smoothing / jitter)
+    // advanced mode: [speed 0..1, strength -100..100] x 5
     curve: z
-      .array(z.tuple([unit, pct]))
+      .array(z.tuple([unit, signedPct]))
       .length(5)
       .default([
         [0, 0],

@@ -28,6 +28,17 @@ describe('profile schema', () => {
       expect(r.data.triggers.left.effect).toEqual({ mode: 'off' });
     }
   });
+  it('accepts negative filter strength and curve y down to -100, rejects beyond', () => {
+    const p = defaultProfile('p', 'p');
+    p.sticks.left.filter.strength = -100;
+    p.sticks.left.filter.curve[0] = [0, -100];
+    expect(ProfileSchema.safeParse(p).success).toBe(true);
+    p.sticks.left.filter.strength = -101;
+    expect(ProfileSchema.safeParse(p).success).toBe(false);
+    p.sticks.left.filter.strength = 0;
+    p.sticks.left.filter.curve[0] = [0, -101];
+    expect(ProfileSchema.safeParse(p).success).toBe(false);
+  });
   it('rejects center deadzone overlapping outer', () => {
     const p = defaultProfile('p', 'p');
     p.sticks.left.deadzone = { center: 0.6, anti: 0, outer: 0.5 };

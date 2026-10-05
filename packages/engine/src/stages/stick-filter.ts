@@ -22,6 +22,14 @@ const MAX_TAU_MS = 60;
 const SPEED_TAU_MS = 30; // time constant of the speed estimate
 const POS_TAU_MS = 10; // speed is measured on a lightly smoothed position so 1 LSB jitter at 1 kHz doesn't read as motion
 
+export const OVERSHOOT_G_MAX = 0.95;
+
+/** Overshoot ("RC filter" jitter) step: y = x + g*(x - yPrev), clamped to [-1, 1]. g in [0, 1) keeps it stable. */
+export function applyOvershoot(x: number, yPrev: number, g: number): number {
+  const y = x + g * (x - yPrev);
+  return y > 1 ? 1 : y < -1 ? -1 : y;
+}
+
 function curveStrength(curve: readonly [number, number][], speed: number): number {
   // curve x is non-decreasing (enforced by StickFilterSchema); no per-sample copy/sort
   let [px, py] = curve[0] ?? [0, 0];
@@ -63,7 +71,14 @@ export function applyStickFilter(
     s.speed += (1 - Math.exp(-dt / SPEED_TAU_MS)) * (instSpeed - s.speed);
     strength = curveStrength(cfg.curve, s.speed);
   }
-  if (strength <= 0) {
+  if (strength < 0) {
+    // negative smoothing: per-report overshoot (dt-independent by design; the ringing period is the report period)
+    const g = (Math.min(100, -strength) / 100) * OVERSHOOT_G_MAX;
+    s.x = applyOvershoot(x, s.x, g);
+    s.y = applyOvershoot(y, s.y, g);
+    return { x: s.x, y: s.y };
+  }
+  if (strength === 0) {
     s.x = x;
     s.y = y;
     return { x, y };
