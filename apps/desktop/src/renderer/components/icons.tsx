@@ -113,6 +113,14 @@ export const ButtonsIcon = (p: IconProps) => (
   </Svg>
 );
 
+/** Turbo: a button with repeat strokes fanning out (rapid fire). */
+export const TurboIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="9" cy="12" r="4.5" />
+    <path d="M16 8.5h4.5M17 12h4.5M16 15.5h4.5" />
+  </Svg>
+);
+
 export const GearIcon = (p: IconProps) => (
   <Svg {...p}>
     <circle cx="12" cy="12" r="3" />

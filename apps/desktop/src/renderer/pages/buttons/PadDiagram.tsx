@@ -1,8 +1,21 @@
 import { memo, type CSSProperties, type ReactNode } from 'react';
-import { BUTTON_LABELS, type DsButton, type Macro, type Profile } from '@dualforge/shared';
+import {
+  BUTTON_LABELS,
+  type DsButton,
+  type Macro,
+  type Mapping,
+  type Profile,
+} from '@dualforge/shared';
 import { DualSenseTop } from '../../art/DualSenseTop';
 import { useStore } from '../../store';
-import { isDefaultMapping, mappingOf, summarize, summaryLine } from './targets';
+import {
+  isDefaultMapping,
+  mappingOf,
+  summarize,
+  summaryLine,
+  turboModeName,
+  turboText,
+} from './targets';
 
 /** Stage coordinates (16:9). The pad art (1000 × 640) is drawn at PAD_X/PAD_Y, scaled by PAD_S. */
 const W = 1600,
@@ -124,11 +137,63 @@ const heldKey = (s: ReturnType<typeof useStore.getState>) =>
     .sort()
     .join(',');
 
+interface PillContent {
+  cls: string;
+  /** Text for the accessible name and tooltip. */
+  line: string;
+  dst: ReactNode;
+}
+/** Buttons page pill: the output, plus multi / turbo / continuous markers. */
+function mapPill(b: DsButton, m: Mapping, macros: readonly Macro[]): PillContent {
+  const s = summarize(m, macros);
+  return {
+    cls: isDefaultMapping(b, m) ? '' : 'remapped',
+    line: summaryLine(s),
+    dst: (
+      <>
+        {s.macro && <span className="bpill-macro">macro</span>}
+        <span className="bpill-text">{s.text}</span>
+        {s.more > 0 && <span className="bpill-flag">+{s.more}</span>}
+        {s.turbo && (
+          <span className="bpill-flag" title="Turbo">
+            ⟳
+          </span>
+        )}
+        {s.continuous && (
+          <span className="bpill-flag" title="Continuous">
+            ∞
+          </span>
+        )}
+      </>
+    ),
+  };
+}
+/** Turbo page pill: a mode tag and the speed, or Off. */
+function turboPill(m: Mapping): PillContent {
+  const t = m.turbo;
+  const on = t.mode !== 'off';
+  return {
+    cls: `tpill${on ? ' turbo-on' : ''}`,
+    line: turboText(t),
+    dst: on ? (
+      <>
+        <span className="tpill-mode">{turboModeName(t)}</span>
+        <span className="tpill-hz">{t.hz}</span>
+        <span className="tpill-unit">Hz</span>
+      </>
+    ) : (
+      <span className="bpill-text">Off</span>
+    ),
+  };
+}
+
 export interface PadDiagramProps {
   mappings: Profile['mappings'];
   macros: readonly Macro[];
   lights: Profile['lights'];
   onEdit(b: DsButton): void;
+  /** `map` (Buttons page): pills show the output; `turbo` (Turbo page): pills show the turbo mode and speed. */
+  variant?: 'map' | 'turbo';
 }
 
 /** GameSir ss3: the pad in the middle, every button led out to a labelled pill showing what it sends. */
@@ -137,6 +202,7 @@ export const PadDiagram = memo(function PadDiagram({
   macros,
   lights,
   onEdit,
+  variant = 'map',
 }: PadDiagramProps) {
   const held = useStore(heldKey);
   const pressed = Object.fromEntries(held ? held.split(',').map((k) => [k, true]) : []);
@@ -163,42 +229,32 @@ export const PadDiagram = memo(function PadDiagram({
       </svg>
       {PLACES.map(({ b, side, y }) => {
         const m = mappingOf(mappings, b);
-        const s = summarize(m, macros);
-        const line = summaryLine(s);
         const style: CSSProperties =
           side === 'left'
             ? { right: `${100 - (L_EDGE / W) * 100}%`, top: `${(y / H) * 100}%` }
             : side === 'right'
               ? { left: `${(R_EDGE / W) * 100}%`, top: `${(y / H) * 100}%` }
               : { left: '50%', top: `${(y / H) * 100}%` };
-        const cls = `bpill side-${side}${pressed[b] ? ' pressed' : ''}${isDefaultMapping(b, m) ? '' : ' remapped'}`;
+        const p = variant === 'turbo' ? turboPill(m) : mapPill(b, m, macros);
         return (
-          <div key={b} className={cls} style={style}>
+          <div
+            key={b}
+            className={`bpill side-${side}${pressed[b] ? ' pressed' : ''} ${p.cls}`}
+            style={style}
+          >
             <button
               data-nav
               type="button"
               className="bpill-btn"
-              aria-label={`Map ${BUTTON_LABELS[b]}: ${line}`}
-              title={`${BUTTON_LABELS[b]} → ${line}`}
+              aria-label={`${variant === 'turbo' ? 'Turbo' : 'Map'} ${BUTTON_LABELS[b]}: ${p.line}`}
+              title={`${BUTTON_LABELS[b]} ${variant === 'turbo' ? 'turbo:' : '→'} ${p.line}`}
               onClick={() => onEdit(b)}
             >
               <span className={`bpill-src${FACE.has(b) ? ' face' : ''}`} aria-hidden="true">
                 {GLYPH[b] ?? BUTTON_LABELS[b]}
               </span>
               <span className="bpill-dst" aria-hidden="true">
-                {s.macro && <span className="bpill-macro">macro</span>}
-                <span className="bpill-text">{s.text}</span>
-                {s.more > 0 && <span className="bpill-flag">+{s.more}</span>}
-                {s.turbo && (
-                  <span className="bpill-flag" title="Turbo">
-                    ⟳
-                  </span>
-                )}
-                {s.continuous && (
-                  <span className="bpill-flag" title="Continuous">
-                    ∞
-                  </span>
-                )}
+                {p.dst}
               </span>
             </button>
           </div>

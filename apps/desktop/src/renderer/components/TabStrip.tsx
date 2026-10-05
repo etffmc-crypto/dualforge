@@ -10,6 +10,7 @@ import {
   MotionIcon,
   SticksIcon,
   TriggersIcon,
+  TurboIcon,
   VibrationsIcon,
 } from './icons';
 
@@ -17,6 +18,7 @@ export const TABS: { id: Page; label: string; Icon: ComponentType<{ size?: numbe
   { id: 'home', label: 'Home', Icon: HomeIcon },
   { id: 'overview', label: 'Overview', Icon: GridIcon },
   { id: 'buttons', label: 'Buttons', Icon: ButtonsIcon },
+  { id: 'turbo', label: 'Turbo', Icon: TurboIcon },
   { id: 'sticks', label: 'Sticks', Icon: SticksIcon },
   { id: 'triggers', label: 'Triggers', Icon: TriggersIcon },
   { id: 'motion', label: 'Motion', Icon: MotionIcon },

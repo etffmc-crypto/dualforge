@@ -1,0 +1,223 @@
+/* ---------- Turbo page ---------- */
+.turbo-bar {
+  flex: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 2px 4px 0;
+}
+.turbo-bar .panel-btn {
+  margin-left: auto;
+  align-self: center;
+}
+.turbo-bar .panel-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.turbo-count {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* the live dot mirrors the controller: while turbo fires it pulses red at the lightbar's 2 Hz */
+.turbo-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 12px 0 10px;
+  border-radius: 14px;
+  background: var(--seg);
+  color: var(--muted);
+  font-size: 13px;
+}
+.turbo-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--toggle-off);
+}
+.turbo-live.on {
+  color: var(--text-strong);
+  background: rgba(226, 64, 63, 0.16);
+}
+.turbo-live.on .turbo-dot {
+  background: var(--accent);
+  animation: turbo-pulse 500ms ease-in-out infinite;
+}
+@keyframes turbo-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(226, 64, 63, 0.7);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(226, 64, 63, 0);
+    opacity: 0.35;
+  }
+}
+
+/* turbo pills: off pills recede, set pills carry a mode tag and the speed in figures */
+.tpill .bpill-dst {
+  gap: 4px;
+}
+.tpill:not(.turbo-on) .bpill-dst {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--card-border);
+  color: var(--muted);
+}
+.tpill.turbo-on .bpill-dst {
+  background: var(--accent);
+  color: #fff;
+}
+.tpill.turbo-on .bpill-btn:hover .bpill-dst {
+  background: var(--accent-hover);
+  color: #fff;
+}
+.tpill.turbo-on .bpill-src {
+  border-color: var(--accent);
+}
+.tpill-mode {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.22);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}
+.tpill-hz {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.tpill-unit {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+/* on-pad shortcut, written like a key legend */
+.turbo-help {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 22px;
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.turbo-help-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.turbo-key {
+  padding: 1px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--pill-ring);
+  background: var(--pill-bg);
+  color: var(--text-strong);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 500;
+}
+.turbo-cycle b {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* ---------- turbo controls (Turbo dialog + mapping modal) ---------- */
+.turbo-ctl {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.turbo-hint {
+  margin: -2px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.turbo-speed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: opacity 120ms ease;
+}
+.turbo-ctl.is-off .turbo-speed {
+  opacity: 0.55;
+}
+.turbo-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 4px;
+}
+
+/* ---------- Settings: turbo ---------- */
+.prefs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.prefs-row .panel-btn {
+  flex: none;
+  align-self: center;
+  min-width: 96px;
+}
+.prefs-row .panel-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.prefs-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.mode-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+  padding: 4px 24px 8px;
+}
+.mode-grid + .psec-hint {
+  padding: 0 24px 20px;
+}
+.mode-opt {
+  height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--seg);
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.mode-opt:hover:not(.active) {
+  background: var(--hover);
+}
+.mode-opt.active {
+  background: var(--accent);
+  color: #fff;
+}
+.mode-opt.none {
+  font-style: italic;
+}
+.mode-opt:focus-visible,
+.turbo-bar .panel-btn:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turbo-live.on .turbo-dot {
+    animation: none;
+  }
+  .turbo-speed {
+    transition: none;
+  }
+}

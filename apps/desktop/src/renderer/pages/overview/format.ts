@@ -73,17 +73,17 @@ export function formatTarget(t: Target, source: DsButton, p: Profile): string {
 const DEFAULTS = defaultProfile('defaults', 'defaults').mappings;
 const same = (a: Target[], b: Target[]) => JSON.stringify(a) === JSON.stringify(b);
 
-/** Mappings whose targets differ from the stock pad, in button order, as `✕ ▸ B`. */
+/** Mappings whose targets differ from the stock pad or that have turbo set, in button order, as `✕ ▸ B ⟳ 12 Hz`. */
 export function mappingChips(p: Profile): { button: DsButton; text: string }[] {
   return DS_BUTTONS.flatMap((b) => {
     const m = p.mappings[b];
     const d = DEFAULTS[b];
-    if (!m || !d || same(m.targets, d.targets)) return [];
+    if (!m || !d) return [];
+    const turbo = m.turbo.mode !== 'off';
+    if (!turbo && same(m.targets, d.targets)) return [];
+    const out = m.targets.map((t) => formatTarget(t, b, p)).join(' + ');
     return [
-      {
-        button: b,
-        text: `${BUTTON_LABELS[b]} ▸ ${m.targets.map((t) => formatTarget(t, b, p)).join(' + ')}`,
-      },
+      { button: b, text: `${BUTTON_LABELS[b]} ▸ ${out}${turbo ? ` ⟳ ${m.turbo.hz} Hz` : ''}` },
     ];
   });
 }

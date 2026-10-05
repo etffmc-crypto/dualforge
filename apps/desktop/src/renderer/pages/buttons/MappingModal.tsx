@@ -8,16 +8,14 @@ import {
   turboOff,
 } from '@dualforge/shared';
 import { Modal } from '../../components/Modal';
-import { RangeSlider } from '../../components/controls/RangeSlider';
 import { Toggle } from '../../components/controls/Toggle';
 import { useStore } from '../../store';
 import { TargetPicker, type PickerTab } from './TargetPicker';
-import { MAX_TARGETS, TURBO_STEPS, mappingOf, pickTarget, targetKey, targetText } from './targets';
+import { TurboControls } from './TurboControls';
+import { MAX_TARGETS, mappingOf, pickTarget, targetKey, targetText } from './targets';
 
 const NO_MACROS: Macro[] = [];
 const CLEARED: Mapping = { targets: [{ type: 'none' }], turbo: turboOff(), continuous: false };
-const snapTurbo = (v: number) =>
-  TURBO_STEPS.reduce((a, b) => (Math.abs(b - v) < Math.abs(a - v) ? b : a));
 const tabFor = (t: Target | undefined): PickerTab =>
   t?.type === 'key'
     ? 'keyboard'
@@ -135,29 +133,7 @@ export function MappingModal({ button, onClose }: MappingModalProps) {
           />
         </div>
         <div className="map-foot-turbo">
-          <div className="turbo-head">
-            <span>Turbo</span>
-            <span className="turbo-value">
-              {mapping.turbo.mode === 'off' ? 'Off' : `${mapping.turbo.hz} Hz`}
-            </span>
-          </div>
-          <RangeSlider
-            ariaLabel="Turbo"
-            min={0}
-            max={30}
-            step={5}
-            value={mapping.turbo.mode === 'off' ? 0 : snapTurbo(mapping.turbo.hz)}
-            onChange={(v) =>
-              edit((m) => {
-                const hz = snapTurbo(v);
-                m.turbo = hz === 0 ? turboOff() : { mode: 'hold', hz };
-              })
-            }
-          />
-          <div className="turbo-scale" aria-hidden="true">
-            <span>Off</span>
-            <span>30 Hz</span>
-          </div>
+          <TurboControls mapping={mapping} edit={edit} />
           <div className="map-actions">
             <button
               data-nav

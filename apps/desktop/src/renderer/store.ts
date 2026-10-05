@@ -13,6 +13,7 @@ export const PAGES = [
   'home',
   'overview',
   'buttons',
+  'turbo',
   'sticks',
   'triggers',
   'motion',

@@ -5,6 +5,7 @@ import { Toggle } from '../components/controls/Toggle';
 import { PanelSection } from '../components/SettingsLayout';
 import { FolderIcon } from '../components/icons';
 import { useStore } from '../store';
+import { TurboPrefs } from './settings/TurboPrefs';
 
 type Flag =
   'hasRumble' | 'hidHide' | 'startWithWindows' | 'startMinimized' | 'closeToTray' | 'updates';
@@ -91,6 +92,7 @@ export function Settings() {
             }
           />
         </PanelSection>
+        <TurboPrefs />
       </section>
 
       <section className="prefs-card" aria-labelledby="prefs-app">

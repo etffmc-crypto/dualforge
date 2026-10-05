@@ -207,14 +207,16 @@ export function applyMappings(
         if (s.latched[b] === undefined) s.latched[b] = nowMs;
         else delete s.latched[b];
       }
-      const start = s.latched[b];
+      let start = s.latched[b];
+      if (start !== undefined && start > nowMs) start = s.latched[b] = nowMs;
       active = start !== undefined && phaseOn(nowMs - start, m.turbo.hz);
       if (start !== undefined) frame.turboActive = true;
     } else {
       delete s.latched[b];
       if (!held) delete s.turboStart[b];
       else if (m.turbo.mode === 'hold') {
-        const start = s.turboStart[b] ?? (s.turboStart[b] = nowMs);
+        let start = s.turboStart[b];
+        if (start === undefined || start > nowMs) start = s.turboStart[b] = nowMs; // clock went back: new phase
         active = phaseOn(nowMs - start, m.turbo.hz);
         frame.turboActive = true;
       }

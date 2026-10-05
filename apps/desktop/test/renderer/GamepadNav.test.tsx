@@ -168,10 +168,10 @@ describe('gamepad navigation', () => {
   it('L1 / R1 cycle the header pages on the rising edge, wrapping at the ends', () => {
     mount();
     feed(['r1']);
-    expect(page()).toBe('sticks');
+    expect(page()).toBe('turbo'); // the page after Buttons
     feed(['r1']); // still held: no repeat
     feed(['r1']);
-    expect(page()).toBe('sticks');
+    expect(page()).toBe('turbo'); // the page after Buttons
     feed([]);
     tap('l1');
     tap('l1');
@@ -210,7 +210,7 @@ describe('gamepad navigation', () => {
     expect(page()).toBe('buttons');
     feed([]);
     feed(['r1']);
-    expect(page()).toBe('sticks');
+    expect(page()).toBe('turbo'); // the page after Buttons
   });
 
   it('replayed input is ignored unless the navReplay flag is set', () => {
@@ -228,7 +228,7 @@ describe('gamepad navigation', () => {
     render(<Nav />);
     feedReplay([]);
     feedReplay(['r1']);
-    expect(page()).toBe('sticks');
+    expect(page()).toBe('turbo'); // the page after Buttons
   });
 
   it('L2 / R2 switch the Sticks sub-tab: as digital buttons, or as analog pulls past half', () => {
@@ -345,7 +345,7 @@ describe('gamepad navigation', () => {
     vi.mocked(document.hasFocus).mockReturnValue(true);
     feed([]); // baseline after regaining focus
     tap('r1');
-    expect(page()).toBe('sticks');
+    expect(page()).toBe('turbo'); // the page after Buttons
   });
 
   it('suspension holds count: one owner releasing does not lift another’s hold; releases are idempotent', () => {

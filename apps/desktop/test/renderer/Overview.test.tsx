@@ -259,8 +259,8 @@ describe('overview format helpers', () => {
       targets: [{ type: 'xbutton', button: 'A' }],
       turbo: { mode: 'hold', hz: 10 },
       continuous: false,
-    }; // same target, turbo only
-    expect(mappingChips(p).map((c) => c.text)).toEqual(['D-Pad ↑ ▸ Up']);
+    }; // same target, turbo only: listed for its turbo
+    expect(mappingChips(p).map((c) => c.text)).toEqual(['✕ ▸ A ⟳ 10 Hz', 'D-Pad ↑ ▸ Up']);
   });
 
   it('converts between hue and rgb', () => {

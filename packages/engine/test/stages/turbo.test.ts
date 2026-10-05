@@ -77,6 +77,15 @@ describe('turbo hold mode', () => {
     expect(r.a(['cross'], 1175)).toBe(true); // new phase from the new press
     expect(r.a(['cross'], 1225)).toBe(false);
   });
+  it('time running backwards (a looping replay) restarts the phase instead of sticking on', () => {
+    const p = defaultProfile('p', 'p');
+    p.mappings.cross!.turbo = { mode: 'hold', hz: 10 };
+    const r = rig(p);
+    r.a(['cross'], 1000);
+    expect(r.a(['cross'], 500)).toBe(true);
+    expect(r.a(['cross'], 560)).toBe(false);
+    expect(r.a(['cross'], 600)).toBe(true);
+  });
   it('reports turboActive while a hold-mode button is held', () => {
     const p = defaultProfile('p', 'p');
     p.mappings.cross!.turbo = { mode: 'hold', hz: 10 };

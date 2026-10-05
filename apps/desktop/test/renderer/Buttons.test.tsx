@@ -138,14 +138,20 @@ describe('Buttons page', () => {
   it('turbo and continuous persist across reopen; Clear resets to no output', () => {
     render(<Buttons />);
     fireEvent.click(pill('R1'));
-    fireEvent.change(dialog().getByRole('slider', { name: 'Turbo' }), { target: { value: '15' } });
+    fireEvent.click(dialog().getByRole('radio', { name: 'Hold' }));
+    fireEvent.click(dialog().getByRole('radio', { name: 'Custom' }));
+    fireEvent.change(dialog().getByRole('slider', { name: 'Turbo speed (Hz)' }), {
+      target: { value: '15' },
+    });
     fireEvent.click(dialog().getByRole('switch', { name: 'Continuous trigger' }));
     expect(mapping('r1')).toMatchObject({ turbo: { mode: 'hold', hz: 15 }, continuous: true });
     fireEvent.click(dialog().getByRole('button', { name: 'Close' }));
     expect(pill('R1').textContent).toMatch(/RB.*⟳.*∞/);
     fireEvent.click(pill('R1'));
-    expect((dialog().getByRole('slider', { name: 'Turbo' }) as HTMLInputElement).value).toBe('15');
-    expect(document.querySelector('.turbo-value')!.textContent).toBe('15 Hz');
+    expect(
+      (dialog().getByRole('slider', { name: 'Turbo speed (Hz)' }) as HTMLInputElement).value,
+    ).toBe('15');
+    expect(document.querySelector('.turbo-value')!.textContent).toBe('Hold 15 Hz');
     expect(
       dialog().getByRole('switch', { name: 'Continuous trigger' }).getAttribute('aria-checked'),
     ).toBe('true');

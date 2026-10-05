@@ -8,6 +8,7 @@ import { Triggers } from './pages/Triggers';
 import { Settings } from './pages/Settings';
 import { Overview } from './pages/Overview';
 import { Buttons } from './pages/Buttons';
+import { Turbo } from './pages/Turbo';
 import { Macros } from './pages/Macros';
 import { Motion } from './pages/Motion';
 import { Vibrations } from './pages/Vibrations';
@@ -27,6 +28,8 @@ function Page() {
       return <Overview />;
     case 'buttons':
       return <Buttons />;
+    case 'turbo':
+      return <Turbo />;
     case 'settings':
       return <Settings />;
     case 'inputTest':

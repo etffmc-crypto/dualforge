@@ -17,3 +17,16 @@ for (let i = 0; i <= 200; i++) {
   entries.push({ t: i, hex: Buffer.from(b).toString('hex') });
 }
 writeFileSync(new URL('./stick-sweep.hidlog', import.meta.url), serializeHidlog(entries));
+
+// cross held the whole time (1000 frames, 2 ms of log time apart): turbo is the only thing that can make A blink.
+// A replay plays one frame per timer tick, so engine time advances 2 ms per delivered report.
+const held: HidlogEntry[] = [];
+for (let i = 0; i < 1000; i++) {
+  const b = new Uint8Array(64);
+  b[0] = 1;
+  b[1] = b[2] = b[3] = b[4] = 128;
+  b[8] = 0x08 | 0x20; // d-pad neutral, cross down
+  b[53] = 0x09;
+  held.push({ t: i * 2, hex: Buffer.from(b).toString('hex') });
+}
+writeFileSync(new URL('./cross-held.hidlog', import.meta.url), serializeHidlog(held));

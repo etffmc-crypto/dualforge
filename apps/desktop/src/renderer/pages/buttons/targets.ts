@@ -7,12 +7,12 @@ import {
   type Macro,
   type Mapping,
   type Target,
+  type Turbo,
   type XButton,
 } from '@dualforge/shared';
 
 export type VkName = (typeof VK_NAMES)[number];
 export const MAX_TARGETS = 3;
-export const TURBO_STEPS = [0, 5, 10, 15, 20, 25, 30] as const;
 
 export const X_LABELS: Record<XButton, string> = {
   A: 'A',
@@ -145,6 +145,12 @@ export const isDefaultMapping = (b: DsButton, m: Mapping) =>
   !m.continuous &&
   m.targets.length === 1 &&
   targetKey(m.targets[0]!) === targetKey(defaultTarget(b));
+
+const MODE_NAMES = { off: 'Off', hold: 'Hold', toggle: 'Toggle' } as const;
+export const turboModeName = (t: Turbo): string => MODE_NAMES[t.mode];
+/** `Off`, `Hold 12 Hz`, `Toggle 20 Hz`. */
+export const turboText = (t: Turbo): string =>
+  t.mode === 'off' ? 'Off' : `${MODE_NAMES[t.mode]} ${t.hz} Hz`;
 
 export interface MappingSummary {
   text: string;
