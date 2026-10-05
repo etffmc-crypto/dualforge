@@ -6,6 +6,9 @@ type Filter = StickConfig['filter'];
 export const strengthReadout = (v: number): string =>
   v === 0 ? 'Off' : v < 0 ? `${v} (jitter)` : `+${v} (smooth)`;
 
+/** Jitter rate readout: "30 Hz". */
+export const jitterRateReadout = (v: number): string => `${v} Hz`;
+
 /** True when the active filter setting can add jitter (negative strength or any negative curve point). */
 export const hasNegative = (f: Filter): boolean =>
   f.mode === 'basic' ? f.strength < 0 : f.curve.some(([, y]) => y < 0);

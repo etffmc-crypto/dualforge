@@ -3,7 +3,7 @@ import { RangeSlider } from '../../components/controls/RangeSlider';
 import { Segmented } from '../../components/controls/Segmented';
 import { Toggle } from '../../components/controls/Toggle';
 import { PanelSection } from '../../components/SettingsLayout';
-import { hasNegative, strengthReadout } from './smoothing';
+import { hasNegative, jitterRateReadout, strengthReadout } from './smoothing';
 import type { StickSectionProps } from './useStick';
 
 const MODES = [
@@ -13,7 +13,8 @@ const MODES = [
 
 /**
  * RC smoothing: one strength (Basic) or strength by stick speed (Advanced, 5 points). Both run -100..100:
- * above 0 smooths, below 0 overshoots each change (negative smoothing / jitter), with a risk notice.
+ * above 0 smooths, below 0 adds a small oscillation while the stick moves (negative smoothing / jitter),
+ * with a jitter rate control and a risk notice.
  */
 export function SmoothingSection({ side, cfg, edit }: StickSectionProps) {
   const f = cfg.filter;
@@ -79,33 +80,53 @@ export function SmoothingSection({ side, cfg, edit }: StickSectionProps) {
             </>
           )}
           {hasNegative(f) && (
-            <div className="smooth-risk" role="note" aria-labelledby={`smooth-risk-${side}`}>
-              <p className="smooth-risk-title" id={`smooth-risk-${side}`}>
-                Negative smoothing
-              </p>
-              <p className="psec-hint">
-                Negative smoothing adds micro-jitter to keep aim assist engaged (the HyperStrike
-                &lsquo;RC filter&rsquo; technique). Apex Legends treats it as a bannable exploit;
-                Call of Duty has not published a policy. Use at your own risk.
-              </p>
-              <p className="psec-hint">
-                Keep a center deadzone of at least 2–3 % so the stick reads exactly zero at rest; at
-                −100 the filter amplifies sensor noise up to ~39×.
-              </p>
-              <button
-                data-nav
-                type="button"
-                className="panel-btn"
-                onClick={() =>
+            <>
+              <RangeSlider
+                label="Jitter rate"
+                min={10}
+                max={60}
+                step={1}
+                value={f.jitterHz}
+                format={jitterRateReadout}
+                onChange={(v) =>
                   edit((c) => {
-                    if (c.filter.mode === 'basic') c.filter.strength = 0;
-                    else c.filter.curve = c.filter.curve.map(([x, y]) => [x, Math.max(0, y)]);
+                    c.filter.jitterHz = v;
                   })
                 }
-              >
-                {f.mode === 'basic' ? 'Set to Off' : 'Remove jitter'}
-              </button>
-            </div>
+              />
+              <p className="psec-hint">
+                37 Hz avoids lining up with 60/120 fps polling; raise it if the wobble is visible on
+                screen, lower it if aim assist doesn&rsquo;t engage.
+              </p>
+              <div className="smooth-risk" role="note" aria-labelledby={`smooth-risk-${side}`}>
+                <p className="smooth-risk-title" id={`smooth-risk-${side}`}>
+                  Negative smoothing
+                </p>
+                <p className="psec-hint">
+                  Negative smoothing adds a small oscillation to your aim input while the stick is
+                  moving (the HyperStrike &lsquo;RC filter&rsquo; jitter technique) to keep aim
+                  assist engaged. Apex Legends treats it as a bannable exploit; Call of Duty has not
+                  published a policy. Use at your own risk.
+                </p>
+                <p className="psec-hint">
+                  Keep a center deadzone of at least 2–3 % so the stick reads exactly zero at rest;
+                  sensor noise that gets past the deadzone counts as movement and starts the wobble.
+                </p>
+                <button
+                  data-nav
+                  type="button"
+                  className="panel-btn"
+                  onClick={() =>
+                    edit((c) => {
+                      if (c.filter.mode === 'basic') c.filter.strength = 0;
+                      else c.filter.curve = c.filter.curve.map(([x, y]) => [x, Math.max(0, y)]);
+                    })
+                  }
+                >
+                  {f.mode === 'basic' ? 'Set to Off' : 'Remove jitter'}
+                </button>
+              </div>
+            </>
           )}
         </>
       )}

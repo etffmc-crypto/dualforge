@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.2
+
+### Negative smoothing rewritten
+
+- Negative smoothing rewritten: game-visible oscillation. In 0.3.1 the overshoot rang out within about a millisecond, far faster than a game reads the controller, so it had no felt effect. Now, while the stick moves, a small oscillation (up to 8 % of full deflection at -100) is added to the aim input at a steady rate that games polling at 60–250 Hz actually see. A still stick is passed through untouched.
+- New **Jitter rate** setting (10–60 Hz, default 37 Hz, chosen so it never lines up with 60/120 fps polling) on the Sticks page while any negative smoothing is set.
+- The risk notice describes the new behaviour; the center deadzone advice (at least 2–3 %) stays.
+- Profiles from 0.3.1 load unchanged (Jitter rate defaults to 37 Hz).
+
 ## 0.3.1
 
 ### Negative smoothing
