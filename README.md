@@ -2,7 +2,7 @@
 
 DualForge is a Windows desktop app (Electron) that configures a PlayStation 5 DualSense controller over USB. It reads the pad, applies your profile (button mappings, macros, stick curves, deadzones, calibration, trigger effects, gyro, lights), and presents the result to games as a virtual Xbox 360 controller through ViGEm.
 
-Version 0.3.1. See [CHANGELOG.md](CHANGELOG.md).
+Version 0.3.2. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
 
@@ -57,10 +57,13 @@ DualForge lives in the notification area. In **Settings** you can start it with 
 **Smoothing (RC)** on the Sticks page runs from -100 to 100, with Off at 0 (the slider clicks into the centre).
 
 - **Positive (Smoothing)** filters the stick: higher values remove more shake but add lag.
-- **Negative (jitter)** does the opposite: every change of stick position overshoots and then rings back to where the stick is, one report at a time. -100 overshoots most; the stick still settles where you hold it. This is the "RC filter" technique (popularised by HyperStrike): the micro-jitter keeps aim assist engaged.
+- **Negative (jitter)** is the jitter-aim technique (the "RC filter" jitter popularised by HyperStrike): while the stick is moving, DualForge adds a small, fast back-and-forth oscillation to the aim input so aim assist stays engaged. At -100 the wobble is up to 8 % of full deflection; -50 is half that. It scales with how fast you move the stick, reaching full size at slow tracking speeds (about 4 % of the stick's range per 100 ms), and is zero when the stick is still, so the aim settles exactly where you hold it.
+- **Jitter rate** (10–60 Hz, default 30 Hz) appears while any negative value is set. It sets how fast the wobble swings, in real time, so it is the same on any controller report rate and slow enough for a game reading the pad at 60–250 Hz to see it. 30 Hz suits most games; raise it if the wobble is visible on screen, lower it if aim assist does not engage.
 - **Advanced** sets the strength by stick speed with five points from -100 to 100, so you can, for example, add jitter to slow aim and smooth fast flicks. Points below the dashed zero line add jitter.
 
-**Risk:** Apex Legends treats negative smoothing as a bannable exploit; Call of Duty has not published a policy. Use it at your own risk. Keep a center deadzone of at least 2–3 % so the stick reads exactly zero at rest; at −100 the filter amplifies sensor noise up to ~39×. While any negative value is set, the Sticks page shows this notice with a **Set to Off** button (**Remove jitter** in Advanced, which lifts the negative points to 0).
+**Deadzone required:** keep a center deadzone of at least 2–3 % so the stick reads exactly zero at rest. Sensor noise that gets past the deadzone counts as movement and starts the wobble while you are not touching the stick.
+
+**Risk:** Apex Legends treats negative smoothing as a bannable exploit; Call of Duty has not published a policy. Use it at your own risk. While any negative value is set, the Sticks page shows this notice with a **Set to Off** button (**Remove jitter** in Advanced, which lifts the negative points to 0).
 
 ## Turbo
 
