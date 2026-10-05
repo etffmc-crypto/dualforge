@@ -98,6 +98,43 @@ describe('Sticks page', () => {
     expect(screen.getAllByRole('button', { name: /^Point \d/ })).toHaveLength(5);
   });
 
+  it('negative smoothing: the slider goes below zero, a risk notice appears, Set to Off clears it', () => {
+    render(<Sticks />);
+    fireEvent.click(screen.getByRole('switch', { name: 'Enable smoothing' }));
+    const slider = screen.getByRole('slider', { name: 'Smoothing strength' });
+    expect(slider.getAttribute('min')).toBe('-100');
+    expect(screen.getByText('Off')).toBeTruthy();
+    expect(screen.queryByRole('note', { name: 'Negative smoothing' })).toBeNull();
+
+    fireEvent.change(slider, { target: { value: '-40' } });
+    expect(profile().sticks.left.filter.strength).toBe(-40);
+    expect(screen.getByText('-40 (jitter)')).toBeTruthy();
+    const note = screen.getByRole('note', { name: 'Negative smoothing' });
+    expect(note.textContent).toContain('Apex Legends treats it as a bannable exploit');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Set to Off' }));
+    expect(profile().sticks.left.filter.strength).toBe(0);
+    expect(screen.queryByRole('note', { name: 'Negative smoothing' })).toBeNull();
+
+    fireEvent.change(slider, { target: { value: '30' } });
+    expect(screen.getByText('+30 (smooth)')).toBeTruthy();
+    expect(screen.queryByRole('note', { name: 'Negative smoothing' })).toBeNull();
+  });
+
+  it('negative smoothing: a negative advanced curve point shows the notice; Set to Off lifts it to 0', () => {
+    render(<Sticks />);
+    fireEvent.click(screen.getByRole('switch', { name: 'Enable smoothing' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Advanced' }));
+    expect(screen.queryByRole('note', { name: 'Negative smoothing' })).toBeNull();
+    fireEvent.change(screen.getByLabelText('Point 1 output'), { target: { value: '-30' } });
+    fireEvent.blur(screen.getByLabelText('Point 1 output'));
+    expect(profile().sticks.left.filter.curve[0]).toEqual([0, -30]);
+    expect(screen.getByRole('note', { name: 'Negative smoothing' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Set to Off' }));
+    expect(profile().sticks.left.filter.curve[0]).toEqual([0, 0]);
+    expect(screen.queryByRole('note', { name: 'Negative smoothing' })).toBeNull();
+  });
+
   it('switches the sub-tab on an LT/RT rising edge while focused', () => {
     vi.spyOn(document, 'hasFocus').mockReturnValue(true);
     render(

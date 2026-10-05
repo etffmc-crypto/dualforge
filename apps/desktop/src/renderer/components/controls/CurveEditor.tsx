@@ -4,12 +4,14 @@ import { DraftNumber } from './DraftNumber';
 export type CurvePoints = [number, number][];
 
 export interface CurveEditorProps {
-  /** x in 0..1 (non-decreasing), y in 0..yMax */
+  /** x in 0..1 (non-decreasing), y in yMin..yMax */
   points: CurvePoints;
   onChange(points: CurvePoints): void;
   size?: number;
   /** top of the y axis; numeric inputs show y scaled to 0..100 (yMax = 100 shows raw values) */
   yMax?: number;
+  /** bottom of the y axis (default 0); below 0 the plot shades the negative band and dashes the zero line */
+  yMin?: number;
   pointCount?: number;
 }
 
@@ -23,6 +25,7 @@ export function CurveEditor({
   onChange,
   size = 280,
   yMax = 1,
+  yMin = 0,
   pointCount = 8,
 }: CurveEditorProps) {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -30,15 +33,17 @@ export function CurveEditor({
   const [active, setActive] = useState<number | null>(null);
   const pts = points.slice(0, pointCount);
   const plot = size - PAD * 2;
+  const ySpan = yMax - yMin;
   const sx = (x: number) => PAD + x * plot;
-  const sy = (y: number) => PAD + (1 - y / yMax) * plot;
+  const sy = (y: number) => PAD + (1 - (y - yMin) / ySpan) * plot;
   const yScale = 100 / yMax;
+  const signed = yMin < 0;
 
   const setPoint = (i: number, x: number, y: number) => {
     const lo = i > 0 ? pts[i - 1]![0] : 0;
     const hi = i < pts.length - 1 ? pts[i + 1]![0] : 1;
     const next = pts.map((p) => [p[0], p[1]] as [number, number]);
-    next[i] = [clamp(tidy(x), lo, hi), clamp(tidy(y), 0, yMax)];
+    next[i] = [clamp(tidy(x), lo, hi), clamp(tidy(y), yMin, yMax)];
     onChange(next);
   };
 
@@ -60,7 +65,7 @@ export function CurveEditor({
     const rect = e.currentTarget.getBoundingClientRect();
     const scale = rect.width ? rect.width / size : 1;
     const x = ((e.clientX - rect.left) / scale - PAD) / plot;
-    const y = (1 - ((e.clientY - rect.top) / scale - PAD) / plot) * yMax;
+    const y = yMin + (1 - ((e.clientY - rect.top) / scale - PAD) / plot) * ySpan;
     setPoint(i, x, y);
   };
   const onUp = () => {
@@ -98,13 +103,27 @@ export function CurveEditor({
         onPointerCancel={onUp}
       >
         <rect x={PAD} y={PAD} width={plot} height={plot} className="cp-frame" />
+        {signed && (
+          <rect className="ce-neg" x={PAD} y={sy(0)} width={plot} height={PAD + plot - sy(0)} />
+        )}
         {grid.map((g) => (
           <g key={g} className="cp-grid">
             <line x1={sx(g)} y1={PAD} x2={sx(g)} y2={PAD + plot} />
-            <line x1={PAD} y1={sy(g * yMax)} x2={PAD + plot} y2={sy(g * yMax)} />
+            <line x1={PAD} y1={sy(yMin + g * ySpan)} x2={PAD + plot} y2={sy(yMin + g * ySpan)} />
           </g>
         ))}
-        <line className="ce-ref" x1={sx(0)} y1={sy(0)} x2={sx(1)} y2={sy(yMax)} />
+        {signed ? (
+          <line
+            data-testid="ce-zero"
+            className="ce-ref"
+            x1={sx(0)}
+            y1={sy(0)}
+            x2={sx(1)}
+            y2={sy(0)}
+          />
+        ) : (
+          <line className="ce-ref" x1={sx(0)} y1={sy(0)} x2={sx(1)} y2={sy(yMax)} />
+        )}
         <polyline
           className="curve"
           fill="none"
@@ -143,7 +162,7 @@ export function CurveEditor({
         {pts.map(([, y], i) => (
           <DraftNumber
             key={`y${i}`}
-            min={0}
+            min={Math.round(yMin * yScale)}
             max={100}
             step={1}
             value={Math.round(y * yScale)}

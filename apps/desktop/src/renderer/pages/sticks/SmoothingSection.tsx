@@ -3,6 +3,7 @@ import { RangeSlider } from '../../components/controls/RangeSlider';
 import { Segmented } from '../../components/controls/Segmented';
 import { Toggle } from '../../components/controls/Toggle';
 import { PanelSection } from '../../components/SettingsLayout';
+import { hasNegative, strengthReadout } from './smoothing';
 import type { StickSectionProps } from './useStick';
 
 const MODES = [
@@ -10,7 +11,10 @@ const MODES = [
   { value: 'advanced', label: 'Advanced' },
 ] as const;
 
-/** RC smoothing: one strength (Basic) or strength by stick speed (Advanced, 5 points, y in 0..100). */
+/**
+ * RC smoothing: one strength (Basic) or strength by stick speed (Advanced, 5 points). Both run -100..100:
+ * above 0 smooths, below 0 overshoots each change (negative smoothing / jitter), with a risk notice.
+ */
 export function SmoothingSection({ side, cfg, edit }: StickSectionProps) {
   const f = cfg.filter;
   return (
@@ -39,11 +43,14 @@ export function SmoothingSection({ side, cfg, edit }: StickSectionProps) {
           {f.mode === 'basic' ? (
             <RangeSlider
               ariaLabel="Smoothing strength"
-              min={0}
+              min={-100}
               max={100}
               step={1}
+              fillFrom={0}
+              detent={2}
+              ends={['Negative (jitter)', 'Smoothing']}
               value={f.strength}
-              format={(v) => `${v}`}
+              format={strengthReadout}
               onChange={(v) =>
                 edit((c) => {
                   c.filter.strength = v;
@@ -54,11 +61,12 @@ export function SmoothingSection({ side, cfg, edit }: StickSectionProps) {
             <>
               <p className="psec-hint">
                 Stick speed (in) → smoothing strength (out). Smooth slow aim, keep fast flicks
-                sharp.
+                sharp. Points below the dashed zero line add jitter instead.
               </p>
               <CurveEditor
                 key={side}
                 size={248}
+                yMin={-100}
                 yMax={100}
                 pointCount={5}
                 points={f.curve}
@@ -69,6 +77,31 @@ export function SmoothingSection({ side, cfg, edit }: StickSectionProps) {
                 }
               />
             </>
+          )}
+          {hasNegative(f) && (
+            <div className="smooth-risk" role="note" aria-labelledby={`smooth-risk-${side}`}>
+              <p className="smooth-risk-title" id={`smooth-risk-${side}`}>
+                Negative smoothing
+              </p>
+              <p className="psec-hint">
+                Negative smoothing adds micro-jitter to keep aim assist engaged (the HyperStrike
+                &lsquo;RC filter&rsquo; technique). Apex Legends treats it as a bannable exploit;
+                Call of Duty has not published a policy. Use at your own risk.
+              </p>
+              <button
+                data-nav
+                type="button"
+                className="panel-btn"
+                onClick={() =>
+                  edit((c) => {
+                    if (c.filter.mode === 'basic') c.filter.strength = 0;
+                    else c.filter.curve = c.filter.curve.map(([x, y]) => [x, Math.max(0, y)]);
+                  })
+                }
+              >
+                Set to Off
+              </button>
+            </div>
           )}
         </>
       )}
