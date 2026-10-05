@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0
+
+### Turbo mode
+
+- New **Turbo** page (after Buttons): every button's turbo on the pad diagram; pick a button to set its mode and speed.
+- Two modes: **Hold** fires repeatedly while the button is held; **Toggle** starts auto-fire with one press and stops it with the next.
+- Speeds: Slow 8 Hz, Medium 12 Hz, Fast 20 Hz, or Custom 1-30 Hz. The mapping dialog on Buttons uses the same controls.
+- Set turbo from the controller: hold the mode button (Touchpad by default) and press a button to step it Slow → Medium → Fast → Off; double-tap the mode button to clear all turbo. A quick tap of the mode button still sends its own output. Changes are saved to the running profile and show up in the app at once.
+- The lightbar pulses red while any button has turbo set; the Turbo page shows a live "Turbo active" indicator. Overview lists turbo buttons with their speed.
+- Settings → Turbo: on-pad assignment on/off, mode button (or None), lightbar pulse on/off.
+- Profiles from 0.2.0 load unchanged: a button's old turbo speed becomes Hold at that speed.
+
 ## 0.2.0
 
 First installable release.
