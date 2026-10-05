@@ -188,6 +188,61 @@ describe('engine IPC', () => {
   });
 });
 
+describe('turbo settings', () => {
+  it('settings:set validates turbo settings and forwards them to the engine', () => {
+    const { call, sent } = rig();
+    const turbo = { modeButton: null, lightbarPulse: false, onPadAssign: true };
+    expect(call('settings:set', { turbo })).toMatchObject({ turbo });
+    expect(sent.at(-1)).toMatchObject({ type: 'setSettings', settings: { turbo } });
+    expect(() => call('settings:set', { turbo: { ...turbo, modeButton: 'nope' } })).toThrow(
+      'E_SETTINGS_SCHEMA',
+    );
+  });
+});
+
+describe('engine profileEdit (on-pad turbo)', () => {
+  const edit = (profileId: string, edits: unknown) => ({ type: 'profileEdit', profileId, edits });
+  it('merges into the running profile like a UI save: engine, renderer push, tray refresh, debounced write', () => {
+    const onProfilesChanged = vi.fn();
+    const { call, sent, active, api } = rig(nodeIo, undefined, { onProfilesChanged });
+    api.applyProfile('p1');
+    sent.length = 0;
+    active.length = 0;
+    expect(
+      api.applyProfileEdit(edit('p1', [{ button: 'cross', turbo: { mode: 'hold', hz: 8 } }])),
+    ).toBe(true);
+    const p = call('profiles:get', 'p1') as ReturnType<typeof defaultProfile>;
+    expect(p.mappings.cross!.turbo).toEqual({ mode: 'hold', hz: 8 });
+    expect(p.mappings.cross!.targets).toEqual(defaultProfile('p1', 'x').mappings.cross!.targets);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ type: 'setProfile', profile: { id: 'p1' } });
+    expect(active).toEqual(['p1']);
+    expect(onProfilesChanged).toHaveBeenCalled();
+    api.flush();
+    expect(
+      createProfileStore(dir, { error: vi.fn(), warn: vi.fn() }).get('p1').mappings.cross!.turbo,
+    ).toEqual({ mode: 'hold', hz: 8 });
+  });
+  it('rejects invalid payloads and edits for a profile the engine no longer runs', () => {
+    const { sent, active, api, log } = rig();
+    api.applyProfile('p1');
+    sent.length = 0;
+    expect(
+      api.applyProfileEdit(edit('p1', [{ button: 'cross', turbo: { mode: 'hold', hz: 99 } }])),
+    ).toBe(false);
+    expect(
+      api.applyProfileEdit(edit('p1', [{ button: 'nope', turbo: { mode: 'hold', hz: 8 } }])),
+    ).toBe(false);
+    expect(api.applyProfileEdit({ type: 'profileEdit' })).toBe(false);
+    expect(
+      api.applyProfileEdit(edit('p2', [{ button: 'cross', turbo: { mode: 'hold', hz: 8 } }])),
+    ).toBe(false);
+    expect(sent).toEqual([]);
+    expect(active).toEqual(['p1']);
+    expect(log.error).toHaveBeenCalledWith(expect.objectContaining({ code: 'E_PROFILE_EDIT' }));
+  });
+});
+
 describe('settings change hook', () => {
   it('runs after settings:set with the previous and next settings, and the reply waits for it', async () => {
     const seen: [boolean, boolean][] = [];

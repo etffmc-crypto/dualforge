@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   PROFILE_IDS,
+  ProfileEditEventSchema,
   ProfileSchema,
   SettingsSchema,
   TestRumbleSchema,
@@ -8,6 +9,7 @@ import {
   type Profile,
   type Settings,
 } from '@dualforge/shared';
+import { applyTurboEdits } from '@dualforge/engine';
 import type { ProfileStore } from './profile-store.js';
 import type { SettingsStore } from './settings-store.js';
 import { profileFromShareCode, shareCodeFor } from './share.js';
@@ -173,6 +175,30 @@ export function registerIpc(d: IpcDeps) {
   h('profile:get', () => d.store.get(engineProfileId));
   h('profile:set', saveProfile);
 
+  /**
+   * On-pad turbo assignment from the engine: validated, merged into the running profile and saved exactly like a renderer
+   * `profiles:set` (engine push, tray refresh, debounced write), then the renderer is told to reload it. Edits for a profile
+   * the engine no longer runs (a switch raced the event) are dropped.
+   */
+  function applyProfileEdit(raw: unknown): boolean {
+    const parsed = ProfileEditEventSchema.safeParse(raw);
+    if (!parsed.success || parsed.data.profileId !== engineProfileId) {
+      d.log.error({
+        code: 'E_PROFILE_EDIT',
+        msg: parsed.success ? 'profileEdit for a profile not running' : parsed.error.message,
+      });
+      return false;
+    }
+    try {
+      saveProfile(applyTurboEdits(d.store.get(engineProfileId), parsed.data.edits));
+    } catch (e) {
+      d.log.error({ code: 'E_PROFILE_EDIT', msg: (e as Error).message });
+      return false;
+    }
+    d.notifyActive(engineProfileId);
+    return true;
+  }
+
   /** Health repair: reset a slot, and when it is the running one tell the renderer to reload it. */
   function repairResetProfile(id: string): void {
     resetProfile(id);
@@ -181,6 +207,7 @@ export function registerIpc(d: IpcDeps) {
 
   return {
     applyProfile,
+    applyProfileEdit,
     activate,
     resetProfile: repairResetProfile,
     flush: () => d.store.flush(),

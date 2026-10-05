@@ -47,6 +47,10 @@ let quitting = false;
 const engine = createEngineHost({
   log: logger,
   onEvent: (e) => {
+    if (e.type === 'profileEdit') {
+      ipc.applyProfileEdit(e); // on-pad turbo: persisted and pushed like a UI edit
+      return;
+    }
     engineFeed.onEvent(e);
     if (win && !win.isDestroyed()) win.webContents.send('engine:event', e);
   },
