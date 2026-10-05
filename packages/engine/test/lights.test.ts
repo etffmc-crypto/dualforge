@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { defaultProfile, type Battery } from '@dualforge/shared';
-import { computeLightbar } from '../src/lights.js';
+import { applyTurboPulse, computeLightbar } from '../src/lights.js';
 
 const full: Battery = { percent: 100, state: 'full' };
 const cfg = (o: Partial<ReturnType<typeof defaultProfile>['lights']> = {}) => ({
@@ -72,5 +72,37 @@ describe('computeLightbar', () => {
     expect(rgb(computeLightbar(c, 500, b))).toEqual([0, 0, 0]);
     expect(rgb(computeLightbar(c, 1000, b))).toEqual([0, 255, 0]);
     expect(computeLightbar(c, 0, b).animated).toBe(true);
+  });
+});
+
+describe('applyTurboPulse', () => {
+  const base = {
+    r: 0,
+    g: 80,
+    b: 255,
+    brightness: 1 as const,
+    playerLeds: 4,
+    micLed: 0 as const,
+    animated: false,
+  };
+  it('replaces the colour with red pulsing at 2 Hz and keeps the other fields', () => {
+    const f = applyTurboPulse(base, 0);
+    expect(f).toMatchObject({
+      r: 255,
+      g: 0,
+      b: 0,
+      brightness: 1,
+      playerLeds: 4,
+      micLed: 0,
+      animated: true,
+    });
+    expect(applyTurboPulse(base, 250).r).toBeLessThan(60); // half a 500 ms period: dim
+    expect(applyTurboPulse(base, 500).r).toBe(255); // a full period later: bright again
+    expect(applyTurboPulse(base, 125).r).toBeGreaterThan(60);
+    expect(applyTurboPulse(base, 125).r).toBeLessThan(255);
+  });
+  it('is pure', () => {
+    applyTurboPulse(base, 0);
+    expect(base.r).toBe(0);
   });
 });

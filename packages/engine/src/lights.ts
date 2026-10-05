@@ -28,6 +28,21 @@ function hsvToRgb(h: number): [number, number, number] {
   return [byte(r! * 255), byte(g! * 255), byte(b! * 255)];
 }
 
+/** Red pulse period while turbo is set (2 Hz, like GameSir's red flashing turbo LED). */
+export const TURBO_PULSE_MS = 500;
+
+/**
+ * Overrides the lightbar colour with a red 2 Hz pulse (full red at the start of each period, dimmest half way); the other
+ * fields are kept. Pure.
+ */
+export function applyTurboPulse<T extends { r: number; g: number; b: number; animated: boolean }>(
+  frame: T,
+  tMs: number,
+): T {
+  const k = 0.5 + 0.5 * Math.cos((2 * Math.PI * tMs) / TURBO_PULSE_MS);
+  return { ...frame, r: byte(255 * (0.1 + 0.9 * k)), g: 0, b: 0, animated: true };
+}
+
 export function computeLightbar(
   cfg: Profile['lights'],
   tMs: number,

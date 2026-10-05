@@ -83,7 +83,7 @@ export function processReport(
   x.ry = r.y;
   x.lt = lt;
   x.rt = rt;
-  const frame = applyMappings(raw, cp.profile, s.mapping, nowMs, x, cp.analogTargets);
+  const frame = applyMappings(raw, cp.profile, s.mapping, nowMs, x, cp.analogTargets, cp.turbo);
   if (g.active && cp.profile.gyro.output === 'mouse') {
     frame.mouseMove.dx = g.dx;
     frame.mouseMove.dy = g.dy;
