@@ -7,6 +7,7 @@ export interface FilterState {
   posX: number;
   posY: number;
   speed: number;
+  phase: number;
 }
 export const createFilterState = (): FilterState => ({
   x: 0,
@@ -15,6 +16,7 @@ export const createFilterState = (): FilterState => ({
   posX: 0,
   posY: 0,
   speed: 0,
+  phase: 0,
 });
 
 export const MIN_DT_MS = 0.01;
@@ -22,13 +24,13 @@ const MAX_TAU_MS = 60;
 const SPEED_TAU_MS = 30; // time constant of the speed estimate
 const POS_TAU_MS = 10; // speed is measured on a lightly smoothed position so 1 LSB jitter at 1 kHz doesn't read as motion
 
-export const OVERSHOOT_G_MAX = 0.95;
+/** Negative smoothing ("RC filter" jitter): oscillation amplitude at -100, in deflection units. */
+export const JITTER_AMP_MAX = 0.08;
+/** Normalized speed (1.0 = full deflection per 100 ms) at which the stick counts as fully moving. */
+export const JITTER_SPEED_REF = 0.04;
+const TWO_PI = 2 * Math.PI;
 
-/** Overshoot ("RC filter" jitter) step: y = x + g*(x - yPrev), clamped to [-1, 1]. g in [0, 1) keeps it stable. */
-export function applyOvershoot(x: number, yPrev: number, g: number): number {
-  const y = x + g * (x - yPrev);
-  return y > 1 ? 1 : y < -1 ? -1 : y;
-}
+const clamp1 = (v: number): number => (v > 1 ? 1 : v < -1 ? -1 : v);
 
 function curveStrength(curve: readonly [number, number][], speed: number): number {
   // curve x is non-decreasing (enforced by StickFilterSchema); no per-sample copy/sort
@@ -55,12 +57,13 @@ export function applyStickFilter(
     s.posX = x;
     s.posY = y;
     s.speed = 0;
+    s.phase = 0;
     s.init = true;
     return { x, y };
   }
   const dt = Math.max(MIN_DT_MS, dtMs);
   let strength = cfg.strength;
-  if (cfg.mode === 'advanced') {
+  if (cfg.mode === 'advanced' || strength < 0) {
     // instSpeed 1.0 = full deflection per 100 ms (velocity of the smoothed position), then a time-constant EMA
     const a = 1 - Math.exp(-dt / POS_TAU_MS);
     const px = s.posX + a * (x - s.posX),
@@ -69,14 +72,19 @@ export function applyStickFilter(
     s.posX = px;
     s.posY = py;
     s.speed += (1 - Math.exp(-dt / SPEED_TAU_MS)) * (instSpeed - s.speed);
-    strength = curveStrength(cfg.curve, s.speed);
+    if (cfg.mode === 'advanced') strength = curveStrength(cfg.curve, s.speed);
   }
   if (strength < 0) {
-    // negative smoothing: per-report overshoot (dt-independent by design; the ringing period is the report period)
-    const g = (Math.min(100, -strength) / 100) * OVERSHOOT_G_MAX;
-    s.x = applyOvershoot(x, s.x, g);
-    s.y = applyOvershoot(y, s.y, g);
-    return { x: s.x, y: s.y };
+    // negative smoothing: a jitterHz sine added while the stick moves. The phase advances by real time so the
+    // wobble has the same frequency at any report rate and a 60-250 Hz game actually samples it. Gated by the
+    // speed estimate, so a still stick (e.g. resting inside the deadzone) is passed through untouched.
+    const env = Math.min(1, s.speed / JITTER_SPEED_REF);
+    s.phase += (TWO_PI * cfg.jitterHz * dt) / 1000;
+    if (s.phase >= TWO_PI) s.phase %= TWO_PI;
+    const d = (Math.min(100, -strength) / 100) * JITTER_AMP_MAX * env * Math.sin(s.phase);
+    s.x = x; // positive smoothing (advanced curve) resumes from the raw input
+    s.y = y;
+    return { x: clamp1(x + d), y: clamp1(y + d) };
   }
   if (strength === 0) {
     s.x = x;

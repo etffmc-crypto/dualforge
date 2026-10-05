@@ -25,6 +25,7 @@ describe('profile schema', () => {
     if (r.success) {
       expect(r.data.sticks.left.filter.mode).toBe('basic');
       expect(r.data.sticks.left.filter.curve).toHaveLength(5);
+      expect(r.data.sticks.left.filter.jitterHz).toBe(30);
       expect(r.data.triggers.left.effect).toEqual({ mode: 'off' });
     }
   });
@@ -37,6 +38,17 @@ describe('profile schema', () => {
     expect(ProfileSchema.safeParse(p).success).toBe(false);
     p.sticks.left.filter.strength = 0;
     p.sticks.left.filter.curve[0] = [0, -101];
+    expect(ProfileSchema.safeParse(p).success).toBe(false);
+  });
+  it('jitterHz is 10..60', () => {
+    const p = defaultProfile('p', 'p');
+    p.sticks.left.filter.jitterHz = 10;
+    expect(ProfileSchema.safeParse(p).success).toBe(true);
+    p.sticks.left.filter.jitterHz = 60;
+    expect(ProfileSchema.safeParse(p).success).toBe(true);
+    p.sticks.left.filter.jitterHz = 9;
+    expect(ProfileSchema.safeParse(p).success).toBe(false);
+    p.sticks.left.filter.jitterHz = 61;
     expect(ProfileSchema.safeParse(p).success).toBe(false);
   });
   it('rejects center deadzone overlapping outer', () => {

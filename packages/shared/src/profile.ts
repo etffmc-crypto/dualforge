@@ -23,7 +23,9 @@ export const StickFilterSchema = z
   .object({
     enabled: z.boolean(),
     mode: z.enum(['basic', 'advanced']).default('basic'),
-    strength: signedPct, // 0 = off, 100 = heavy smoothing, -100 = max overshoot (negative smoothing / jitter)
+    strength: signedPct, // 0 = off, 100 = heavy smoothing, -100 = max jitter (negative smoothing)
+    // negative smoothing oscillation rate; used when strength < 0 or any advanced curve point is negative
+    jitterHz: z.number().min(10).max(60).default(30),
     // advanced mode: [speed 0..1, strength -100..100] x 5
     curve: z
       .array(z.tuple([unit, signedPct]))
@@ -259,6 +261,7 @@ function defaultStick(): StickConfig {
       enabled: false,
       mode: 'basic',
       strength: 0,
+      jitterHz: 30,
       curve: [
         [0, 0],
         [0.1, 0],
