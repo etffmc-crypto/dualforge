@@ -59,3 +59,7 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 - Consider skipping turboConfigured/pulse for mappings whose targets are all none.
 - TurboControls 'Custom' state can go stale if a pad combo lands while the modal is open.
 - E2E edge-count assertion only runs when snapshot sampling is dense enough (engine unit tests carry the precise checks).
+
+## Review rule (added 2026-10-05 after the negative-smoothing miss)
+
+Every feature whose point is a felt or visible effect must ship with a test that samples the output **the way the consumer does** (a game polling at 60–250 Hz, a screen at 60 fps, a human reading a message) and asserts the effect is present at that rate. Internal correctness at 8 kHz is not enough. Design briefs state the consumer's timescale; reviewers ask "is this observable at the consumer's sampling rate, and which test proves it?"
