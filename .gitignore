@@ -6,6 +6,7 @@ release/
 .vite/
 coverage/
 maintenance/reports/*.tmp
+maintenance/reports/responder-*.md
 
 .superpowers/
 *.tsbuildinfo
