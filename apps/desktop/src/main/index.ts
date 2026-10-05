@@ -38,7 +38,7 @@ import { createHidHide, createHidHideQueue } from './hidhide.js';
 import { createSettingsHooks } from './settings-hooks.js';
 import { applyLoginItem, shouldHideOnClose, shouldStartHidden } from './startup.js';
 import { createTray, type AppTray } from './tray.js';
-import { createUpdater } from './updater.js';
+import { createUpdater, registerUpdateIpc } from './updater.js';
 import { createDriverInstaller, registerDriverIpc, type DriverStatus } from './driver-installer.js';
 
 let win: BrowserWindow | null = null;
@@ -72,8 +72,11 @@ const updater = createUpdater({
   onResult: () => {
     void health.run();
   },
+  onProgress: (p) => {
+    if (win && !win.isDestroyed()) win.webContents.send('updates:progress', p);
+  },
 });
-ipcMain.handle('updates:check', () => updater.check());
+registerUpdateIpc({ ipc: ipcMain, updater });
 const stuckMarker = join(dataDir, HIDHIDE_STUCK_MARKER);
 const markCloakStuck = (stuck: boolean) => {
   try {

@@ -122,7 +122,7 @@ export function Health() {
           r
             ? {
                 ok: true,
-                text: `Saved ${r.path} (${r.files} files, ${(r.bytes / 1048576).toFixed(1)} MB).`,
+                text: `Saved ${r.path} (${r.files} files, ${(r.bytes / 1048576).toFixed(1)} MB). To report a problem, attach it to a GitHub issue.`,
               }
             : { ok: true, text: 'Export cancelled.' },
         ),

@@ -344,6 +344,7 @@ describe('Health page', () => {
     await waitFor(() => expect(api.health.run).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByRole('button', { name: 'Export diagnostics bundle' }));
     expect(await screen.findByText(/dualforge-diag\.zip/)).toBeTruthy();
+    expect(screen.getByText(/attach it to a GitHub issue/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Open data folder' }));
     expect(api.system.openDataDir).toHaveBeenCalledTimes(1);
   });

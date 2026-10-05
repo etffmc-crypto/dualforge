@@ -272,7 +272,7 @@ export function runChecks(i: HealthInput): HealthResult[] {
       id: 'app',
       status: 'warn',
       title: 'Update available',
-      detail: `A newer version than ${i.app.version} is available.`,
+      detail: `A newer version than ${i.app.version} is available. Download and install it from Settings > Updates.`,
     });
   else out.push(ok('app', `DualForge ${i.app.version}`, 'Up to date, or update checks are off.'));
 
