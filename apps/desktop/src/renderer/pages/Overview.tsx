@@ -27,6 +27,7 @@ import {
 } from '../components/icons';
 import { useStore, type Page, type Side } from '../store';
 import { DS_LABEL, hueOf, mappingChips, rgbOfHue } from './overview/format';
+import { hasNegative, smoothingSummary } from './sticks/smoothing';
 
 const MAX_CHIPS = 8;
 
@@ -272,6 +273,11 @@ function StickColumn({ side, cfg }: { side: Side; cfg: StickConfig }) {
             })
           }
         />
+        <span
+          className={`ov-label${hasNegative(cfg.filter) && cfg.filter.enabled ? ' ov-jitter' : ''}`}
+        >
+          Smoothing <em>{smoothingSummary(cfg.filter)}</em>
+        </span>
         <div className="ov-curve">
           <CurvePreview points={points} size={76} />
           <span className="ov-note">

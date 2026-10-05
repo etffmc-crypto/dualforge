@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { applyStickFilter, createFilterState } from '../../src/stages/stick-filter.js';
+import {
+  applyOvershoot,
+  applyStickFilter,
+  createFilterState,
+} from '../../src/stages/stick-filter.js';
 
 const basic = (enabled: boolean, strength: number) => ({
   enabled,
@@ -93,5 +97,97 @@ describe('applyStickFilter', () => {
     let out = 0;
     for (let i = 1; i <= 20; i++) out = applyStickFilter(i / 20, 0, adv, s, 1).x;
     expect(out).toBeGreaterThan(0.9);
+  });
+});
+
+describe('applyOvershoot', () => {
+  it('g = 0 is identity', () => {
+    expect(applyOvershoot(0.4, -0.7, 0)).toBe(0.4);
+  });
+  it('clamps to [-1, 1]', () => {
+    expect(applyOvershoot(1, -1, 0.95)).toBe(1);
+    expect(applyOvershoot(-1, 1, 0.95)).toBe(-1);
+  });
+});
+
+describe('negative smoothing (overshoot filter)', () => {
+  const stepTrace = (strength: number, n: number) => {
+    const s = createFilterState();
+    applyStickFilter(0, 0, basic(true, strength), s, 1);
+    const out: number[] = [];
+    for (let i = 0; i < n; i++) out.push(applyStickFilter(0.5, 0, basic(true, strength), s, 1).x);
+    return out;
+  };
+  it('a step 0 -> 0.5 at -100 overshoots on the first sample and rings with decreasing amplitude', () => {
+    const t = stepTrace(-100, 12);
+    expect(t[0]).toBeGreaterThan(0.5);
+    expect(t[1]).toBeLessThan(0.5); // alternates around the target
+    for (let i = 1; i < t.length; i++) {
+      expect(Math.sign(t[i]! - 0.5)).toBe(-Math.sign(t[i - 1]! - 0.5));
+      expect(Math.abs(t[i]! - 0.5)).toBeLessThan(Math.abs(t[i - 1]! - 0.5));
+    }
+  });
+  it('constant input converges to the input', () => {
+    const t = stepTrace(-100, 400);
+    expect(t[t.length - 1]).toBeCloseTo(0.5, 6);
+  });
+  it('-50 overshoots less than -100', () => {
+    expect(stepTrace(-50, 1)[0]!).toBeLessThan(stepTrace(-100, 1)[0]!);
+    expect(stepTrace(-50, 1)[0]!).toBeGreaterThan(0.5);
+  });
+  it('is per-report (dt-independent)', () => {
+    const a = createFilterState(),
+      b = createFilterState();
+    applyStickFilter(0, 0, basic(true, -60), a, 1);
+    applyStickFilter(0, 0, basic(true, -60), b, 8);
+    expect(applyStickFilter(0.5, 0, basic(true, -60), a, 1).x).toBe(
+      applyStickFilter(0.5, 0, basic(true, -60), b, 8).x,
+    );
+  });
+  it('rest jitter: ±½ LSB alternation is amplified by at most (1+g)/(1-g) (~39x at -100)', () => {
+    const halfLsb = 1 / 255; // 8-bit stick over [-1, 1]: 1 LSB = 2/255
+    const amp = (strength: number) => {
+      const s = createFilterState();
+      let worst = 0;
+      for (let i = 0; i < 400; i++) {
+        const o = applyStickFilter(i % 2 ? halfLsb : -halfLsb, 0, basic(true, strength), s, 1).x;
+        if (i >= 200) worst = Math.max(worst, Math.abs(o));
+      }
+      return worst;
+    };
+    expect(amp(-100)).toBeLessThanOrEqual(0.16);
+    expect(amp(-100)).toBeGreaterThan(0.1); // the bound is real, not vacuous
+    expect(amp(-50)).toBeLessThanOrEqual(0.02);
+  });
+  it('outputs stay within [-1, 1] under full-scale alternation', () => {
+    const s = createFilterState();
+    for (let i = 0; i < 200; i++) {
+      const v = i % 2 ? 1 : -1;
+      const o = applyStickFilter(v, -v, basic(true, -100), s, 1);
+      expect(Math.abs(o.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(o.y)).toBeLessThanOrEqual(1);
+    }
+  });
+  it('advanced curve with mixed sign: slow moves overshoot, fast moves are smoothed', () => {
+    const cfg = {
+      enabled: true,
+      mode: 'advanced' as const,
+      strength: 0,
+      curve: [
+        [0, -100],
+        [0.1, -100],
+        [0.25, 100],
+        [0.5, 100],
+        [1, 100],
+      ] as [number, number][],
+    };
+    const slow = createFilterState();
+    applyStickFilter(0, 0, cfg, slow, 100);
+    expect(applyStickFilter(0.01, 0, cfg, slow, 100).x).toBeGreaterThan(0.01); // overshoot
+    const fast = createFilterState();
+    applyStickFilter(0, 0, cfg, fast, 100);
+    const out = applyStickFilter(1, 0, cfg, fast, 100).x;
+    expect(out).toBeLessThan(1); // smoothed (lags), no overshoot
+    expect(out).toBeGreaterThan(0);
   });
 });

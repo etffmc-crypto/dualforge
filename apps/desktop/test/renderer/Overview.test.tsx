@@ -10,6 +10,7 @@ import {
   mappingChips,
   rgbOfHue,
 } from '../../src/renderer/pages/overview/format';
+import { smoothingSummary } from '../../src/renderer/pages/sticks/smoothing';
 
 function stubProfile(): Profile {
   const p = defaultProfile('p1', 'Profile 1');
@@ -187,6 +188,52 @@ describe('Overview cards', () => {
     );
     expect(useStore.getState().profile!.sticks.left.deadzone.anti).toBe(0.2);
     expect(useStore.getState().profile!.sticks.right.deadzone.anti).toBe(0);
+  });
+
+  it('the Sticks card shows the signed smoothing readout', () => {
+    const p = stubProfile();
+    p.sticks.left.filter = { ...p.sticks.left.filter, enabled: true, strength: -40 };
+    p.sticks.right.filter = { ...p.sticks.right.filter, enabled: true, strength: 30 };
+    useStore.setState({ profile: p });
+    render(<Overview />);
+    const sticks = within(card('Sticks'));
+    expect(sticks.getByText('-40 (jitter)')).toBeTruthy();
+    expect(sticks.getByText('+30 (smooth)')).toBeTruthy();
+    expect(sticks.getByText('-40 (jitter)').parentElement!.className).toContain('ov-jitter');
+    expect(sticks.getByText('+30 (smooth)').parentElement!.className).not.toContain('ov-jitter');
+  });
+
+  it('a disabled filter with a stored negative strength reads Off, not marked as jitter', () => {
+    const p = stubProfile();
+    p.sticks.left.filter = { ...p.sticks.left.filter, enabled: false, strength: -40 };
+    useStore.setState({ profile: p });
+    render(<Overview />);
+    const off = within(card('Sticks')).getAllByText('Off', { selector: '.ov-label em' });
+    expect(off).toHaveLength(2);
+    for (const el of off) expect(el.parentElement!.className).not.toContain('ov-jitter');
+  });
+
+  it('formats the smoothing summary for every mode', () => {
+    const f = defaultProfile('p', 'P').sticks.left.filter;
+    expect(smoothingSummary(f)).toBe('Off');
+    expect(smoothingSummary({ ...f, enabled: true })).toBe('Off');
+    expect(smoothingSummary({ ...f, enabled: true, strength: -100 })).toBe('-100 (jitter)');
+    expect(smoothingSummary({ ...f, enabled: true, mode: 'advanced' })).toBe('By speed');
+    expect(
+      smoothingSummary({
+        ...f,
+        enabled: true,
+        mode: 'advanced',
+        curve: [
+          [0, -20],
+          [0.1, 0],
+          [0.25, 0],
+          [0.5, 50],
+          [1, 50],
+        ],
+      }),
+    ).toBe('By speed (jitter)');
+    expect(smoothingSummary({ ...f, enabled: false, strength: -40 })).toBe('Off');
   });
 
   it('a snapshot stream re-renders only the live pad, not the tiles', () => {

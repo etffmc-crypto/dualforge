@@ -445,6 +445,25 @@
   margin-top: 2px;
 }
 
+/* ---------- Sticks: negative smoothing risk notice ---------- */
+.smooth-risk {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 14px 14px;
+  background: var(--well);
+  border: 1px solid var(--card-border);
+  border-left: 3px solid var(--bad-text);
+  border-radius: 10px;
+}
+.smooth-risk-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--bad-text);
+}
+
 /* ---------- Settings (gear) ---------- */
 .prefs {
   display: grid;
@@ -803,6 +822,9 @@
   color: var(--muted);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
+}
+.ov-label.ov-jitter em {
+  color: var(--bad-text);
 }
 .ov-stick .drs,
 .ov-stick .rs-row {

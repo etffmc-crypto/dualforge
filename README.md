@@ -2,7 +2,7 @@
 
 DualForge is a Windows desktop app (Electron) that configures a PlayStation 5 DualSense controller over USB. It reads the pad, applies your profile (button mappings, macros, stick curves, deadzones, calibration, trigger effects, gyro, lights), and presents the result to games as a virtual Xbox 360 controller through ViGEm.
 
-Version 0.3.0. See [CHANGELOG.md](CHANGELOG.md).
+Version 0.3.1. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
 
@@ -41,7 +41,7 @@ DualForge lives in the notification area. In **Settings** you can start it with 
 - **Overview** - dashboard: live pad render with tiles summarising Buttons, Sticks, Triggers, Motion and Lights, with quick edits.
 - **Buttons** - remap any DualSense button to Xbox buttons, keys, mouse buttons or a macro, with turbo.
 - **Turbo** - turbo mode and speed for every button at a glance (see [Turbo](#turbo)).
-- **Sticks** - per-stick deadzones, response curves (presets or custom points), calibration, invert, smoothing.
+- **Sticks** - per-stick deadzones, response curves (presets or custom points), calibration, invert, smoothing and negative smoothing (see [Stick smoothing](#stick-smoothing)).
 - **Triggers** - per-trigger digital (mouse-click) mode, hair trigger, ranges and adaptive trigger effects.
 - **Motion** - gyro aim / steering to the right stick or the mouse, sensitivities and calibration.
 - **Vibrations** - rumble strength and motor tests (greyed out until "This controller has rumble motors" is on).
@@ -51,6 +51,16 @@ DualForge lives in the notification area. In **Settings** you can start it with 
 - **Health** - status of the controller, drivers, native addon, startup and updates; driver install; recent log lines; diagnostics bundle.
 - **Profiles** (header) - four slots: rename, duplicate, reset, share codes, per-game auto-switch rules.
 - **Settings** (header) - theme (dark / light), hardware (rumble motors, HidHide), startup, tray, the optional update check (off by default; never downloads or installs; shown only in builds whose `electron-builder.yml` publishes to a real owner, not the `dualforge` placeholder) and data folder.
+
+## Stick smoothing
+
+**Smoothing (RC)** on the Sticks page runs from -100 to 100, with Off at 0 (the slider clicks into the centre).
+
+- **Positive (Smoothing)** filters the stick: higher values remove more shake but add lag.
+- **Negative (jitter)** does the opposite: every change of stick position overshoots and then rings back to where the stick is, one report at a time. -100 overshoots most; the stick still settles where you hold it. This is the "RC filter" technique (popularised by HyperStrike): the micro-jitter keeps aim assist engaged.
+- **Advanced** sets the strength by stick speed with five points from -100 to 100, so you can, for example, add jitter to slow aim and smooth fast flicks. Points below the dashed zero line add jitter.
+
+**Risk:** Apex Legends treats negative smoothing as a bannable exploit; Call of Duty has not published a policy. Use it at your own risk. Keep a center deadzone of at least 2–3 % so the stick reads exactly zero at rest; at −100 the filter amplifies sensor noise up to ~39×. While any negative value is set, the Sticks page shows this notice with a **Set to Off** button (**Remove jitter** in Advanced, which lifts the negative points to 0).
 
 ## Turbo
 

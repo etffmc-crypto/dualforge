@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.1
+
+### Negative smoothing
+
+- Stick smoothing now runs from -100 to 100. Below 0 is **negative smoothing**: each stick movement overshoots and rings back (the "RC filter" jitter that keeps aim assist engaged); above 0 is the existing smoothing, unchanged.
+- The Basic slider has a centre detent at Off when dragged (arrow keys and the D-pad step through it one value at a time), labelled ends (Negative (jitter) / Smoothing) and a signed readout ("-40 (jitter)", "+30 (smooth)", "Off").
+- The Advanced speed curve also runs from -100 to 100, with the jitter band shaded below a dashed zero line.
+- While negative smoothing is set, the Sticks page shows a risk notice with **Set to Off** (**Remove jitter** in Advanced): Apex Legends treats it as a bannable exploit; Call of Duty has not published a policy. Keep a center deadzone of at least 2–3 % so the stick reads exactly zero at rest; at −100 the filter amplifies sensor noise up to ~39×.
+- The Overview Sticks card shows each stick's smoothing, marked when it adds jitter.
+- Profiles from 0.3.0 load unchanged. Profiles or share codes with negative smoothing cannot be imported by 0.3.0.
+
 ## 0.3.0
 
 ### Turbo mode

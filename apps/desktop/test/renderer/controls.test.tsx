@@ -9,6 +9,7 @@ import { SubTabs } from '../../src/renderer/components/controls/SubTabs';
 import { CurvePreview } from '../../src/renderer/components/controls/CurvePreview';
 import { CurveEditor } from '../../src/renderer/components/controls/CurveEditor';
 import { StickLive } from '../../src/renderer/components/controls/StickLive';
+import { moveFocus } from '../../src/renderer/hooks/useGamepadNav';
 
 afterEach(cleanup);
 
@@ -41,6 +42,99 @@ describe('RangeSlider fill clamp', () => {
       screen.getByRole('slider', { name: 'Offset' }) as HTMLInputElement
     ).style.getPropertyValue('--fill');
     expect(fill).toContain('* 1)');
+  });
+});
+
+describe('RangeSlider bipolar (fillFrom)', () => {
+  const bipolar = (value: number, onChange = vi.fn()) =>
+    render(
+      <RangeSlider
+        value={value}
+        min={-100}
+        max={100}
+        step={1}
+        fillFrom={0}
+        detent={3}
+        ends={['Negative (jitter)', 'Smoothing']}
+        onChange={onChange}
+        ariaLabel="Strength"
+      />,
+    );
+  const style = () => (screen.getByRole('slider', { name: 'Strength' }) as HTMLInputElement).style;
+  it('fills from the centre towards a negative value', () => {
+    bipolar(-40);
+    expect(style().getPropertyValue('--fill-lo')).toContain('* 0.3)');
+    expect(style().getPropertyValue('--fill')).toContain('* 0.5)');
+  });
+  it('fills from the centre towards a positive value', () => {
+    bipolar(60);
+    expect(style().getPropertyValue('--fill-lo')).toContain('* 0.5)');
+    expect(style().getPropertyValue('--fill')).toContain('* 0.8)');
+  });
+  it('accepts negative values; a pointer drag near the centre snaps onto the detent', () => {
+    const onChange = vi.fn();
+    bipolar(10, onChange);
+    const s = screen.getByRole('slider', { name: 'Strength' });
+    fireEvent.change(s, { target: { value: '-55' } });
+    expect(onChange).toHaveBeenLastCalledWith(-55);
+    fireEvent.pointerDown(s, { pointerId: 1 });
+    fireEvent.change(s, { target: { value: '2' } });
+    expect(onChange).toHaveBeenLastCalledWith(0);
+    fireEvent.change(s, { target: { value: '-2' } });
+    expect(onChange).toHaveBeenLastCalledWith(0);
+    fireEvent.pointerUp(s, { pointerId: 1 });
+    fireEvent.change(s, { target: { value: '2' } }); // after the drag: no snap
+    expect(onChange).toHaveBeenLastCalledWith(2);
+  });
+  it('keyboard / D-pad steps leave the detent one step at a time', () => {
+    const onChange = vi.fn();
+    const { rerender } = bipolar(0, onChange);
+    const s = screen.getByRole('slider', { name: 'Strength' });
+    // a keyboard step fires keydown and then the native value change (no pointer involved)
+    fireEvent.keyDown(s, { key: 'ArrowRight' });
+    fireEvent.change(s, { target: { value: '1' } });
+    expect(onChange).toHaveBeenLastCalledWith(1);
+    rerender(
+      <RangeSlider
+        value={1}
+        min={-100}
+        max={100}
+        step={1}
+        fillFrom={0}
+        detent={3}
+        onChange={onChange}
+        ariaLabel="Strength"
+      />,
+    );
+    fireEvent.keyDown(s, { key: 'ArrowLeft' });
+    fireEvent.change(s, { target: { value: '0' } });
+    expect(onChange).toHaveBeenLastCalledWith(0);
+    fireEvent.keyDown(s, { key: 'ArrowLeft' });
+    fireEvent.change(s, { target: { value: '-1' } });
+    expect(onChange).toHaveBeenLastCalledWith(-1);
+  });
+  it('a D-pad nudge from the centre leaves it (no snap back)', () => {
+    const onChange = vi.fn();
+    bipolar(0, onChange);
+    screen.getByRole('slider', { name: 'Strength' }).focus();
+    moveFocus('right');
+    expect(onChange).toHaveBeenLastCalledWith(1);
+    moveFocus('left');
+    expect(onChange).toHaveBeenLastCalledWith(-1); // value prop is still 0, so left steps to -1
+  });
+  it('labels both ends and draws a centre tick', () => {
+    const { container } = bipolar(0);
+    expect(screen.getByText('Negative (jitter)')).toBeTruthy();
+    expect(screen.getByText('Smoothing')).toBeTruthy();
+    expect(container.querySelector('.rs-detent')).toBeTruthy();
+  });
+  it('without fillFrom keeps the left-anchored fill and no extras', () => {
+    const { container } = render(
+      <RangeSlider value={0.5} min={0} max={1} onChange={() => {}} ariaLabel="Plain" />,
+    );
+    const s = (screen.getByRole('slider', { name: 'Plain' }) as HTMLInputElement).style;
+    expect(s.getPropertyValue('--fill-lo')).toBe('');
+    expect(container.querySelector('.rs-detent')).toBeNull();
   });
 });
 
@@ -218,6 +312,49 @@ describe('CurveEditor', () => {
     fireEvent.change(screen.getByLabelText('Point 4 output'), { target: { value: '55' } });
     fireEvent.blur(screen.getByLabelText('Point 4 output'));
     expect((onChange.mock.calls.at(-1)![0] as [number, number][])[3]).toEqual([0.5, 55]);
+  });
+  it('supports a negative yMin with a dashed zero line', () => {
+    const onChange = vi.fn();
+    const pts: [number, number][] = [
+      [0, -50],
+      [0.1, -20],
+      [0.25, 0],
+      [0.5, 40],
+      [1, 100],
+    ];
+    render(
+      <CurveEditor
+        points={pts}
+        onChange={onChange}
+        size={224}
+        yMin={-100}
+        yMax={100}
+        pointCount={5}
+      />,
+    );
+    expect((screen.getByLabelText('Point 1 output') as HTMLInputElement).value).toBe('-50');
+    expect(screen.getByTestId('handle-2').getAttribute('cy')).toBe('112'); // y = 0 sits mid-plot
+    const zero = screen.getByTestId('ce-zero');
+    expect([zero.getAttribute('y1'), zero.getAttribute('y2')]).toEqual(['112', '112']);
+    fireEvent.change(screen.getByLabelText('Point 1 output'), { target: { value: '-80' } });
+    fireEvent.blur(screen.getByLabelText('Point 1 output'));
+    expect((onChange.mock.calls.at(-1)![0] as [number, number][])[0]).toEqual([0, -80]);
+    fireEvent.keyDown(screen.getByTestId('handle-0'), { key: 'ArrowDown' });
+    expect((onChange.mock.calls.at(-1)![0] as [number, number][])[0]).toEqual([0, -51]);
+  });
+  it('without yMin clamps y at 0 and draws no zero line', () => {
+    const onChange = vi.fn();
+    const pts: [number, number][] = [
+      [0, 0],
+      [0.1, 10],
+      [0.25, 20],
+      [0.5, 40],
+      [1, 100],
+    ];
+    render(<CurveEditor points={pts} onChange={onChange} yMax={100} pointCount={5} />);
+    expect(screen.queryByTestId('ce-zero')).toBeNull();
+    fireEvent.keyDown(screen.getByTestId('handle-0'), { key: 'ArrowDown' });
+    expect((onChange.mock.calls.at(-1)![0] as [number, number][])[0]).toEqual([0, 0]);
   });
 });
 
