@@ -105,18 +105,33 @@ describe('Sticks page', () => {
     expect(slider.getAttribute('min')).toBe('-100');
     expect(screen.getByText('Off')).toBeTruthy();
     expect(screen.queryByRole('note', { name: 'Negative smoothing' })).toBeNull();
+    expect(screen.queryByRole('slider', { name: 'Jitter rate' })).toBeNull();
 
     fireEvent.change(slider, { target: { value: '-40' } });
     expect(profile().sticks.left.filter.strength).toBe(-40);
     expect(screen.getByText('-40 (jitter)')).toBeTruthy();
     const note = screen.getByRole('note', { name: 'Negative smoothing' });
+    expect(note.textContent).toContain(
+      'Negative smoothing adds a small oscillation to your aim input while the stick is moving',
+    );
+    expect(note.textContent).toContain('jitter technique');
     expect(note.textContent).toContain('Apex Legends treats it as a bannable exploit');
     expect(note.textContent).toContain('Keep a center deadzone of at least 2–3 %');
-    expect(note.textContent).toContain('up to ~39×');
+    expect(note.textContent).not.toContain('39×');
+
+    const rate = screen.getByRole('slider', { name: 'Jitter rate' });
+    expect(rate.getAttribute('min')).toBe('10');
+    expect(rate.getAttribute('max')).toBe('60');
+    expect(screen.getByText('30 Hz')).toBeTruthy();
+    expect(screen.getByText(/30 Hz suits most games/)).toBeTruthy();
+    fireEvent.change(rate, { target: { value: '45' } });
+    expect(profile().sticks.left.filter.jitterHz).toBe(45);
+    expect(screen.getByText('45 Hz')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: 'Set to Off' }));
     expect(profile().sticks.left.filter.strength).toBe(0);
     expect(screen.queryByRole('note', { name: 'Negative smoothing' })).toBeNull();
+    expect(screen.queryByRole('slider', { name: 'Jitter rate' })).toBeNull();
 
     fireEvent.change(slider, { target: { value: '30' } });
     expect(screen.getByText('+30 (smooth)')).toBeTruthy();
@@ -132,6 +147,7 @@ describe('Sticks page', () => {
     fireEvent.blur(screen.getByLabelText('Point 1 output'));
     expect(profile().sticks.left.filter.curve[0]).toEqual([0, -30]);
     expect(screen.getByRole('note', { name: 'Negative smoothing' })).toBeTruthy();
+    expect(screen.getByRole('slider', { name: 'Jitter rate' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Set to Off' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Remove jitter' }));
     expect(profile().sticks.left.filter.curve[0]).toEqual([0, 0]);
