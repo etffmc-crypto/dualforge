@@ -111,6 +111,8 @@ describe('Sticks page', () => {
     expect(screen.getByText('-40 (jitter)')).toBeTruthy();
     const note = screen.getByRole('note', { name: 'Negative smoothing' });
     expect(note.textContent).toContain('Apex Legends treats it as a bannable exploit');
+    expect(note.textContent).toContain('Keep a center deadzone of at least 2–3 %');
+    expect(note.textContent).toContain('up to ~39×');
 
     fireEvent.click(screen.getByRole('button', { name: 'Set to Off' }));
     expect(profile().sticks.left.filter.strength).toBe(0);
@@ -121,7 +123,7 @@ describe('Sticks page', () => {
     expect(screen.queryByRole('note', { name: 'Negative smoothing' })).toBeNull();
   });
 
-  it('negative smoothing: a negative advanced curve point shows the notice; Set to Off lifts it to 0', () => {
+  it('negative smoothing: a negative advanced curve point shows the notice; Remove jitter lifts it to 0', () => {
     render(<Sticks />);
     fireEvent.click(screen.getByRole('switch', { name: 'Enable smoothing' }));
     fireEvent.click(screen.getByRole('radio', { name: 'Advanced' }));
@@ -130,7 +132,8 @@ describe('Sticks page', () => {
     fireEvent.blur(screen.getByLabelText('Point 1 output'));
     expect(profile().sticks.left.filter.curve[0]).toEqual([0, -30]);
     expect(screen.getByRole('note', { name: 'Negative smoothing' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Set to Off' }));
+    expect(screen.queryByRole('button', { name: 'Set to Off' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove jitter' }));
     expect(profile().sticks.left.filter.curve[0]).toEqual([0, 0]);
     expect(screen.queryByRole('note', { name: 'Negative smoothing' })).toBeNull();
   });

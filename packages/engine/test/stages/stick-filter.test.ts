@@ -144,6 +144,21 @@ describe('negative smoothing (overshoot filter)', () => {
       applyStickFilter(0.5, 0, basic(true, -60), b, 8).x,
     );
   });
+  it('rest jitter: ±½ LSB alternation is amplified by at most (1+g)/(1-g) (~39x at -100)', () => {
+    const halfLsb = 1 / 255; // 8-bit stick over [-1, 1]: 1 LSB = 2/255
+    const amp = (strength: number) => {
+      const s = createFilterState();
+      let worst = 0;
+      for (let i = 0; i < 400; i++) {
+        const o = applyStickFilter(i % 2 ? halfLsb : -halfLsb, 0, basic(true, strength), s, 1).x;
+        if (i >= 200) worst = Math.max(worst, Math.abs(o));
+      }
+      return worst;
+    };
+    expect(amp(-100)).toBeLessThanOrEqual(0.16);
+    expect(amp(-100)).toBeGreaterThan(0.1); // the bound is real, not vacuous
+    expect(amp(-50)).toBeLessThanOrEqual(0.02);
+  });
   it('outputs stay within [-1, 1] under full-scale alternation', () => {
     const s = createFilterState();
     for (let i = 0; i < 200; i++) {

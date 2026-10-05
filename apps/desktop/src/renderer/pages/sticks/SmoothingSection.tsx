@@ -88,6 +88,10 @@ export function SmoothingSection({ side, cfg, edit }: StickSectionProps) {
                 &lsquo;RC filter&rsquo; technique). Apex Legends treats it as a bannable exploit;
                 Call of Duty has not published a policy. Use at your own risk.
               </p>
+              <p className="psec-hint">
+                Keep a center deadzone of at least 2–3 % so the stick reads exactly zero at rest; at
+                −100 the filter amplifies sensor noise up to ~39×.
+              </p>
               <button
                 data-nav
                 type="button"
@@ -99,7 +103,7 @@ export function SmoothingSection({ side, cfg, edit }: StickSectionProps) {
                   })
                 }
               >
-                Set to Off
+                {f.mode === 'basic' ? 'Set to Off' : 'Remove jitter'}
               </button>
             </div>
           )}

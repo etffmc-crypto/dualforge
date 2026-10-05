@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useRef, type CSSProperties } from 'react';
 
 export interface RangeSliderProps {
   value: number;
@@ -13,7 +13,7 @@ export interface RangeSliderProps {
   disabled?: boolean;
   /** bipolar slider: fill runs from this value to the handle, and a tick marks it */
   fillFrom?: number;
-  /** with fillFrom: values within this distance of it snap onto it (a centre detent) */
+  /** with fillFrom: while dragging with a pointer, values within this distance of it snap onto it (a centre detent) */
   detent?: number;
   /** captions under the two ends of the track: [min side, max side] */
   ends?: [string, string];
@@ -36,6 +36,7 @@ export function RangeSlider({
   detent = 0,
   ends,
 }: RangeSliderProps) {
+  const dragging = useRef(false);
   const frac = (v: number) =>
     max > min ? Math.min(100, Math.max(0, ((v - min) / (max - min)) * 100)) / 100 : 0;
   const pct = frac(value);
@@ -45,8 +46,14 @@ export function RangeSlider({
       ? { '--fill': at(pct) }
       : { '--fill-lo': at(Math.min(origin, pct)), '--fill': at(Math.max(origin, pct)) };
   const style = vars as CSSProperties;
+  // the detent only catches a pointer drag; keyboard and D-pad steps (nudgeRange) must be able to leave it
   const commit = (v: number) =>
-    onChange(fillFrom !== undefined && Math.abs(v - fillFrom) <= detent ? fillFrom : v);
+    onChange(
+      dragging.current && fillFrom !== undefined && Math.abs(v - fillFrom) <= detent ? fillFrom : v,
+    );
+  const endDrag = () => {
+    dragging.current = false;
+  };
   const input = (
     <input
       data-nav
@@ -60,6 +67,18 @@ export function RangeSlider({
       disabled={disabled}
       style={style}
       onChange={(e) => commit(Number(e.currentTarget.value))}
+      onPointerDown={(e) => {
+        dragging.current = true;
+        try {
+          e.currentTarget.setPointerCapture?.(e.pointerId); // the matching pointerup lands here even off the track
+        } catch {
+          /* pointer already released */
+        }
+      }}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onLostPointerCapture={endDrag}
+      onBlur={endDrag}
     />
   );
   return (

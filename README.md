@@ -60,7 +60,7 @@ DualForge lives in the notification area. In **Settings** you can start it with 
 - **Negative (jitter)** does the opposite: every change of stick position overshoots and then rings back to where the stick is, one report at a time. -100 overshoots most; the stick still settles where you hold it. This is the "RC filter" technique (popularised by HyperStrike): the micro-jitter keeps aim assist engaged.
 - **Advanced** sets the strength by stick speed with five points from -100 to 100, so you can, for example, add jitter to slow aim and smooth fast flicks. Points below the dashed zero line add jitter.
 
-**Risk:** Apex Legends treats negative smoothing as a bannable exploit; Call of Duty has not published a policy. Use it at your own risk. While any negative value is set, the Sticks page shows this notice with a **Set to Off** button.
+**Risk:** Apex Legends treats negative smoothing as a bannable exploit; Call of Duty has not published a policy. Use it at your own risk. Keep a center deadzone of at least 2–3 % so the stick reads exactly zero at rest; at −100 the filter amplifies sensor noise up to ~39×. While any negative value is set, the Sticks page shows this notice with a **Set to Off** button (**Remove jitter** in Advanced, which lifts the negative points to 0).
 
 ## Turbo
 

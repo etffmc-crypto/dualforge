@@ -9,6 +9,7 @@ import { SubTabs } from '../../src/renderer/components/controls/SubTabs';
 import { CurvePreview } from '../../src/renderer/components/controls/CurvePreview';
 import { CurveEditor } from '../../src/renderer/components/controls/CurveEditor';
 import { StickLive } from '../../src/renderer/components/controls/StickLive';
+import { moveFocus } from '../../src/renderer/hooks/useGamepadNav';
 
 afterEach(cleanup);
 
@@ -70,17 +71,56 @@ describe('RangeSlider bipolar (fillFrom)', () => {
     expect(style().getPropertyValue('--fill-lo')).toContain('* 0.5)');
     expect(style().getPropertyValue('--fill')).toContain('* 0.8)');
   });
-  it('accepts negative values and snaps to the centre detent', () => {
+  it('accepts negative values; a pointer drag near the centre snaps onto the detent', () => {
     const onChange = vi.fn();
     bipolar(10, onChange);
-    fireEvent.change(screen.getByRole('slider', { name: 'Strength' }), {
-      target: { value: '-55' },
-    });
+    const s = screen.getByRole('slider', { name: 'Strength' });
+    fireEvent.change(s, { target: { value: '-55' } });
     expect(onChange).toHaveBeenLastCalledWith(-55);
-    fireEvent.change(screen.getByRole('slider', { name: 'Strength' }), {
-      target: { value: '-2' },
-    });
+    fireEvent.pointerDown(s, { pointerId: 1 });
+    fireEvent.change(s, { target: { value: '2' } });
     expect(onChange).toHaveBeenLastCalledWith(0);
+    fireEvent.change(s, { target: { value: '-2' } });
+    expect(onChange).toHaveBeenLastCalledWith(0);
+    fireEvent.pointerUp(s, { pointerId: 1 });
+    fireEvent.change(s, { target: { value: '2' } }); // after the drag: no snap
+    expect(onChange).toHaveBeenLastCalledWith(2);
+  });
+  it('keyboard / D-pad steps leave the detent one step at a time', () => {
+    const onChange = vi.fn();
+    const { rerender } = bipolar(0, onChange);
+    const s = screen.getByRole('slider', { name: 'Strength' });
+    // a keyboard step fires keydown and then the native value change (no pointer involved)
+    fireEvent.keyDown(s, { key: 'ArrowRight' });
+    fireEvent.change(s, { target: { value: '1' } });
+    expect(onChange).toHaveBeenLastCalledWith(1);
+    rerender(
+      <RangeSlider
+        value={1}
+        min={-100}
+        max={100}
+        step={1}
+        fillFrom={0}
+        detent={3}
+        onChange={onChange}
+        ariaLabel="Strength"
+      />,
+    );
+    fireEvent.keyDown(s, { key: 'ArrowLeft' });
+    fireEvent.change(s, { target: { value: '0' } });
+    expect(onChange).toHaveBeenLastCalledWith(0);
+    fireEvent.keyDown(s, { key: 'ArrowLeft' });
+    fireEvent.change(s, { target: { value: '-1' } });
+    expect(onChange).toHaveBeenLastCalledWith(-1);
+  });
+  it('a D-pad nudge from the centre leaves it (no snap back)', () => {
+    const onChange = vi.fn();
+    bipolar(0, onChange);
+    screen.getByRole('slider', { name: 'Strength' }).focus();
+    moveFocus('right');
+    expect(onChange).toHaveBeenLastCalledWith(1);
+    moveFocus('left');
+    expect(onChange).toHaveBeenLastCalledWith(-1); // value prop is still 0, so left steps to -1
   });
   it('labels both ends and draws a centre tick', () => {
     const { container } = bipolar(0);

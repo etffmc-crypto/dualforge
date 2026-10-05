@@ -199,6 +199,18 @@ describe('Overview cards', () => {
     const sticks = within(card('Sticks'));
     expect(sticks.getByText('-40 (jitter)')).toBeTruthy();
     expect(sticks.getByText('+30 (smooth)')).toBeTruthy();
+    expect(sticks.getByText('-40 (jitter)').parentElement!.className).toContain('ov-jitter');
+    expect(sticks.getByText('+30 (smooth)').parentElement!.className).not.toContain('ov-jitter');
+  });
+
+  it('a disabled filter with a stored negative strength reads Off, not marked as jitter', () => {
+    const p = stubProfile();
+    p.sticks.left.filter = { ...p.sticks.left.filter, enabled: false, strength: -40 };
+    useStore.setState({ profile: p });
+    render(<Overview />);
+    const off = within(card('Sticks')).getAllByText('Off', { selector: '.ov-label em' });
+    expect(off).toHaveLength(2);
+    for (const el of off) expect(el.parentElement!.className).not.toContain('ov-jitter');
   });
 
   it('formats the smoothing summary for every mode', () => {
