@@ -84,7 +84,14 @@ export function applyStickFilter(
     const d = (Math.min(100, -strength) / 100) * JITTER_AMP_MAX * env * Math.sin(s.phase);
     s.x = x; // positive smoothing (advanced curve) resumes from the raw input
     s.y = y;
-    return { x: clamp1(x + d), y: clamp1(y + d) };
+    const ox = x + d,
+      oy = y + d;
+    // radial clamp to the unit circle (or to the input's own radius, so a Raw/square corner is never pulled in),
+    // then per axis as a backstop for those corners
+    const m = Math.hypot(ox, oy),
+      lim = Math.max(1, Math.hypot(x, y));
+    const k = m > lim ? lim / m : 1;
+    return { x: clamp1(ox * k), y: clamp1(oy * k) };
   }
   if (strength === 0) {
     s.x = x;

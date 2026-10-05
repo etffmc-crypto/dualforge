@@ -234,6 +234,54 @@ describe('processReport', () => {
   });
 });
 
+describe('negative smoothing through the pipeline (8 kHz reports)', () => {
+  const DT = 0.125;
+  const rightStick = (rx: number, ry = 128) =>
+    parseDualSenseUsb(
+      report((b) => {
+        b[3] = rx;
+        b[4] = ry;
+      }),
+    );
+  const jitterProfile = () => {
+    const p = defaultProfile('p', 'p');
+    p.sticks.right.filter = { ...p.sticks.right.filter, enabled: true, strength: -100 };
+    return p;
+  };
+
+  it('a resting stick with ±1 LSB noise stays exactly 0 (deadzone before the filter)', () => {
+    const cp = compileProfile(jitterProfile());
+    const s = createPipelineState();
+    let seed = 7;
+    const lsb = () => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return (seed % 3) - 1; // -1, 0 or +1
+    };
+    for (let i = 0; i < 8000; i++) {
+      const o = processReport(rightStick(128 + lsb(), 128 + lsb()), cp, s, i * DT);
+      expect(o.xinput.rx).toBe(0);
+      expect(o.xinput.ry).toBe(0);
+    }
+  });
+
+  it('a slow ramp wobbles visibly at 125 Hz sampling', () => {
+    const cpJ = compileProfile(jitterProfile());
+    const cpPlain = compileProfile(defaultProfile('p', 'p'));
+    const sJ = createPipelineState(),
+      sP = createPipelineState();
+    const diffs: number[] = [];
+    for (let i = 0; i <= 8000; i++) {
+      const raw = rightStick(Math.round(128 + (50 * i) / 8000)); // 128 -> 178 (~0.39) over 1 s
+      const j = processReport(raw, cpJ, sJ, i * DT).xinput.rx;
+      const plain = processReport(raw, cpPlain, sP, i * DT).xinput.rx;
+      if (i >= 2400 && i % 64 === 0) diffs.push(j - plain); // after 300 ms, every 8 ms
+    }
+    const mean = diffs.reduce((a, b) => a + b, 0) / diffs.length;
+    const sd = Math.sqrt(diffs.reduce((a, b) => a + (b - mean) ** 2, 0) / diffs.length);
+    expect(sd).toBeGreaterThanOrEqual(0.02);
+  });
+});
+
 describe('analog trigger passthrough with default xtrigger mapping', () => {
   const l2Pull = (b: Uint8Array) => {
     b[5] = 102;

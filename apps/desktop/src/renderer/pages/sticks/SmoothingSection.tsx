@@ -95,8 +95,8 @@ export function SmoothingSection({ side, cfg, edit }: StickSectionProps) {
                 }
               />
               <p className="psec-hint">
-                30 Hz suits most games; raise it if the wobble is visible on screen, lower it if aim
-                assist does not engage.
+                37 Hz avoids lining up with 60/120 fps polling; raise it if the wobble is visible on
+                screen, lower it if aim assist doesn&rsquo;t engage.
               </p>
               <div className="smooth-risk" role="note" aria-labelledby={`smooth-risk-${side}`}>
                 <p className="smooth-risk-title" id={`smooth-risk-${side}`}>

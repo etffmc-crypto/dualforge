@@ -25,7 +25,7 @@ describe('profile schema', () => {
     if (r.success) {
       expect(r.data.sticks.left.filter.mode).toBe('basic');
       expect(r.data.sticks.left.filter.curve).toHaveLength(5);
-      expect(r.data.sticks.left.filter.jitterHz).toBe(30);
+      expect(r.data.sticks.left.filter.jitterHz).toBe(37);
       expect(r.data.triggers.left.effect).toEqual({ mode: 'off' });
     }
   });

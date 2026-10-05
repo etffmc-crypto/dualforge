@@ -122,8 +122,8 @@ describe('Sticks page', () => {
     const rate = screen.getByRole('slider', { name: 'Jitter rate' });
     expect(rate.getAttribute('min')).toBe('10');
     expect(rate.getAttribute('max')).toBe('60');
-    expect(screen.getByText('30 Hz')).toBeTruthy();
-    expect(screen.getByText(/30 Hz suits most games/)).toBeTruthy();
+    expect(screen.getByText('37 Hz')).toBeTruthy();
+    expect(screen.getByText(/37 Hz avoids lining up with 60\/120 fps polling/)).toBeTruthy();
     fireEvent.change(rate, { target: { value: '45' } });
     expect(profile().sticks.left.filter.jitterHz).toBe(45);
     expect(screen.getByText('45 Hz')).toBeTruthy();

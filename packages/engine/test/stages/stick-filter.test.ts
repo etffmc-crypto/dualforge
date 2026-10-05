@@ -225,7 +225,49 @@ describe('negative smoothing (game-visible oscillation)', () => {
     expect(worst).toBe(0);
   });
 
-  it('outputs stay within [-1, 1] at full deflection', () => {
+  /** Worst case over 12 start phases of the std-dev of (output - input) seen by a game polling every periodMs. */
+  const worstPolledSd = (d: number[], periodMs: number) => {
+    let worst = Infinity;
+    for (let k = 0; k < 12; k++) {
+      const samples: number[] = [];
+      for (let t = 100 + (k * periodMs) / 12; t <= 1000; t += periodMs) {
+        samples.push(d[Math.round(t / DT) - 1]!); // d[i] is report i+1, at (i+1) * DT ms
+      }
+      const mean = samples.reduce((a, b) => a + b, 0) / samples.length;
+      const sd = Math.sqrt(samples.reduce((a, b) => a + (b - mean) ** 2, 0) / samples.length);
+      worst = Math.min(worst, sd);
+    }
+    return worst;
+  };
+
+  it('visible to a 60 fps game regardless of phase (37 Hz); 30 Hz aliases to nothing', () => {
+    expect(worstPolledSd(rampDiff(basic(true, -100, 37)), 1000 / 60)).toBeGreaterThanOrEqual(0.02);
+    // 30 Hz is exactly half of 60 fps: every frame lands on +/- the same point of the swing
+    expect(worstPolledSd(rampDiff(basic(true, -100, 30)), 1000 / 60)).toBeLessThan(0.01);
+  });
+
+  it('visible to a 120 fps game regardless of phase (37 Hz)', () => {
+    expect(worstPolledSd(rampDiff(basic(true, -100, 37)), 1000 / 120)).toBeGreaterThanOrEqual(0.02);
+  });
+
+  it('clamps radially: moving along the rim never leaves the unit circle', () => {
+    const s = createFilterState();
+    const cfg = basic(true, -100);
+    applyStickFilter(1, 0, cfg, s, DT);
+    let maxMag = 0,
+      onRim = 0;
+    for (let i = 1; i <= 8000; i++) {
+      const a = (0.3 * i) / 8000; // slow sweep around the rim
+      const o = applyStickFilter(Math.cos(a), Math.sin(a), cfg, s, DT);
+      const m = Math.hypot(o.x, o.y);
+      maxMag = Math.max(maxMag, m);
+      if (Math.abs(m - 1) < 1e-12) onRim++;
+    }
+    expect(maxMag).toBeLessThanOrEqual(1 + 1e-12);
+    expect(onRim).toBeGreaterThan(0); // the clamp actually engaged
+  });
+
+  it('square (Raw) corners: outputs stay within [-1, 1] per axis', () => {
     const s = createFilterState();
     const cfg = basic(true, -100, 60);
     applyStickFilter(0.9, -0.9, cfg, s, DT);
