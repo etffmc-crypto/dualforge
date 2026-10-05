@@ -2,10 +2,16 @@ name: check
 
 on:
   push:
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
+
+# A push to a branch with an open PR triggers both events; they share this group, so only the newest run survives.
+concurrency:
+  group: check-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   check:
@@ -17,11 +23,12 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # separate steps: a multi-line pwsh step only fails on the last command's exit code
       - name: Build native addon
-        run: |
-          npx node-gyp rebuild
-          npm run rebuild -w @dualforge/desktop
+        run: npx node-gyp rebuild
         working-directory: native/sendinput
+      - name: Rebuild native modules for Electron
+        run: npm run rebuild -w @dualforge/desktop
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run format:check
