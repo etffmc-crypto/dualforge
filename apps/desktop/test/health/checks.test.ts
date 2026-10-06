@@ -105,6 +105,15 @@ describe('runChecks', () => {
       repair: 'installHidHide',
     },
     {
+      name: 'HidHide CLI unresponsive warns "state unknown" with Retry now',
+      patch: (i) => {
+        i.hidhide = { ...i.hidhide, whitelisted: null, cliUnresponsive: 'hang' };
+      },
+      id: 'hidhide',
+      status: 'warn',
+      repair: 'retryHidHide',
+    },
+    {
       name: 'HidHide installed but app not whitelisted warns with enable',
       patch: (i) => {
         i.hidhide.whitelisted = false;

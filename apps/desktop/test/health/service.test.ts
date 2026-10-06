@@ -207,7 +207,13 @@ describe('health repairs', () => {
 
   it('install / enable repairs and an unwired exportBundle are unavailable until later tasks', async () => {
     const { svc } = rig();
-    for (const id of ['installViGEm', 'installHidHide', 'enableHidHide', 'exportBundle'] as const) {
+    for (const id of [
+      'installViGEm',
+      'installHidHide',
+      'enableHidHide',
+      'retryHidHide',
+      'exportBundle',
+    ] as const) {
       expect(await svc.repair({ id })).toEqual({ ok: false, code: 'E_HEALTH_REPAIR_UNAVAILABLE' });
     }
   });

@@ -9,6 +9,7 @@ import {
   parseScState,
   profileStatuses,
   queryHidHide,
+  createHidHideMemo,
   queryVigemBus,
   queryVigemService,
   type Exec,
@@ -204,12 +205,90 @@ describe('queryHidHide (basics)', () => {
   it('is not whitelisted / hidden when the lists lack us, and codes CLI failures', async () => {
     const onError = vi.fn();
     const exec: Exec = async (_f, args) => {
-      if (args[0] === '--dev-list') throw new HealthAdapterError('E_HEALTH_TIMEOUT', 'slow');
+      if (args[0] === '--dev-list') throw new HealthAdapterError('E_HEALTH_PNP', 'broken');
       return { stdout: 'C:\\Other\\a.exe\r\n' };
     };
     const r = await queryHidHide({ ...base, exec, exists: () => true, onError });
     expect(r).toMatchObject({ installed: true, whitelisted: false, deviceHidden: false });
-    expect(onError).toHaveBeenCalledWith('E_HEALTH_TIMEOUT', expect.stringContaining('--dev-list'));
+    expect(onError).toHaveBeenCalledWith('E_HEALTH_PNP', expect.stringContaining('--dev-list'));
+  });
+});
+
+describe('queryHidHide unresponsive CLI', () => {
+  const base = {
+    cliPath: 'C:\\HH\\HidHideCLI.exe',
+    ownExe: 'C:\\Apps\\DualForge.exe',
+    exists: () => true,
+  };
+  const hang: Exec = async () => {
+    throw new HealthAdapterError('E_HEALTH_TIMEOUT', 'HidHideCLI.exe timed out after 2000 ms');
+  };
+  it('probes --version with a 2 s timeout and stops there when it hangs', async () => {
+    const exec = vi.fn<Exec>(hang);
+    const onError = vi.fn();
+    const r = await queryHidHide({ ...base, exec, onError, memo: createHidHideMemo() });
+    expect(r).toMatchObject({ installed: true, whitelisted: null, cliUnresponsive: 'hang' });
+    expect(exec).toHaveBeenCalledTimes(1);
+    expect(exec).toHaveBeenCalledWith(base.cliPath, ['--version'], { timeoutMs: 2000 });
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith('E_HEALTH_TIMEOUT', expect.stringContaining('2000'));
+  });
+  it('does not re-probe or re-log for 30 minutes, then probes again; the log fires once per state', async () => {
+    const exec = vi.fn<Exec>(hang);
+    const onError = vi.fn();
+    const memo = createHidHideMemo();
+    let t = 1_000_000;
+    const run = () => queryHidHide({ ...base, exec, onError, memo, now: () => t });
+    await run();
+    t += 5 * 60_000;
+    expect(await run()).toMatchObject({ cliUnresponsive: 'hang' });
+    expect(exec).toHaveBeenCalledTimes(1);
+    t += 30 * 60_000;
+    await run();
+    expect(exec).toHaveBeenCalledTimes(2);
+    expect(onError).toHaveBeenCalledTimes(1); // still the same state: not logged again
+  });
+  it('a retry (memo cleared) probes immediately and recovery clears the logged state', async () => {
+    const memo = createHidHideMemo();
+    const onError = vi.fn();
+    let ok = false;
+    const exec: Exec = async (f, a, o) => (ok ? { stdout: '' } : hang(f, a, o));
+    await queryHidHide({ ...base, exec, onError, memo });
+    memo.state = null;
+    memo.until = 0;
+    ok = true;
+    expect(await queryHidHide({ ...base, exec, onError, memo })).toMatchObject({
+      installed: true,
+      whitelisted: false,
+    });
+    expect(memo.logged).toBeNull();
+  });
+  it('tells "needs administrator" (access denied on --version) from a hang', async () => {
+    const onError = vi.fn();
+    const exec: Exec = async () => {
+      throw Object.assign(new Error('Command failed'), { code: 5 });
+    };
+    const r = await queryHidHide({ ...base, exec, onError, memo: createHidHideMemo() });
+    expect(r).toMatchObject({ cliUnresponsive: 'needs-admin', whitelisted: null });
+    expect(onError).toHaveBeenCalledWith(
+      'E_HEALTH_HIDHIDE',
+      expect.stringContaining('administrator'),
+    );
+  });
+  it('a list call that hangs after a good --version also marks the CLI unresponsive', async () => {
+    const exec: Exec = async (f, a, o) =>
+      a[0] === '--version' ? { stdout: '1.0' } : hang(f, a, o);
+    const r = await queryHidHide({ ...base, exec, onError: vi.fn(), memo: createHidHideMemo() });
+    expect(r).toMatchObject({ cliUnresponsive: 'hang' });
+  });
+  it('a --version that fails some other way (no such switch) still reads the lists', async () => {
+    const exec: Exec = async (_f, a) => {
+      if (a[0] === '--version') throw new Error('unknown option');
+      return { stdout: a[0] === '--app-list' ? 'C:\\Apps\\DualForge.exe\r\n' : '' };
+    };
+    expect(await queryHidHide({ ...base, exec, onError: vi.fn() })).toMatchObject({
+      whitelisted: true,
+    });
   });
 });
 

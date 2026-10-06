@@ -9,6 +9,7 @@ export const REPAIR_IDS = [
   'installViGEm',
   'installHidHide',
   'enableHidHide',
+  'retryHidHide',
   'restartEngine',
   'resetProfile',
   'clearLogs',

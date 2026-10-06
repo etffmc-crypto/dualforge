@@ -20,6 +20,7 @@ import { registerLogIpc } from './log-tail.js';
 import { createHealthService, createEngineFeed } from './health/service.js';
 import {
   gatherInput,
+  createHidHideMemo,
   defaultExec,
   queryVigemService,
   HIDHIDE_STUCK_MARKER,
@@ -190,6 +191,7 @@ const installRepair = (driver: 'vigem' | 'hidhide') => async () => {
       };
 };
 
+const hidhideMemo = createHidHideMemo();
 const health = createHealthService({
   gather: () =>
     gatherInput({
@@ -205,6 +207,7 @@ const health = createHealthService({
         lastForeign: () => watcher.lastForeignForeground(),
         selfElevated: () => injector.selfElevated(),
       },
+      hidhideMemo,
       onError: (code, msg) => logger.warn({ code, msg }),
     }),
   emit: (s) => {
@@ -231,6 +234,10 @@ const health = createHealthService({
     openLogs: () => shell.openPath(LOG_DIR),
     installViGEm: installRepair('vigem'),
     installHidHide: installRepair('hidhide'),
+    retryHidHide: () => {
+      hidhideMemo.state = null;
+      hidhideMemo.until = 0;
+    },
     enableHidHide: () =>
       // the setting is turned on inside the queue, before converge reads it; the quit/startup logic follows it
       hidHideQueue.repair(() => {

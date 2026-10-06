@@ -10,6 +10,8 @@ export interface HealthInput {
     deviceHidden: boolean;
     /** A quit could not un-cloak (no admin rights): the pad stays hidden from games while DualForge is closed. */
     cloakStuck?: boolean;
+    /** HidHideCLI hung (`hang`) or was refused (`needs-admin`); it is not probed again for a while. */
+    cliUnresponsive?: 'hang' | 'needs-admin';
   };
   /** `highestSeenHz` is the best report rate observed this session (kept by the service). */
   device: {
@@ -98,6 +100,17 @@ export function runChecks(i: HealthInput): HealthResult[] {
       detail:
         'Optional, but without it games also see the physical DualSense next to the virtual Xbox pad and may double-count input. HidHide is admin-gated on most systems: the first enable shows a UAC prompt.',
       repair: 'installHidHide',
+    });
+  else if (h.cliUnresponsive)
+    out.push({
+      id: 'hidhide',
+      status: 'warn',
+      title: 'HidHide installed — state unknown (CLI unresponsive, likely needs administrator)',
+      detail:
+        h.cliUnresponsive === 'hang'
+          ? 'HidHideCLI did not answer within 2 s, so DualForge skips it for 30 minutes (E_HEALTH_TIMEOUT). It usually needs administrator rights.'
+          : 'HidHideCLI refused to run without administrator rights, so DualForge skips it for 30 minutes.',
+      repair: 'retryHidHide',
     });
   else if (h.whitelisted === null)
     out.push({
