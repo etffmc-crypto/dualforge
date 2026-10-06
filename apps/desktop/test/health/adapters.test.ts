@@ -275,6 +275,32 @@ describe('queryHidHide unresponsive CLI', () => {
       expect.stringContaining('administrator'),
     );
   });
+  it('a spawn EACCES / 740 (elevation required) is needs-admin, logged once across runs', async () => {
+    for (const code of ['EACCES', 740] as const) {
+      const exec = vi.fn<Exec>(async () => {
+        throw Object.assign(new Error('spawn EACCES'), { code });
+      });
+      const onError = vi.fn();
+      const memo = createHidHideMemo();
+      let t = 0;
+      const run = () => queryHidHide({ ...base, exec, onError, memo, now: () => t });
+      expect(await run()).toMatchObject({ cliUnresponsive: 'needs-admin' });
+      t += 5 * 60_000;
+      await run();
+      expect(exec).toHaveBeenCalledTimes(1); // no re-probe inside the backoff
+      expect(onError).toHaveBeenCalledTimes(1);
+    }
+  });
+  it('an access-denied list call (good --version) is needs-admin too, not one error per run', async () => {
+    const exec: Exec = async (_f, a) => {
+      if (a[0] === '--version') return { stdout: '1.0' };
+      throw Object.assign(new Error('spawn EACCES'), { code: 'EACCES' });
+    };
+    const onError = vi.fn();
+    const r = await queryHidHide({ ...base, exec, onError, memo: createHidHideMemo() });
+    expect(r).toMatchObject({ cliUnresponsive: 'needs-admin' });
+    expect(onError).toHaveBeenCalledTimes(1);
+  });
   it('a list call that hangs after a good --version also marks the CLI unresponsive', async () => {
     const exec: Exec = async (f, a, o) =>
       a[0] === '--version' ? { stdout: '1.0' } : hang(f, a, o);

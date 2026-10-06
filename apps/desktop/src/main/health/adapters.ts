@@ -142,9 +142,10 @@ const isTimeout = (e: unknown) => e instanceof HealthAdapterError && e.code === 
 const isDenied = (e: unknown) => {
   const x = e as { code?: unknown; stderr?: unknown; message?: unknown } | null;
   if (!x) return false;
-  if (x.code === 5) return true;
+  // 5 = ERROR_ACCESS_DENIED; 740 / EACCES = ERROR_ELEVATION_REQUIRED (a requireAdministrator manifest fails at spawn)
+  if (x.code === 5 || x.code === 740 || x.code === 'EACCES') return true;
   const text = `${typeof x.stderr === 'string' ? x.stderr : ''}\n${typeof x.message === 'string' ? x.message : ''}`;
-  return /access is denied/i.test(text);
+  return /access is denied|requires elevation|elevation required/i.test(text);
 };
 
 /**
@@ -184,13 +185,18 @@ export async function queryHidHide(d: HidHideDeps): Promise<HealthInput['hidhide
     // any other failure (e.g. no --version switch): carry on with the list calls
   }
   let hung: string | null = null;
+  let denied: string | null = null;
   const list = async (flag: string): Promise<string | null> => {
-    if (hung) return null;
+    if (hung || denied) return null;
     try {
       return (await d.exec(d.cliPath, [flag], { timeoutMs: HIDHIDE_PROBE_TIMEOUT_MS })).stdout;
     } catch (e) {
       if (isTimeout(e)) {
         hung = (e as Error).message;
+        return null;
+      }
+      if (isDenied(e)) {
+        denied = `${flag}: ${(e as Error).message} (needs administrator)`;
         return null;
       }
       d.onError(
@@ -202,6 +208,7 @@ export async function queryHidHide(d: HidHideDeps): Promise<HealthInput['hidhide
   };
   const [apps, devs] = [await list('--app-list'), await list('--dev-list')];
   if (hung) return enter('hang', hung);
+  if (denied) return enter('needs-admin', denied);
   memo.logged = null;
   const norm = (p: string) =>
     p
