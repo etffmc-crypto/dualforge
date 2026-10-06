@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStore } from '../../src/renderer/store';
-import { Footer, ERROR_CHIP_MS } from '../../src/renderer/components/Footer';
+import { Footer, ERROR_CHIP_MS, stripIpcError } from '../../src/renderer/components/Footer';
 
 const raise = (code: string, msg = 'boom') =>
   act(() => {
@@ -105,6 +105,52 @@ describe('Footer', () => {
     expect(chip()!.textContent).not.toContain('Error invoking remote method');
     // the full text is still there on hover
     expect(chip()!.getAttribute('title')).toContain('timed out after 5000 ms');
+  });
+
+  it('chips raised by the store from a real IPC rejection show main’s text without "Error: Error invoking remote method"', async () => {
+    // exactly what ipcRenderer.invoke rejects with, run through the store (which keeps String(err))
+    const reject = (inner: string) =>
+      new Error(`Error invoking remote method 'settings:set': Error: ${inner}`);
+    const settings = { set: vi.fn(), get: vi.fn(async () => null) };
+    vi.stubGlobal('dualforge', { settings }); // window.dualforge (jsdom: window is globalThis)
+    render(<Footer />);
+    const send = async (inner: string, patch: object) => {
+      settings.set.mockRejectedValueOnce(reject(inner));
+      await act(() => useStore.getState().updateSettings(patch));
+    };
+
+    await send('E_HIDHIDE_CLI: --app-reg: Command failed: HidHideCLI.exe exited 1', {
+      hidHide: true,
+    });
+    expect(useStore.getState().lastError!.msg).toMatch(/^Error: Error invoking remote method/);
+    expect(chip()!.querySelector('.err-code')!.textContent).toBe('E_HIDHIDE_CLI');
+    expect(chip()!.querySelector('.err-msg')!.textContent).toBe(
+      '--app-reg: Command failed: HidHideCLI.exe exited 1',
+    );
+
+    await send('E_STARTUP_LOGIN_ITEM', { startWithWindows: true });
+    expect(chip()!.querySelector('.err-code')!.textContent).toBe('E_SETTINGS_SEND');
+    expect(chip()!.querySelector('.err-msg')!.textContent).toBe('E_STARTUP_LOGIN_ITEM');
+
+    await send('E_HIDHIDE_NO_DEVICE: PnP query failed: powershell.exe timed out after 5000 ms', {
+      hidHide: true,
+    });
+    expect(chip()!.querySelector('.err-msg')!.textContent).toBe(
+      'Connect the DualSense over USB, then turn HidHide on',
+    );
+    for (const el of document.querySelectorAll('.err-msg'))
+      expect(el.textContent).not.toMatch(/^Error|Error invoking remote method/);
+  });
+
+  it('stripIpcError drops the wrapper in either order and the chip’s own code', () => {
+    const inner = 'E_HIDHIDE_CLI: --cloak-on: Command failed';
+    for (const raw of [
+      `Error: Error invoking remote method 'settings:set': Error: ${inner}`,
+      `Error invoking remote method 'settings:set': Error: ${inner}`,
+      `Error: ${inner}`,
+      inner,
+    ])
+      expect(stripIpcError('E_HIDHIDE_CLI', raw)).toBe('--cloak-on: Command failed');
   });
 
   it('clearError() empties lastError', () => {
