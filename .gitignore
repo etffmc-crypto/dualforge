@@ -7,6 +7,8 @@ release/
 coverage/
 maintenance/reports/*.tmp
 maintenance/reports/responder-*.md
+maintenance/reports/post-actions-*.log
+maintenance/outbox/
 
 .superpowers/
 *.tsbuildinfo

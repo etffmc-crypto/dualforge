@@ -59,34 +59,53 @@ Error codes in the report are explained in [`docs/ERROR_CODES.md`](../docs/ERROR
 
 ## Issue responder
 
-A second Claude Code routine, every 2 hours, that works the GitHub issues: it proposes fixes for `watchdog` issues (site, release, CI) and reproducible bug reports as **pull requests** (never a push to `main`), comments a status on the issue, and labels feature requests `enhancement`. The prompt is [`RESPONDER.md`](RESPONDER.md); its guardrails come first and treat all issue text as untrusted data.
+Works the GitHub issues every 2 hours in **two stages**, so the part that reads untrusted issue text never holds a token:
 
-### Token (one time)
+1. **Stage 1, the LLM** ([`RESPONDER.md`](RESPONDER.md), Claude Code, no token): reads open issues with unauthenticated `curl`, reproduces bugs and watchdog failures, commits fixes on local `fix/issue-<n>` / `fix/watchdog-<check>-<date>` branches (never pushes), and writes `maintenance/outbox/actions.json`: proposed comments (fixed templates only), labels, pushes and pull requests (at most 10 comments and 2 PRs).
+2. **Stage 2, a vetted script** ([`post-actions.ps1`](post-actions.ps1), no LLM, holds the token): validates `actions.json` strictly with [`scripts/post-actions-validate.mjs`](../scripts/post-actions-validate.mjs) (unknown keys, templates, labels or branch names refuse the whole file), checks every referenced issue is open, every branch is ahead of GitHub's `main`, touches no protected path (`.github/`, `maintenance/`, `package*.json`, tsconfig/vitest/eslint configs, `native/`, …) and contains no trace of the token, then pushes `<branch>:refs/heads/<branch>` (never tags or `main`), opens the PRs and posts the comments and labels. It stops at the first HTTP 403/429. Log: `maintenance/reports/post-actions-YYYY-MM-DD.log`; processed files move to `maintenance/outbox/done/`, refused ones to `maintenance/outbox/rejected/`.
 
-Reading public issues needs no token. To comment, label, push `fix/*` branches and open pull requests, create a **fine-grained personal access token** on github.com (Settings > Developer settings > Fine-grained tokens):
+### Token (one time, stage 2 only)
+
+Create a **fine-grained personal access token** (github.com > Settings > Developer settings > Fine-grained tokens):
 
 - Repository access: **only** `etffmc-crypto/dualforge`.
-- Permissions: Issues **Read and write**, Pull requests **Read and write**, Contents **Read and write** (to push `fix/*` branches), Metadata Read. No Workflows permission, so the routine cannot change `.github/workflows`.
+- Permissions: Issues **Read and write**, Pull requests **Read and write**, Contents **Read and write** (to push `fix/*` branches), Metadata Read. No Workflows permission.
 - Expiry: 90 days or less; set a reminder to rotate it.
 
-Store it outside the repo and expose it only to the routine as `GITHUB_TOKEN`. With PowerShell SecretManagement (`Install-Module Microsoft.PowerShell.SecretManagement, Microsoft.PowerShell.SecretStore`), save it once with `Set-Secret -Name dualforge-responder` and read it in the launch command below. Without a token the routine runs read-only (report only).
+Store it as the **User** environment variable `DUALFORGE_GH_TOKEN` (only `post-actions.ps1` reads it):
 
-Add a branch ruleset on `main` (Settings > Rules > Rulesets: require a pull request, block force pushes) so even a token with Contents write cannot push to `main` directly. `git push` of `fix/*` branches uses your normal git credentials for github.com.
+```powershell
+[Environment]::SetEnvironmentVariable('DUALFORGE_GH_TOKEN', '<paste the token>', 'User')
+```
 
-### Run it
+New processes of your user inherit User environment variables, including a Claude Code session. Stage 1 never needs it, its tool rules give it no command that can print environment variables, and its deny list blocks any command naming the variable. Stage 2 also refuses a plan or branch that contains the token. Protect `main` with a ruleset (Settings > Rules > Rulesets: require a pull request, block force pushes) so the token cannot push to `main` even if misused.
+
+### Stage 1: run it
 
 ```powershell
 $start = git rev-parse --abbrev-ref HEAD
-$env:GITHUB_TOKEN = Get-Secret -Name dualforge-responder -AsPlainText   # omit for a read-only run
-$api = 'https://api.github.com/repos/etffmc-crypto/dualforge/'
+$issues = 'https://api.github.com/repos/etffmc-crypto/dualforge/issues'
 claude -p (Get-Content maintenance/RESPONDER.md -Raw) --permission-mode acceptEdits `
-  --allowedTools "Bash(git status --porcelain)" "Bash(git rev-parse --abbrev-ref HEAD)" "Bash(git checkout main)" "Bash(git checkout -b fix/*)" "Bash(git checkout $start)" "Bash(git pull --ff-only)" "Bash(git add apps/*)" "Bash(git add packages/*)" "Bash(git add site/*)" "Bash(git add scripts/*)" "Bash(git commit -m *)" "Bash(git push -u origin fix/*)" "Bash(git log:*)" "Bash(git diff:*)" "Bash(npm ci)" "Bash(npm run typecheck)" "Bash(npm run lint)" "Bash(npm run format:check)" "Bash(npm run test)" "Bash(test -n `"`$GITHUB_TOKEN`" && echo write || echo read-only)" "Bash(curl -sS $api*)" "Bash(curl -sS -H * $api*)" "Bash(curl -sS -X POST -H * $api*)" Read Write Edit Grep Glob `
-  --disallowedTools "Edit(package.json)" "Edit(package-lock.json)" "Edit(maintenance/RESPONDER.md)" "Edit(maintenance/AGENT.md)" "Edit(maintenance/run-checks.ps1)" "Edit(.github/**)" "Edit(native/**)" "Edit(apps/desktop/electron-builder.yml)" "Write(package.json)" "Write(package-lock.json)" "Write(maintenance/RESPONDER.md)" "Write(maintenance/AGENT.md)" "Write(maintenance/run-checks.ps1)" "Write(.github/**)" "Write(native/**)" "Write(apps/desktop/electron-builder.yml)" "Bash(git push * main*)" "Bash(git push *--force*)" "Bash(git push * -f*)" "Bash(git commit *--amend*)" "Bash(git commit *--no-verify*)"
-Remove-Item Env:GITHUB_TOKEN -ErrorAction SilentlyContinue
+  --allowedTools "Bash(git status --porcelain)" "Bash(git rev-parse --abbrev-ref HEAD)" "Bash(git checkout main)" "Bash(git checkout -b fix/issue-*)" "Bash(git checkout -b fix/watchdog-*)" "Bash(git checkout $start)" "Bash(git add apps/*)" "Bash(git add packages/*)" "Bash(git add site/*)" "Bash(git commit -m *)" "Bash(git log:*)" "Bash(git diff:*)" "Bash(npm ci)" "Bash(npm run typecheck)" "Bash(npm run lint)" "Bash(npm run format:check)" "Bash(npm run test)" "Bash(curl -sS `"$issues`?state=open&per_page=50`")" "Bash(curl -sS `"$issues/*/comments`")" Read Write Edit Grep Glob `
+  --disallowedTools "Bash(git push*)" "Bash(git fetch*)" "Bash(git pull*)" "Bash(git remote*)" "Bash(git config*)" "Bash(git commit *--amend*)" "Bash(git commit *--no-verify*)" "Bash(*DUALFORGE_GH_TOKEN*)" "Bash(*GITHUB_TOKEN*)" "Bash(printenv*)" "Bash(env*)" "Bash(set*)" "Edit(.git/**)" "Write(.git/**)" "Edit(.github/**)" "Write(.github/**)" "Edit(package.json)" "Write(package.json)" "Edit(**/package.json)" "Write(**/package.json)" "Edit(package-lock.json)" "Write(package-lock.json)" "Edit(.npmrc)" "Write(.npmrc)" "Edit(**/.npmrc)" "Write(**/.npmrc)" "Edit(vitest.config.ts)" "Write(vitest.config.ts)" "Edit(**/vitest.config.ts)" "Write(**/vitest.config.ts)" "Edit(eslint.config.js)" "Write(eslint.config.js)" "Edit(**/tsconfig*.json)" "Write(**/tsconfig*.json)" "Edit(tsconfig*.json)" "Write(tsconfig*.json)" "Edit(native/**)" "Write(native/**)" "Edit(scripts/**)" "Write(scripts/**)" "Edit(apps/desktop/electron-builder.yml)" "Write(apps/desktop/electron-builder.yml)" "Edit(maintenance/*.md)" "Write(maintenance/*.md)" "Edit(maintenance/*.ps1)" "Write(maintenance/*.ps1)" "Edit(maintenance/README.md)" "Write(maintenance/README.md)"
 ```
 
-Allowed tools, in short: git (status, branch name, checkout `main` / `fix/*` / the starting branch, `pull --ff-only`, `add` under `apps/ packages/ site/ scripts/`, `commit -m`, `push -u origin fix/*`, log, diff), `npm ci` and `npm run typecheck|lint|format:check|test`, `curl` to `api.github.com/repos/etffmc-crypto/dualforge/` only, and Read / Write / Edit / Glob / Grep. Everything else (other hosts, installers, `test:ui`, `dist`, pushes to `main`) is denied by omission or by the deny list.
+Allowed, in short: git (status, branch name, checkout `main` / `fix/issue-*` / `fix/watchdog-*` / the starting branch, `add` under `apps/ packages/ site/`, `commit -m`, log, diff), `npm ci` and `npm run typecheck|lint|format:check|test`, two exact unauthenticated `curl` reads (the open-issue list and one issue's comments), and Read / Write / Edit / Glob / Grep. Write and Edit reach `maintenance/` only under `maintenance/outbox/` and `maintenance/reports/` (the deny list covers the routine's own files). No `git push`, `fetch`, `pull`, `remote` or `config` at all, no other hosts, no token. Note: the `*` in the comments rule matches any text, so it is the one place a crafted command could reach another URL path on `api.github.com`; with no token in play this exposes nothing private.
 
-### Schedule it
+### Stage 2: run it
 
-Create it with the Claude Code scheduler (`/schedule`): prompt = contents of `RESPONDER.md`, the same flags as above, repo `F:\DualForge`, every 2 hours. Compute `$start`, set `$env:GITHUB_TOKEN` from the secret store first, and clear it afterwards. Reports are appended per run to `maintenance/reports/responder-YYYY-MM-DD.md` (gitignored; the issue comments and PRs are the public record).
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File maintenance\post-actions.ps1 -DryRun   # validate and print the plan
+powershell -NoProfile -ExecutionPolicy Bypass -File maintenance\post-actions.ps1           # carry it out
+```
+
+### Schedule both
+
+- **Stage 1** runs in the **Claude desktop app's local scheduler** (Scheduled tasks), not as a `/schedule` cloud routine: it needs this PC's checkout on `F:\`, Node, the local test toolchain and the app's native build, none of which exist in a cloud sandbox. Create a local scheduled task with the stage 1 prompt and the same allowed/denied tool lists, working directory `F:\DualForge`, every 2 hours on the hour.
+- **Stage 2** runs from **Windows Task Scheduler**, every 2 hours, 10 minutes after stage 1:
+
+```powershell
+schtasks /Create /TN "DualForge\Responder post-actions" /SC HOURLY /MO 2 /ST 00:10 /F /TR "powershell.exe -NoProfile -ExecutionPolicy Bypass -File F:\DualForge\maintenance\post-actions.ps1"
+```
+
+Remove it with `schtasks /Delete /TN "DualForge\Responder post-actions" /F`. Responder run reports are appended to `maintenance/reports/responder-YYYY-MM-DD.md`, and the outbox and logs are gitignored. The issue comments and PRs are the public record.
