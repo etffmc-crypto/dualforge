@@ -79,6 +79,34 @@ describe('Footer', () => {
     expect(chip()!.textContent).toContain('trigger deadzone: initial must be below max');
   });
 
+  it('a failed HidHide toggle reads as words, not the raw IPC error; the code stays in the chip', () => {
+    render(<Footer />);
+    const ipc = (rest: string) =>
+      `Error: Error invoking remote method 'settings:set': Error: ${rest}`;
+    raise(
+      'E_HIDHIDE_ELEVATION_DECLINED',
+      ipc('E_HIDHIDE_ELEVATION_DECLINED: elevated HidHide call did not complete: canceled'),
+    );
+    expect(chip()!.textContent).toContain('E_HIDHIDE_ELEVATION_DECLINED');
+    expect(chip()!.textContent).toContain(
+      'HidHide needs administrator rights — accept the Windows prompt',
+    );
+    expect(chip()!.textContent).not.toContain('Error invoking remote method');
+    raise(
+      'E_HIDHIDE_CLI',
+      ipc(
+        'E_HIDHIDE_CLI: --app-reg: C:\\Program Files\\Nefarius Software Solutions\\HidHide\\x64\\HidHideCLI.exe timed out after 5000 ms',
+      ),
+    );
+    expect(chip()!.textContent).toContain('E_HIDHIDE_CLI');
+    expect(chip()!.textContent).toContain(
+      'HidHide command timed out — open the HidHide Configuration Client, or retry',
+    );
+    expect(chip()!.textContent).not.toContain('Error invoking remote method');
+    // the full text is still there on hover
+    expect(chip()!.getAttribute('title')).toContain('timed out after 5000 ms');
+  });
+
   it('clearError() empties lastError', () => {
     raise('E_X');
     act(() => useStore.getState().clearError());

@@ -1,6 +1,8 @@
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
+import { defaultExec, HealthAdapterError, needsElevation } from '../src/main/health/adapters.js';
 import {
+  composeElevatedCloakOff,
   composeElevatedSetup,
   createHidHide,
   createHidHideQueue,
@@ -298,6 +300,114 @@ describe('hidhide residual: disable elevation, stuck marker, decline latch', () 
     expect(elevatedCalls(r)).toHaveLength(1); // latched: no new UAC prompt
     await r.h.enable(); // user-initiated: clears the latch and prompts again
     expect(elevatedCalls(r)).toHaveLength(2);
+  });
+});
+
+describe('hidhide: a CLI that hangs unelevated takes the elevated path (0.3.5)', () => {
+  /** What defaultExec rejects with when HidHideCLI never answers (seen on a real PC for --app-reg). */
+  const hang = () => new HealthAdapterError('E_HEALTH_TIMEOUT', `${CLI} timed out after 5000 ms`);
+  const elevatedCalls = (r: ReturnType<typeof rig>) =>
+    r.calls.filter((c) => c.args.join(' ').includes('Start-Process'));
+
+  it('the shared classification: denied codes/texts and timeouts need elevation, other failures do not', () => {
+    expect(needsElevation(hang())).toBe(true);
+    expect(needsElevation(new Error('x.exe timed out after 5000 ms'))).toBe(true);
+    for (const code of [5, 740, 'EACCES', 'EPERM', 'UNKNOWN'])
+      expect(needsElevation(Object.assign(new Error('Command failed'), { code }))).toBe(true);
+    expect(needsElevation(Object.assign(new Error('spawn'), { errno: -4094 }))).toBe(true);
+    expect(needsElevation(new Error('The requested operation requires elevation.'))).toBe(true);
+    expect(needsElevation(Object.assign(new Error('boom'), { code: 1 }))).toBe(false);
+    expect(needsElevation(Object.assign(new Error('spawn'), { code: 'ENOENT' }))).toBe(false);
+    expect(isAccessDenied(hang())).toBe(false); // a hang is not a refusal, but both need elevation
+  });
+
+  it('enable: --app-reg hangs → the composed setup script runs elevated, the toggle succeeds', async () => {
+    const r = rig({ failWith: (a) => (a[0] === '--app-reg' ? hang() : null) });
+    expect(await r.h.enable()).toEqual({ ok: true });
+    expect(r.writes).toEqual([{ path: SETUP, data: composeElevatedSetup(CLI, EXE, INSTANCE) }]);
+    expect(elevatedCalls(r)).toHaveLength(1);
+    expect(elevatedCalls(r)[0]!.args.join(' ')).toContain(
+      `Start-Process -FilePath '${SETUP}' -Verb RunAs -Wait`,
+    );
+    expect(cli(r.calls)).toEqual([['--app-reg', EXE]]); // no second unelevated call waits another 5 s
+    expect(r.log.warn).toHaveBeenCalledTimes(1);
+    expect(r.log.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ code: 'HIDHIDE_CLI_HANG', args: ['--app-reg', EXE] }),
+    );
+    expect(r.log.error).not.toHaveBeenCalled();
+  });
+
+  it('a real hanging child process, killed by defaultExec at its timeout, takes the elevated path', async () => {
+    // the CLI is a node process that never answers; defaultExec's real timeout/kill produces the error (300 ms here)
+    const writes: string[] = [];
+    const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    let elevated = 0;
+    const h = createHidHide({
+      exec: (file, args) => {
+        if (file === CLI)
+          return defaultExec(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], {
+            timeoutMs: 300,
+          });
+        if (args.join(' ').includes('Start-Process')) {
+          elevated++;
+          return Promise.resolve({ stdout: '' });
+        }
+        return Promise.resolve({ stdout: `${GAME_LINE}\r\n` });
+      },
+      exists: (p) => p === CLI,
+      ownExe: EXE,
+      programFiles: 'C:\\Program Files',
+      dataDir: DATA,
+      writeFile: (_p, data) => writes.push(data),
+      log,
+    });
+    expect(await h.enable()).toEqual({ ok: true });
+    expect(elevated).toBe(1);
+    expect(writes).toEqual([composeElevatedSetup(CLI, EXE, INSTANCE)]);
+    expect(log.warn).toHaveBeenCalledWith(expect.objectContaining({ code: 'HIDHIDE_CLI_HANG' }));
+  });
+
+  it('enable: a hang later in the sequence (--cloak-on) also falls back to the elevated setup', async () => {
+    const r = rig({ failWith: (a) => (a[0] === '--cloak-on' ? hang() : null) });
+    expect(await r.h.enable()).toEqual({ ok: true });
+    expect(elevatedCalls(r)).toHaveLength(1);
+  });
+
+  it('startup: a hung CLI with the pad absent skips (no second hang on --dev-list, no prompt)', async () => {
+    const r = rig({ pnp: '', failWith: (a) => (a[0] === '--app-reg' ? hang() : null) });
+    expect(await r.h.startup()).toEqual({ ok: true, skipped: true });
+    expect(cli(r.calls)).toEqual([['--app-reg', EXE]]);
+    expect(elevatedCalls(r)).toHaveLength(0);
+  });
+
+  it('disable: --cloak-off hangs → one elevated --cloak-off script', async () => {
+    const r = rig({ failWith: (a) => (a[0] === '--cloak-off' ? hang() : null) });
+    expect(await r.h.disable()).toEqual({ ok: true });
+    expect(r.writes).toEqual([{ path: SETUP, data: composeElevatedCloakOff(CLI) }]);
+    expect(elevatedCalls(r)).toHaveLength(1);
+    expect(r.stuck).toEqual([false]);
+  });
+
+  it('a declined prompt after a hang latches: auto ops never re-prompt, a user click does', async () => {
+    const r = rig({
+      failWith: (a) => (a[0] === '--app-reg' ? hang() : null),
+      elevation: 'decline',
+    });
+    expect(await r.h.enable()).toMatchObject({ ok: false, code: 'E_HIDHIDE_ELEVATION_DECLINED' });
+    expect(await r.h.enable({ auto: true })).toMatchObject({
+      code: 'E_HIDHIDE_ELEVATION_DECLINED',
+    });
+    expect(await r.h.startup()).toMatchObject({ code: 'E_HIDHIDE_ELEVATION_DECLINED' });
+    expect(elevatedCalls(r)).toHaveLength(1);
+    await r.h.enable();
+    expect(elevatedCalls(r)).toHaveLength(2);
+  });
+
+  it('quit: a hung cloak-off never prompts and marks the pad stuck', async () => {
+    const r = rig({ failWith: (a) => (a[0] === '--cloak-off' ? hang() : null) });
+    expect(await r.h.quitCloakOff()).toMatchObject({ ok: false, code: 'E_HIDHIDE_CLOAK_STUCK' });
+    expect(elevatedCalls(r)).toHaveLength(0);
+    expect(r.stuck).toEqual([true]);
   });
 });
 

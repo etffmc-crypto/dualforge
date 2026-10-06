@@ -308,7 +308,7 @@ No connected DualSense game-controller HID collection was found through PnP (mat
 
 ### E_HIDHIDE_CLI
 
-A `HidHideCLI.exe` call failed or timed out (`msg` names the command). Cause: the driver service is stopped. An "Access is denied" refusal (exit code 5) is not reported here: enable then runs the elevated setup instead (see E_HIDHIDE_ELEVATION_DECLINED). Fix: restart the PC, then retry.
+A `HidHideCLI.exe` call failed (`msg` names the command). Cause: the driver service is stopped. A refusal for lack of rights (exit code 5 / 740, "Access is denied", "requires elevation") and, since 0.3.5, a call that hangs until the 5 s timeout (unelevated HidHideCLI can wait forever; logged once as `HIDHIDE_CLI_HANG` with the args) are not reported here: enable and disable then run the elevated setup instead (see E_HIDHIDE_ELEVATION_DECLINED). Fix: restart the PC, then retry.
 
 ### E_HIDHIDE_ELEVATION_DECLINED
 

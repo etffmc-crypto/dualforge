@@ -220,6 +220,19 @@ describe('store profiles + settings', () => {
     expect(useStore.getState().lastError?.code).toBe('E_SETTINGS_SEND');
   });
 
+  it('a refused HidHide toggle reports its own E_HIDHIDE_ code (the full message stays for the tooltip)', async () => {
+    await useStore.getState().loadSettings();
+    const raw =
+      "Error invoking remote method 'settings:set': Error: E_HIDHIDE_ELEVATION_DECLINED: elevated HidHide call did not complete";
+    settingsApi.set.mockRejectedValueOnce(new Error(raw));
+    await useStore.getState().updateSettings({ hidHide: true });
+    expect(useStore.getState().settings!.hidHide).toBe(false);
+    expect(useStore.getState().lastError).toEqual({
+      code: 'E_HIDHIDE_ELEVATION_DECLINED',
+      msg: `Error: ${raw}`,
+    });
+  });
+
   it('after a rejected patch the store resyncs to what main actually persisted', async () => {
     await useStore.getState().loadSettings();
     settingsApi.set.mockRejectedValueOnce(new Error('E_STARTUP_LOGIN_ITEM'));

@@ -39,7 +39,9 @@ export function createSettingsHooks(d: SettingsHookDeps) {
           throw new Error('E_SETTINGS_WRITE');
         }
         d.engine.send({ type: 'setSettings', settings: saved });
-        throw new Error(r.code ?? 'E_HIDHIDE_CLI');
+        // code first (the renderer reads it), then why: the footer tells a hang from a refused prompt by it
+        const code = r.code ?? 'E_HIDHIDE_CLI';
+        throw new Error(r.msg ? `${code}: ${r.msg}` : code);
       }
     }
     if (loginError) throw new Error('E_STARTUP_LOGIN_ITEM');

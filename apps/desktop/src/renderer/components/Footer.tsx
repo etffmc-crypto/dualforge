@@ -7,8 +7,22 @@ export const ERROR_CHIP_MS = 6000;
 /** Errors that only report a one-off action failing; everything else stays until dismissed. */
 const TRANSIENT = new Set(['E_RUMBLE_TEST', 'E_MACRO_TEST', 'E_CLIPBOARD']);
 
+/** A failed HidHide toggle, in words: why it did not happen and what to do. Null for codes it does not know. */
+export function hidHideMessage(code: string, msg: string): string | null {
+  if (!code.startsWith('E_HIDHIDE_')) return null;
+  if (/timed out/i.test(msg))
+    return 'HidHide command timed out — open the HidHide Configuration Client, or retry';
+  if (code === 'E_HIDHIDE_ELEVATION_DECLINED' || /access is denied|elevation/i.test(msg))
+    return 'HidHide needs administrator rights — accept the Windows prompt';
+  if (code === 'E_HIDHIDE_NOT_INSTALLED') return 'HidHide is not installed — see Health';
+  if (code === 'E_HIDHIDE_NO_DEVICE') return 'Connect the DualSense over USB, then turn HidHide on';
+  return null;
+}
+
 /** Short, user-facing text for an error code; unknown codes show main's message without the IPC wrapper. */
 function shortMessage(code: string, msg: string): string {
+  const hid = hidHideMessage(code, msg);
+  if (hid) return hid;
   switch (code) {
     case 'E_PROFILE_SEND':
       return 'Changes not saved — check Health';
