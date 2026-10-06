@@ -184,6 +184,11 @@ describe('loading electron-updater (E_UPDATE_LOAD)', () => {
     const u = resolveAutoUpdater(mod);
     // the same instance the packaged ESM bundle reaches through `default` (its named export is not detected there)
     expect(resolveAutoUpdater({ default: (mod as { default: unknown }).default })).toBe(u);
+    // Why `.default` is needed: electron-updater defines `autoUpdater` with a getter, which Node's CJS named-export
+    // detection skips, so the namespace's named export is undefined in the packaged ESM bundle (0.3.3 / 0.3.4 read
+    // exactly that). Some loaders (vitest's interop) do expose it; either way it is never a different object.
+    const named = (mod as { autoUpdater?: unknown }).autoUpdater;
+    expect(named === undefined || named === u).toBe(true);
     expect(typeof u.checkForUpdates).toBe('function');
     expect(typeof u.downloadUpdate).toBe('function');
     expect(typeof u.autoDownload).toBe('boolean');

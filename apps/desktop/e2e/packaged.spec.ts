@@ -16,6 +16,25 @@ function logText(dataDir: string): string {
   return out;
 }
 
+/** A network-level failure of a working updater (offline, DNS, reset, timeout, GitHub 5xx). */
+const NETWORK =
+  /net::ERR_|ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|(?:status(?: code)?|HttpError:?)\s*5\d\d\b/i;
+
+/** The `msg` of every E_UPDATE_CHECK line in the (pino JSON) log. */
+function checkFailures(log: string): string[] {
+  const out: string[] = [];
+  for (const line of log.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    try {
+      const o = JSON.parse(line) as { code?: unknown; msg?: unknown };
+      if (o.code === 'E_UPDATE_CHECK') out.push(typeof o.msg === 'string' ? o.msg : '');
+    } catch {
+      /* not a JSON log line */
+    }
+  }
+  return out;
+}
+
 /** The packaged exe against a throwaway data dir (which also moves its userData and single-instance lock). */
 async function launchPackaged() {
   expect(existsSync(EXE), `run npm run dist first: ${EXE}`).toBe(true);
@@ -114,11 +133,13 @@ test.describe('packaged app', () => {
       expect(r.code, why).not.toBe('E_UPDATE_DEV');
       expect(r.code, why).not.toBe('E_UPDATE_DISABLED');
       // E_UPDATE_CHECK is only acceptable as a network failure of a loaded updater (offline / GitHub unreachable)
-      if (r.code === 'E_UPDATE_CHECK')
-        expect(log, 'E_UPDATE_CHECK must be a network failure').toMatch(
-          /net::|ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|status code|HttpError|rate limit/i,
-        );
-      else expect(r.code ?? null, why).toBeNull(); // a real answer: up to date or `available`
+      // only the E_UPDATE_CHECK lines' own msg counts, not whatever else is in the log
+      if (r.code === 'E_UPDATE_CHECK') {
+        const msgs = checkFailures(log);
+        expect(msgs.length, 'E_UPDATE_CHECK must be logged').toBeGreaterThan(0);
+        for (const m of msgs)
+          expect(m, 'E_UPDATE_CHECK must be a network failure').toMatch(NETWORK);
+      } else expect(r.code ?? null, why).toBeNull(); // a real answer: up to date or `available`
     } finally {
       await app.close();
       if (wrote) rmSync(updateYml, { force: true });
