@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         Thanks for reporting. Before you file: open **Health** in the app and try the suggested repair.
-        Do not paste passwords, keys or other personal data; the diagnostics bundle contains logs, settings and profiles only.
+        Issues are public. Do not paste passwords, keys or other personal data. The diagnostics bundle holds logs, settings, profiles and system info, which can include your Windows user name and device serial numbers: review it before attaching.
   - type: input
     id: version
     attributes:
@@ -58,7 +58,7 @@ body:
     id: bundle
     attributes:
       label: Diagnostics bundle
-      description: Health > Export diagnostics bundle, then drag the .zip here.
+      description: Health > Export diagnostics bundle, then drag the .zip here. Issues are public, and the bundle may contain your Windows user name (in file paths) and device serial numbers or IDs. Open the zip and review it first; remove anything you do not want to share.
       placeholder: Drop dualforge-diagnostics-....zip here
   - type: checkboxes
     id: checked

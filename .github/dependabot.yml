@@ -1,0 +1,8 @@
+version: 2
+updates:
+  # keeps the SHA-pinned actions in .github/workflows current (PRs update the SHA and the # vX.Y.Z comment)
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

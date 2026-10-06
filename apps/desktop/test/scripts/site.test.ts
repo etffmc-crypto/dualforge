@@ -19,6 +19,14 @@ describe('download page (site/)', () => {
     expect(html).toContain('https://github.com/etffmc-crypto/dualforge/blob/main/CHANGELOG.md');
     expect(html).toContain('href="https://github.com/etffmc-crypto/dualforge"');
   });
+  it('ships a restrictive Content-Security-Policy (no inline script, API-only connect)', () => {
+    const csp = /http-equiv="Content-Security-Policy"\s+content="([^"]+)"/.exec(html)?.[1] ?? '';
+    expect(csp).toContain("default-src 'none'");
+    expect(csp).toContain("script-src 'self'");
+    expect(csp).toMatch(/connect-src https:\/\/api\.github\.com/);
+    expect(csp).not.toContain('unsafe-inline');
+    expect(html).not.toMatch(/<script>(?!<\/script>)/); // no inline scripts the CSP would block
+  });
   it('only loads its own script and stylesheet (plus Google Fonts)', () => {
     const srcs = [...html.matchAll(/(?:src|href)="(https?:[^"]+)"/g)]
       .map((m) => m[1]!)
