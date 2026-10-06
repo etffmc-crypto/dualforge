@@ -318,7 +318,7 @@ describe('runChecks', () => {
       status: 'warn',
     },
     {
-      name: 'update states disabled / none / unchecked are ok',
+      name: 'update state none is ok',
       patch: (i) => {
         i.app.update = { state: 'none' };
       },

@@ -275,8 +275,21 @@ describe('queryHidHide unresponsive CLI', () => {
       expect.stringContaining('administrator'),
     );
   });
-  it('a spawn EACCES / 740 (elevation required) is needs-admin, logged once across runs', async () => {
-    for (const code of ['EACCES', 740] as const) {
+  it('libuv\'s "spawn UNKNOWN" (errno -4094) for a requireAdministrator exe is needs-admin', async () => {
+    const exec: Exec = async () => {
+      throw Object.assign(new Error('spawn UNKNOWN'), {
+        code: 'UNKNOWN',
+        errno: -4094,
+        syscall: 'spawn',
+      });
+    };
+    const onError = vi.fn();
+    const r = await queryHidHide({ ...base, exec, onError, memo: createHidHideMemo() });
+    expect(r).toMatchObject({ cliUnresponsive: 'needs-admin' });
+    expect(onError).toHaveBeenCalledTimes(1);
+  });
+  it('a spawn EACCES / EPERM / 740 (elevation required) is needs-admin, logged once across runs', async () => {
+    for (const code of ['EACCES', 'EPERM', 740] as const) {
       const exec = vi.fn<Exec>(async () => {
         throw Object.assign(new Error('spawn EACCES'), { code });
       });

@@ -146,10 +146,12 @@ export interface HidHideDeps {
 
 const isTimeout = (e: unknown) => e instanceof HealthAdapterError && e.code === 'E_HEALTH_TIMEOUT';
 const isDenied = (e: unknown) => {
-  const x = e as { code?: unknown; stderr?: unknown; message?: unknown } | null;
+  const x = e as { code?: unknown; errno?: unknown; stderr?: unknown; message?: unknown } | null;
   if (!x) return false;
-  // 5 = ERROR_ACCESS_DENIED; 740 / EACCES = ERROR_ELEVATION_REQUIRED (a requireAdministrator manifest fails at spawn)
-  if (x.code === 5 || x.code === 740 || x.code === 'EACCES') return true;
+  // 5 = ERROR_ACCESS_DENIED. ERROR_ELEVATION_REQUIRED (740, a requireAdministrator manifest) fails at spawn and libuv
+  // reports it as code 'UNKNOWN' / errno -4094 (or EACCES / EPERM); a spawn-level UNKNOWN on an existing CLI is that case.
+  if (x.code === 5 || x.code === 740 || x.errno === -4094) return true;
+  if (x.code === 'EACCES' || x.code === 'EPERM' || x.code === 'UNKNOWN') return true;
   const text = `${typeof x.stderr === 'string' ? x.stderr : ''}\n${typeof x.message === 'string' ? x.message : ''}`;
   return /access is denied|requires elevation|elevation required/i.test(text);
 };
