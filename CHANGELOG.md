@@ -4,11 +4,11 @@
 
 ### Packaged-app fixes and update status
 
-- The app and the Health page now report DualForge's own version (the installed 0.3.3 logged Electron's 44.5.1).
-- HidHide: the CLI is probed with a short 2 s timeout (`--version` first). If it hangs or needs administrator rights, Health shows "HidHide installed - state unknown (CLI unresponsive, likely needs administrator)" with a **Retry now** button, and DualForge stops re-probing (and re-logging `E_HEALTH_TIMEOUT`) for 30 minutes instead of every 5-minute run.
-- A second launch now exits immediately, before any logging, so it no longer adds an `APP_START` line.
+- Test and development runs no longer write into your real log (`%APPDATA%\DualForge\logs`). They used to add `APP_START` lines (some reporting Electron's version, 44.5.1) and HidHide timeouts, which is what made the log look like repeated starts and timeouts. Runs with `DUALFORGE_DATA_DIR` now log inside that folder.
+- Hardening: the app and the Health page report DualForge's own version even if `app.getVersion()` does not, and a second launch exits immediately, before any logging.
+- HidHide: the CLI is probed with a short 2 s timeout (`--version` first). If it hangs or needs administrator rights (including a spawn that fails with "elevation required"), Health shows "HidHide installed — state unknown (CLI unresponsive, likely needs administrator)" with a **Retry now** button, and DualForge stops re-probing (and re-logging) for 30 minutes instead of every 5-minute run.
 - Share codes: whitespace and line breaks in a pasted code are ignored, and the import error says a valid code is one line starting with `DUALFORGE:`.
-- Settings > Updates shows the app version, "Not checked yet." and "Up to date (0.3.4)." after a check with nothing new. The Health app card words each state: updates off, not checked yet, up to date, update x.y.z available, check failed.
+- Settings > Updates shows the app version and the result of the startup check as soon as you open it: "Not checked yet.", "Up to date (0.3.4).", "Version x.y.z is available." with its Download button, or a failed check. The Health app card words each state the same way, and a failed re-check no longer hides an update that was already found.
 
 ## 0.3.3
 

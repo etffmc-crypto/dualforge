@@ -208,7 +208,7 @@ Listing running programs for the auto-switch picker failed. Fix: type the exe na
 
 ### E_HEALTH_TIMEOUT
 
-A health probe (`sc.exe`, PowerShell: 5 s; HidHideCLI: 2 s) did not answer in time and was killed; the affected check shows "unknown". A HidHideCLI timeout is logged once, then the CLI is skipped for 30 minutes (Health shows "HidHide installed � state unknown" with a Retry now repair); it usually means the CLI needs administrator rights. Cause: a busy or hung system. Fix: run the checks again.
+A health probe (`sc.exe`, PowerShell: 5 s; HidHideCLI: 2 s) did not answer in time and was killed; the affected check shows "unknown". A HidHideCLI timeout is logged once, then the CLI is skipped for 30 minutes (Health shows "HidHide installed — state unknown" with a Retry now repair); it usually means the CLI needs administrator rights. Cause: a busy or hung system. Fix: run the checks again.
 
 ### E_HEALTH_SC
 
