@@ -41,6 +41,32 @@ export function Settings() {
       setDl((s) => (s.phase === 'downloading' ? { phase: 'downloading', percent: p.percent } : s)),
     );
   }, [updatesEnabled]);
+  // the startup check may already have run (or finish while this page is open): seed from the main process
+  useEffect(() => {
+    const updates = window.dualforge.updates;
+    if (!updatesEnabled || !updates?.last) return;
+    let alive = true;
+    const sync = () =>
+      updates.last().then(
+        (s) => {
+          if (!alive) return;
+          setUpdateResult((prev) => {
+            if (s.state === 'available')
+              return { available: true, ...(s.version ? { version: s.version } : {}) };
+            if (s.state === 'none') return { available: false };
+            if (s.state === 'error') return { available: false, code: 'E_UPDATE_CHECK' };
+            return prev; // disabled / unchecked: keep what a manual check showed
+          });
+        },
+        () => undefined,
+      );
+    void sync();
+    const off = updates.onChanged?.(() => void sync());
+    return () => {
+      alive = false;
+      off?.();
+    };
+  }, [updatesEnabled]);
   useEffect(() => {
     loadSettings().catch(() => undefined); // Health repairs can flip hidHide behind the page's back
     const health = window.dualforge.health;

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { AppUpdateStatus } from './health/checks.js';
 
 export interface UpdateResult {
   available: boolean;
@@ -175,6 +176,20 @@ export function createUpdater(d: UpdaterDeps) {
     last: (): UpdateResult | null => (d.enabled() ? lastResult : null),
     /** The most recent check failed (cleared by the next successful one). */
     failed: (): boolean => d.enabled() && lastFailed,
+    /**
+     * One state for Health and Settings. A known available update stays "available" even if a later re-check failed;
+     * "error" only shows when nothing better is known.
+     */
+    status: (): AppUpdateStatus => {
+      if (!d.enabled()) return { state: 'disabled' };
+      if (lastResult?.available)
+        return {
+          state: 'available',
+          ...(lastResult.version ? { version: lastResult.version } : {}),
+        };
+      if (lastFailed) return { state: 'error' };
+      return { state: lastResult ? 'none' : 'unchecked' };
+    },
   };
 }
 export type Updater = ReturnType<typeof createUpdater>;
@@ -185,7 +200,7 @@ type Handler = (event: unknown, ...args: unknown[]) => unknown;
 
 export function registerUpdateIpc(d: {
   ipc: { handle(channel: string, fn: Handler): void };
-  updater: Pick<Updater, 'check' | 'download' | 'install'>;
+  updater: Pick<Updater, 'check' | 'download' | 'install' | 'status'>;
 }): void {
   const h = (ch: string, fn: () => unknown) =>
     d.ipc.handle(ch, (_e, ...a) => {
@@ -193,6 +208,7 @@ export function registerUpdateIpc(d: {
       return fn();
     });
   h('updates:check', () => d.updater.check());
+  h('updates:last', () => d.updater.status());
   h('updates:download', () => d.updater.download());
   h('updates:install', () => d.updater.install());
 }

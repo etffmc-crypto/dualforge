@@ -98,6 +98,28 @@ describe('updater', () => {
     expect(r.u.last()).toEqual({ available: true, version: '0.2.0' });
     expect(r.u.failed()).toBe(true);
   });
+  it('status(): a failed re-check keeps a known available update (error only when nothing better is known)', async () => {
+    let n = 0;
+    const r = rig({
+      check: async () => {
+        if (n++ === 0) return { isUpdateAvailable: true, updateInfo: { version: '0.3.5' } };
+        throw new Error('offline');
+      },
+    });
+    expect(r.u.status()).toEqual({ state: 'unchecked' });
+    await r.u.check();
+    expect(r.u.status()).toEqual({ state: 'available', version: '0.3.5' });
+    await r.u.check(); // fails
+    expect(r.u.failed()).toBe(true);
+    expect(r.u.status()).toEqual({ state: 'available', version: '0.3.5' });
+    const f = rig({
+      check: async () => {
+        throw new Error('offline');
+      },
+    });
+    await f.u.check();
+    expect(f.u.status()).toEqual({ state: 'error' });
+  });
   it('turning updates off forgets the last result', async () => {
     let on = true;
     const au = {
@@ -260,9 +282,16 @@ describe('registerUpdateIpc', () => {
       check: vi.fn(async () => ({ available: false })),
       download: vi.fn(async () => ({ ok: true })),
       install: vi.fn(async () => ({ ok: true })),
+      status: vi.fn(() => ({ state: 'none' as const })),
     };
     registerUpdateIpc({ ipc: { handle: (ch, fn) => handlers.set(ch, fn) }, updater });
-    expect([...handlers.keys()]).toEqual(['updates:check', 'updates:download', 'updates:install']);
+    expect([...handlers.keys()]).toEqual([
+      'updates:check',
+      'updates:last',
+      'updates:download',
+      'updates:install',
+    ]);
+    expect(handlers.get('updates:last')!({})).toEqual({ state: 'none' });
     await handlers.get('updates:download')!({});
     handlers.get('updates:install')!({});
     expect(updater.download).toHaveBeenCalledTimes(1);

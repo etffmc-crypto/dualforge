@@ -80,6 +80,7 @@ const updater = createUpdater({
   log: logger,
   load: async () => (await import('electron-updater')).autoUpdater,
   onResult: () => {
+    if (win && !win.isDestroyed()) win.webContents.send('updates:changed');
     void health.run();
   },
   onProgress: (p) => {
@@ -204,15 +205,7 @@ const health = createHealthService({
       appVersion: APP_VERSION,
       engine: () => engineFeed.view(),
       updateAvailable: () => updater.last()?.available ?? null,
-      updateStatus: () => {
-        if (!__UPDATES_ENABLED__ || !settings.get().updates) return { state: 'disabled' };
-        if (updater.failed()) return { state: 'error' };
-        const r = updater.last();
-        if (!r) return { state: 'unchecked' };
-        return r.available
-          ? { state: 'available', ...(r.version ? { version: r.version } : {}) }
-          : { state: 'none' };
-      },
+      updateStatus: () => updater.status(),
       injector: {
         available: injector.available,
         lastForeign: () => watcher.lastForeignForeground(),

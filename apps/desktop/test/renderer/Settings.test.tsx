@@ -19,12 +19,20 @@ const openDataDir = vi.fn(async () => '');
 type ActionResult = { ok: boolean; version?: string; code?: string };
 type ProgressCb = (p: { percent: number; transferred: number; total: number }) => void;
 let progressCb: ProgressCb | null = null;
+let changedCb: (() => void) | null = null;
 const updatesApi = {
   check: vi.fn(async (): Promise<{ available: boolean; version?: string; code?: string }> => ({
     available: false,
   })),
   download: vi.fn(async (): Promise<ActionResult> => ({ ok: true, version: '0.2.0' })),
   install: vi.fn(async (): Promise<ActionResult> => ({ ok: true, version: '0.2.0' })),
+  last: vi.fn(async (): Promise<{ state: string; version?: string }> => ({ state: 'unchecked' })),
+  onChanged: vi.fn((cb: () => void) => {
+    changedCb = cb;
+    return () => {
+      changedCb = null;
+    };
+  }),
   onProgress: vi.fn((cb: ProgressCb) => {
     progressCb = cb;
     return () => {
@@ -179,6 +187,26 @@ describe('Settings page', () => {
     fireEvent.click(sw('Close to tray'));
     expect(settingsApi.set).toHaveBeenCalledWith({ closeToTray: false });
     await waitFor(() => expect(stored.closeToTray).toBe(false));
+  });
+
+  it('shows what the startup check already found when the page opens', async () => {
+    updatesApi.last.mockResolvedValueOnce({ state: 'available', version: '0.3.5' });
+    render(<Settings />);
+    await waitFor(() => expect(screen.getByText('Version 0.3.5 is available.')).toBeTruthy());
+    expect(screen.getByRole('button', { name: 'Download 0.3.5' })).toBeTruthy();
+    expect(screen.queryByText('Not checked yet.')).toBeNull();
+  });
+
+  it('shows up to date / failed from the startup check, and follows a check that finishes while open', async () => {
+    updatesApi.last.mockResolvedValueOnce({ state: 'none' });
+    render(<Settings />);
+    await waitFor(() => expect(screen.getByText('Up to date (0.3.4).')).toBeTruthy());
+    updatesApi.last.mockResolvedValueOnce({ state: 'error' });
+    await act(async () => changedCb!());
+    await waitFor(() => expect(screen.getByText(/update check failed/)).toBeTruthy());
+    updatesApi.last.mockResolvedValueOnce({ state: 'available', version: '0.3.6' });
+    await act(async () => changedCb!());
+    await waitFor(() => expect(screen.getByText('Version 0.3.6 is available.')).toBeTruthy());
   });
 
   it('Check now shows what the updater found', async () => {
