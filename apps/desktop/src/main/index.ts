@@ -1,3 +1,4 @@
+import { hasInstanceLock } from './instance-guard.js'; // first: a second instance exits before the logger starts
 import {
   app,
   BrowserWindow,
@@ -377,9 +378,7 @@ function showWindow(): void {
   win.focus();
 }
 
-if (!app.requestSingleInstanceLock()) {
-  app.quit();
-} else {
+if (hasInstanceLock) {
   app.on('second-instance', () => showWindow());
   app.whenReady().then(() => {
     logger.info({ code: 'APP_START', version: APP_VERSION });
