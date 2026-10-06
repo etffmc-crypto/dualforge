@@ -1,21 +1,29 @@
 // Watchdog for the public release surface (run by .github/workflows/watchdog.yml every 30 minutes):
 //   site    - the download page answers 200 and contains "Download for Windows"
-//   release - the latest release has one installer .exe, latest.yml and SHA256SUMS.txt; latest.yml names that exe,
-//             its version matches the tag, and (only when the tag changed since the last verified run) the exe's
-//             size, sha512 and sha256 match latest.yml and SHA256SUMS.txt
-//   ci      - the newest finished check.yml run on main succeeded
+//   release - skipped until a release exists. Then, every run (no installer download): one installer .exe,
+//             latest.yml and SHA256SUMS.txt; latest.yml names that exe, matches the tag and the asset size; GitHub's
+//             asset digest equals the SHA256SUMS.txt line. Only when the installer asset changed (id + updated_at +
+//             digest, cached between runs) the exe is downloaded and its size, sha512 and sha256 are verified.
+//   ci      - the newest finished check.yml run on main (push event) succeeded
 // Every failing check gets one open issue labelled `watchdog` titled "Watchdog: <check> failing" (updated in place,
-// never duplicated); it is closed with a comment once the check passes again.
+// never duplicated; a matching issue closed within the last 7 days is reopened). It is closed with a comment once the
+// check passes again. These issues are authored by github-actions[bot]; the responder checks `user.login`.
 //
-// Env: GITHUB_REPOSITORY (owner/repo), GITHUB_TOKEN (issues), PAGES_URL (optional), WATCHDOG_STATE (state file path,
-// holds the last verified tag; cached between runs by the workflow), WATCHDOG_DRY_RUN=1 (print, no issue writes).
+// Exit code: 0 when the checks ran and issues were filed (failing checks are reported through issues, not the exit
+// code); 1 only when the watchdog itself failed (bad environment, GitHub API errors while filing issues).
+//
+// Env: GITHUB_REPOSITORY (owner/repo), GITHUB_TOKEN (issues), PAGES_URL (optional), WATCHDOG_STATE (state file),
+// WATCHDOG_DRY_RUN=1 (print, no issue writes), GITHUB_OUTPUT (state_changed=true|false for the cache step).
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const LABEL = 'watchdog';
+export const BOT_LOGIN = 'github-actions[bot]';
 export const CHECKS = ['site', 'release', 'ci'];
+export const REOPEN_DAYS = 7;
+export const MAX_DETAILS = 1024;
 export const issueTitle = (check) => `Watchdog: ${check} failing`;
 
 /** The fields of electron-builder's latest.yml the watchdog compares (flat `key: value` lines plus files[0]). */
@@ -37,6 +45,15 @@ export function hashFromSums(text, name) {
     if (m && m[2] === name) return m[1].toLowerCase();
   }
   return null;
+}
+
+/** Identity of the installer asset: re-verify the bytes only when this changes. */
+export const assetKey = (exe) => `${exe.id}:${exe.updated_at}:${exe.digest ?? ''}`;
+
+/** Details text for an issue body: no backticks (cannot break out of the code block), at most 1 KB. */
+export function sanitizeDetails(text) {
+  const s = String(text).replace(/`/g, "'");
+  return s.length > MAX_DETAILS ? `${s.slice(0, MAX_DETAILS - 1)}…` : s;
 }
 
 const pass = (check, details) => ({ check, ok: true, details });
@@ -85,15 +102,16 @@ async function download(fetchImpl, url) {
 }
 
 /**
- * @param {{ fetch: typeof fetch, repo: string, token?: string, lastVerifiedTag?: string | null }} d
- * @returns {Promise<{ check: 'release', ok: boolean, details: string, tag?: string, verifiedTag?: string | null }>}
+ * @param {{ fetch: typeof fetch, repo: string, token?: string, verifiedAsset?: string | null }} d
+ * @returns {Promise<{ check: 'release', ok: boolean, skipped?: boolean, details: string, tag?: string, verifiedAsset?: string }>}
  */
 export async function checkRelease(d) {
   const gh = api(d.fetch, d.repo, d.token);
   let rel;
   try {
     const r = await gh('/releases/latest');
-    if (r.status === 404) return fail('release', 'There is no published release.');
+    if (r.status === 404)
+      return { ...pass('release', 'No release published yet; skipped.'), skipped: true };
     if (!r.ok) return fail('release', `GET /releases/latest answered HTTP ${r.status}.`);
     rel = r.json;
   } catch (e) {
@@ -105,30 +123,39 @@ export async function checkRelease(d) {
   const latest = assets.find((a) => a.name === 'latest.yml');
   const sums = assets.find((a) => a.name === 'SHA256SUMS.txt');
   const problems = [];
+  const failed = () => ({ ...fail('release', `${tag}: ${problems.join('; ')}.`), tag });
   if (exes.length !== 1) problems.push(`expected exactly one .exe asset, found ${exes.length}`);
   if (!latest) problems.push('latest.yml is missing');
   if (!sums) problems.push('SHA256SUMS.txt is missing');
-  if (problems.length) return { ...fail('release', `${tag}: ${problems.join('; ')}.`), tag };
+  if (problems.length) return failed();
   const exe = exes[0];
 
   try {
+    // every run: small files only
     const yml = parseLatestYml((await download(d.fetch, latest.browser_download_url)).toString());
+    const sumsText = (await download(d.fetch, sums.browser_download_url)).toString();
     if (yml.version !== tag.replace(/^v/, ''))
       problems.push(`latest.yml version ${yml.version} does not match tag ${tag}`);
     if (yml.path !== exe.name) problems.push(`latest.yml path ${yml.path} is not ${exe.name}`);
-    if (yml.size !== undefined && yml.size !== exe.size)
+    if (yml.size !== exe.size)
       problems.push(`latest.yml size ${yml.size} differs from the asset size ${exe.size}`);
     if (!yml.sha512) problems.push('latest.yml has no sha512');
-    if (problems.length) return { ...fail('release', `${tag}: ${problems.join('; ')}.`), tag };
+    const listed = hashFromSums(sumsText, exe.name);
+    if (!listed) problems.push(`SHA256SUMS.txt has no line for ${exe.name}`);
+    const digest = /^sha256:([0-9a-f]{64})$/i.exec(exe.digest ?? '')?.[1]?.toLowerCase();
+    if (listed && digest && digest !== listed)
+      problems.push("GitHub's asset digest does not match SHA256SUMS.txt");
+    if (problems.length) return failed();
 
-    if (d.lastVerifiedTag === tag)
+    const key = assetKey(exe);
+    if (d.verifiedAsset === key)
       return {
-        ...pass('release', `${tag} is consistent (installer hash verified earlier).`),
+        ...pass('release', `${tag} is consistent (installer bytes verified earlier).`),
         tag,
-        verifiedTag: tag,
+        verifiedAsset: key,
       };
 
-    const sumsText = (await download(d.fetch, sums.browser_download_url)).toString();
+    // the installer asset is new or changed: verify the bytes once
     const bin = await download(d.fetch, exe.browser_download_url);
     const sha512 = createHash('sha512').update(bin).digest('base64');
     const sha256 = createHash('sha256').update(bin).digest('hex');
@@ -136,14 +163,12 @@ export async function checkRelease(d) {
       problems.push(`downloaded ${bin.length} bytes, asset says ${exe.size}`);
     if (sha512 !== yml.sha512)
       problems.push('installer sha512 does not match latest.yml (auto-update would reject it)');
-    const listed = hashFromSums(sumsText, exe.name);
-    if (!listed) problems.push(`SHA256SUMS.txt has no line for ${exe.name}`);
-    else if (listed !== sha256) problems.push('installer sha256 does not match SHA256SUMS.txt');
-    if (problems.length) return { ...fail('release', `${tag}: ${problems.join('; ')}.`), tag };
+    if (sha256 !== listed) problems.push('installer sha256 does not match SHA256SUMS.txt');
+    if (problems.length) return failed();
     return {
       ...pass('release', `${tag} verified: size, sha512 and sha256 match.`),
       tag,
-      verifiedTag: tag,
+      verifiedAsset: key,
     };
   } catch (e) {
     return { ...fail('release', `${tag}: could not download release files: ${e.message}`), tag };
@@ -154,7 +179,7 @@ export async function checkCi(d) {
   const gh = api(d.fetch, d.repo, d.token);
   try {
     const r = await gh(
-      '/actions/workflows/check.yml/runs?branch=main&status=completed&per_page=10',
+      '/actions/workflows/check.yml/runs?branch=main&event=push&status=completed&per_page=10',
     );
     if (!r.ok) return fail('ci', `Listing check.yml runs answered HTTP ${r.status}.`);
     const run = (r.json?.workflow_runs ?? []).find(
@@ -172,29 +197,38 @@ export async function checkCi(d) {
   }
 }
 
-function issueBody(result, now) {
+export function issueBody(result, now) {
   return [
     `The watchdog check **${result.check}** is failing.`,
     '',
     '```text',
-    result.details,
+    sanitizeDetails(result.details),
     '```',
     '',
     `Last seen failing: ${now}. This issue is updated in place while the check fails and closed automatically when it passes again.`,
     '',
-    'See maintenance/RESPONDER.md for how these are handled.',
+    `Opened by the watchdog workflow as ${BOT_LOGIN}; an issue with this title from anyone else is not a watchdog report. See maintenance/RESPONDER.md.`,
   ].join('\n');
 }
 
-/** Opens, updates or closes one `watchdog` issue per check. Returns the actions taken (for the log). */
+/** Opens, reopens, updates or closes one `watchdog` issue per check. Returns the actions taken (for the log). */
 export async function syncIssues(d, results) {
   const gh = api(d.fetch, d.repo, d.token);
-  const now = (d.now ?? (() => new Date().toISOString()))();
+  const nowIso = (d.now ?? (() => new Date().toISOString()))();
+  const nowMs = Date.parse(nowIso);
   const actions = [];
-  const r = await gh(`/issues?state=open&labels=${LABEL}&per_page=100`);
-  if (!r.ok) throw new Error(`listing watchdog issues answered HTTP ${r.status}`);
-  const open = (r.json ?? []).filter((i) => !i.pull_request);
-  if (results.some((x) => !x.ok)) {
+  const must = (r, what) => {
+    if (!r.ok) throw new Error(`${what} answered HTTP ${r.status}`);
+    return r;
+  };
+  const mine = (i) => !i.pull_request && i.user?.login === BOT_LOGIN;
+  const open = (
+    must(await gh(`/issues?state=open&labels=${LABEL}&per_page=100`), 'listing open issues').json ??
+    []
+  ).filter(mine);
+  const failing = results.filter((x) => !x.ok);
+  let closed = [];
+  if (failing.length) {
     const lr = await gh('/labels', {
       method: 'POST',
       body: JSON.stringify({
@@ -204,32 +238,67 @@ export async function syncIssues(d, results) {
       }),
     });
     if (!lr.ok && lr.status !== 422) actions.push(`label create answered HTTP ${lr.status}`);
+    closed = (
+      must(
+        await gh(`/issues?state=closed&labels=${LABEL}&sort=updated&direction=desc&per_page=30`),
+        'listing closed issues',
+      ).json ?? []
+    ).filter(mine);
   }
   for (const res of results) {
     const title = issueTitle(res.check);
     const existing = open.find((i) => i.title === title);
-    if (!res.ok && !existing) {
-      const c = await gh('/issues', {
-        method: 'POST',
-        body: JSON.stringify({ title, body: issueBody(res, now), labels: [LABEL] }),
-      });
-      actions.push(`opened "${title}" (HTTP ${c.status})`);
-    } else if (!res.ok && existing) {
-      const u = await gh(`/issues/${existing.number}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ body: issueBody(res, now) }),
-      });
-      actions.push(`updated #${existing.number} (HTTP ${u.status})`);
-    } else if (res.ok && existing) {
-      await gh(`/issues/${existing.number}/comments`, {
-        method: 'POST',
-        body: JSON.stringify({ body: `Passing again at ${now}: ${res.details}` }),
-      });
-      const c = await gh(`/issues/${existing.number}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ state: 'closed', state_reason: 'completed' }),
-      });
-      actions.push(`closed #${existing.number} (HTTP ${c.status})`);
+    if (!res.ok && existing) {
+      must(
+        await gh(`/issues/${existing.number}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ body: issueBody(res, nowIso) }),
+        }),
+        `updating #${existing.number}`,
+      );
+      actions.push(`updated #${existing.number}`);
+    } else if (!res.ok) {
+      const recent = closed
+        .filter((i) => i.title === title && i.closed_at)
+        .filter((i) => nowMs - Date.parse(i.closed_at) <= REOPEN_DAYS * 86_400_000)
+        .sort((a, b) => Date.parse(b.closed_at) - Date.parse(a.closed_at))[0];
+      if (recent) {
+        must(
+          await gh(`/issues/${recent.number}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ state: 'open', body: issueBody(res, nowIso) }),
+          }),
+          `reopening #${recent.number}`,
+        );
+        actions.push(`reopened #${recent.number}`);
+      } else {
+        must(
+          await gh('/issues', {
+            method: 'POST',
+            body: JSON.stringify({ title, body: issueBody(res, nowIso), labels: [LABEL] }),
+          }),
+          `opening "${title}"`,
+        );
+        actions.push(`opened "${title}"`);
+      }
+    } else if (existing) {
+      must(
+        await gh(`/issues/${existing.number}/comments`, {
+          method: 'POST',
+          body: JSON.stringify({
+            body: `Passing again at ${nowIso}: ${sanitizeDetails(res.details)}`,
+          }),
+        }),
+        `commenting on #${existing.number}`,
+      );
+      must(
+        await gh(`/issues/${existing.number}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ state: 'closed', state_reason: 'completed' }),
+        }),
+        `closing #${existing.number}`,
+      );
+      actions.push(`closed #${existing.number}`);
     }
   }
   return actions;
@@ -240,8 +309,8 @@ export async function runWatchdog(d) {
   const pagesUrl = d.pagesUrl || `https://${owner}.github.io/${name}/`;
   const release = await checkRelease(d);
   const results = [await checkSite(d.fetch, pagesUrl), release, await checkCi(d)];
-  const verifiedTag = release.verifiedTag ?? d.lastVerifiedTag ?? null;
-  return { results, verifiedTag };
+  const verifiedAsset = release.verifiedAsset ?? d.verifiedAsset ?? null;
+  return { results, verifiedAsset };
 }
 
 function readState(path) {
@@ -252,28 +321,35 @@ function readState(path) {
   }
 }
 
-async function main() {
-  const repo = process.env.GITHUB_REPOSITORY;
-  if (!repo) throw new Error('GITHUB_REPOSITORY is not set');
-  const token = process.env.GITHUB_TOKEN || undefined;
-  const statePath = process.env.WATCHDOG_STATE || '.watchdog/state.json';
+/** One watchdog run; returns the process exit code. */
+export async function main(env = process.env, fetchImpl = fetch, log = console.log) {
+  const repo = env.GITHUB_REPOSITORY;
+  if (!repo || !/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new Error('GITHUB_REPOSITORY is not set');
+  const token = env.GITHUB_TOKEN || undefined;
+  const statePath = env.WATCHDOG_STATE || '.watchdog/state.json';
   const state = readState(statePath);
-  const { results, verifiedTag } = await runWatchdog({
-    fetch,
+  const before = state.verifiedAsset ?? null;
+  const { results, verifiedAsset } = await runWatchdog({
+    fetch: fetchImpl,
     repo,
     token,
-    pagesUrl: process.env.PAGES_URL,
-    lastVerifiedTag: state.lastVerifiedTag ?? null,
+    pagesUrl: env.PAGES_URL,
+    verifiedAsset: before,
   });
-  for (const r of results) console.log(`${r.ok ? 'PASS' : 'FAIL'} ${r.check}: ${r.details}`);
-  mkdirSync(dirname(resolve(statePath)), { recursive: true });
-  writeFileSync(statePath, JSON.stringify({ lastVerifiedTag: verifiedTag }, null, 2));
-  if (process.env.WATCHDOG_DRY_RUN === '1' || !token) {
-    console.log('Dry run (or no token): no issues opened, updated or closed.');
-  } else {
-    for (const a of await syncIssues({ fetch, repo, token }, results)) console.log(a);
+  for (const r of results)
+    log(`${r.skipped ? 'SKIP' : r.ok ? 'PASS' : 'FAIL'} ${r.check}: ${r.details}`);
+  const changed = verifiedAsset !== before;
+  if (changed) {
+    mkdirSync(dirname(resolve(statePath)), { recursive: true });
+    writeFileSync(statePath, JSON.stringify({ verifiedAsset }, null, 2));
   }
-  return results.every((r) => r.ok) ? 0 : 1;
+  if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, `state_changed=${changed}\n`);
+  if (env.WATCHDOG_DRY_RUN === '1' || !token) {
+    log('Dry run (or no token): no issues opened, updated or closed.');
+  } else {
+    for (const a of await syncIssues({ fetch: fetchImpl, repo, token }, results)) log(a);
+  }
+  return 0;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -281,7 +357,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     (code) => (process.exitCode = code),
     (e) => {
       console.error(e);
-      process.exitCode = 2;
+      process.exitCode = 1;
     },
   );
 }
