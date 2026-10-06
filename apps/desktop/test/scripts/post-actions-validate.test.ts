@@ -116,18 +116,53 @@ describe('post-actions validator', () => {
     expect(errorsOf(k)).toContain('comments[0].vars.branch: must name a branch from prs');
   });
 
-  it('PR text: one-line title, no foreign links, no @-mentions, no control characters, size caps', () => {
+  describe('PR title and body are plain prose', () => {
     const t = (patch: object) => {
       const g = good();
       Object.assign(g.prs[0]!, patch);
       return errorsOf(g).join('\n');
     };
-    expect(t({ title: 'a\nb' })).toMatch(/must be one line/);
-    expect(t({ body: 'see https://evil.example/x' })).toMatch(/links outside/);
-    expect(t({ body: 'see https://github.com/etffmc-crypto/dualforge/issues/12' })).toBe('');
-    expect(t({ body: 'thanks @someone' })).toMatch(/@-mention/);
-    expect(t({ body: 'bell\u0007' })).toMatch(/control characters/);
-    expect(t({ body: 'x'.repeat(4001) })).toMatch(/longer than 4000/);
+    it('accepts the plain text, the "(#12)" title suffix and a "Refs #12" body line', () => {
+      expect(t({})).toBe('');
+      expect(t({ body: 'Clamped the range.\nRefs #12\nCovered by a regression test.' })).toBe('');
+    });
+    it('one-line title, size caps, control characters', () => {
+      expect(t({ title: 'a\nb' })).toMatch(/must be one line/);
+      expect(t({ body: 'x'.repeat(4001) })).toMatch(/longer than 4000/);
+      expect(t({ body: 'bell\u0007' })).toMatch(/control characters/);
+    });
+    it('rejects "@" anywhere', () => {
+      expect(t({ body: 'thanks @someone' })).toMatch(/"@"/);
+      expect(t({ body: 'mail me: a@b' })).toMatch(/"@"/);
+      expect(t({ title: 'fix: ping@x (#12)' })).toMatch(/title: must not contain "@"/);
+    });
+    it('rejects links: "//" and "www."', () => {
+      expect(t({ body: 'see https://github.com/etffmc-crypto/dualforge/issues/12' })).toMatch(
+        /"\/\/"/,
+      );
+      expect(t({ body: 'see //evil.example/x' })).toMatch(/"\/\/"/);
+      expect(t({ body: 'see www.evil.example' })).toMatch(/"www\."/);
+    });
+    it('rejects "<" and ">" (HTML, autolinks, comments)', () => {
+      expect(t({ body: '<img src=x>' })).toMatch(/"<" or ">"/);
+      expect(t({ body: 'a > b' })).toMatch(/"<" or ">"/);
+      expect(t({ title: 'fix <b>bold</b> (#12)' })).toMatch(/"<" or ">"/);
+    });
+    it('rejects closing keywords and other issue references', () => {
+      expect(t({ body: 'Fixes #12' })).toMatch(/closing keywords/);
+      expect(t({ body: 'closes: #3' })).toMatch(/closing keywords/);
+      expect(t({ body: 'Resolves etffmc-crypto/dualforge#3' })).toMatch(/closing keywords/);
+      expect(t({ body: 'see #3' })).toMatch(/"Refs #12" line/);
+      expect(t({ body: 'Refs #3' })).toMatch(/"Refs #12" line/);
+      expect(t({ body: 'Also Refs #12 inline' })).toMatch(/"Refs #12" line/);
+      expect(t({ title: 'fix (#13)' })).toMatch(/trailing "\(#12\)"/);
+      expect(t({ title: 'fix #12 now (#12)' })).toMatch(/trailing "\(#12\)"/);
+    });
+    it('rejects zero-width and bidi characters', () => {
+      for (const ch of ['​', '‏', '‪', '‮', '⁦', '⁩', '﻿'])
+        expect(t({ body: `ab${ch}cd` })).toMatch(/zero-width or bidi/);
+      expect(t({ title: 'fix‮evil (#12)' })).toMatch(/zero-width or bidi/);
+    });
   });
 
   it('refuses a plan that contains the token anywhere', () => {

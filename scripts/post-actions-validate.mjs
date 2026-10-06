@@ -66,18 +66,40 @@ export function forbiddenPaths(paths) {
 
 const isObj = (x) => typeof x === 'object' && x !== null && !Array.isArray(x);
 const isIssue = (n) => Number.isInteger(n) && n > 0 && n < 1e7;
-const URL_RE = /https?:\/\/[^\s)>\]]+/gi;
+// zero-width and bidi controls (U+200B-U+200F, U+202A-U+202E, U+2066-U+2069, U+FEFF): text that reads differently
+export const INVISIBLE_RE = /[​-‏‪-‮⁦-⁩﻿]/;
+// GitHub's closing keywords followed by an issue reference
+export const CLOSING_RE = /\b(close[sd]?|fix(e[sd])?|resolve[sd]?)\b\s*:?\s*[\w./-]*#\d+/i;
 
-function checkText(errors, where, s, max) {
+/**
+ * Free text the responder writes into a PR. Plain prose only: no mentions, links, HTML, invisible characters or issue
+ * references, except the title suffix "(#<issue>)" and a body line "Refs #<issue>" for the PR's own issue.
+ */
+function checkText(errors, where, s, max, { issue, kind }) {
   if (typeof s !== 'string' || !s.trim())
     return errors.push(`${where}: must be a non-empty string`);
   if (s.length > max) errors.push(`${where}: longer than ${max} characters`);
   if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(s))
     errors.push(`${where}: contains control characters`);
-  for (const u of s.match(URL_RE) ?? [])
-    if (!u.startsWith(`https://github.com/${REPO}`))
-      errors.push(`${where}: links outside https://github.com/${REPO} (${u.slice(0, 60)})`);
-  if (/(^|\s)@[a-z0-9-]/i.test(s)) errors.push(`${where}: must not @-mention anyone`);
+  if (INVISIBLE_RE.test(s)) errors.push(`${where}: contains zero-width or bidi characters`);
+  if (s.includes('@')) errors.push(`${where}: must not contain "@"`);
+  if (s.includes('//')) errors.push(`${where}: must not contain "//" (no links)`);
+  if (/www\./i.test(s)) errors.push(`${where}: must not contain "www." (no links)`);
+  if (/[<>]/.test(s)) errors.push(`${where}: must not contain "<" or ">"`);
+  if (CLOSING_RE.test(s))
+    errors.push(`${where}: must not use closing keywords (stage 2 adds them)`);
+  // issue references: only the allowed one
+  const allowed =
+    kind === 'title'
+      ? s.replace(new RegExp(`\\s\\(#${issue}\\)$`), '')
+      : s
+          .split(/\r?\n/)
+          .filter((line) => line.trim() !== `Refs #${issue}`)
+          .join('\n');
+  if (/#\d/.test(allowed))
+    errors.push(
+      `${where}: issue references only as ${kind === 'title' ? `a trailing "(#${issue})"` : `a "Refs #${issue}" line`}`,
+    );
 }
 
 function onlyKeys(errors, where, o, keys) {
@@ -129,10 +151,10 @@ export function validateActions(input, opts = {}) {
     if (!isIssue(p.issue)) errors.push(`${w}: issue must be a positive integer`);
     const m = /^fix\/issue-(\d+)$/.exec(String(p.branch));
     if (m && Number(m[1]) !== p.issue) errors.push(`${w}: branch and issue number differ`);
-    checkText(errors, `${w}.title`, p.title, 120);
+    checkText(errors, `${w}.title`, p.title, 120, { issue: p.issue, kind: 'title' });
     if (typeof p.title === 'string' && /[\r\n]/.test(p.title))
       errors.push(`${w}.title: must be one line`);
-    checkText(errors, `${w}.body`, p.body, 4000);
+    checkText(errors, `${w}.body`, p.body, 4000, { issue: p.issue, kind: 'body' });
     if (prBranches.has(p.branch)) errors.push(`${w}: duplicate PR for ${p.branch}`);
     prBranches.add(p.branch);
     outPrs.push({ branch: p.branch, issue: p.issue, title: p.title, body: p.body });

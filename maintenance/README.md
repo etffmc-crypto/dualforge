@@ -59,6 +59,8 @@ Error codes in the report are explained in [`docs/ERROR_CODES.md`](../docs/ERROR
 
 ## Issue responder
 
+> **Stage 2 is on hold.** Do **not** create `DUALFORGE_GH_TOKEN` and do **not** schedule `post-actions.ps1` until stage 2 runs isolated from stage 1: under a separate Windows account, or from a locked copy outside the working tree that pushes from a bare mirror with hooks disabled. Today both stages would share one user account and one working tree, so code that stage 1 writes and runs (tests, npm scripts, git hooks, config) could read a User environment token or tamper with what stage 2 executes. Until then, stage 1 may run **read-only**: it prepares local branches and an `actions.json` for you to review by hand. Nothing is posted to GitHub.
+
 Works the GitHub issues every 2 hours in **two stages**, so the part that reads untrusted issue text never holds a token:
 
 1. **Stage 1, the LLM** ([`RESPONDER.md`](RESPONDER.md), Claude Code, no token): reads open issues with unauthenticated `curl`, reproduces bugs and watchdog failures, commits fixes on local `fix/issue-<n>` / `fix/watchdog-<check>-<date>` branches (never pushes), and writes `maintenance/outbox/actions.json`: proposed comments (fixed templates only), labels, pushes and pull requests (at most 10 comments and 2 PRs).
@@ -78,7 +80,7 @@ Store it as the **User** environment variable `DUALFORGE_GH_TOKEN` (only `post-a
 [Environment]::SetEnvironmentVariable('DUALFORGE_GH_TOKEN', '<paste the token>', 'User')
 ```
 
-New processes of your user inherit User environment variables, including a Claude Code session. Stage 1 never needs it, its tool rules give it no command that can print environment variables, and its deny list blocks any command naming the variable. Stage 2 also refuses a plan or branch that contains the token. Protect `main` with a ruleset (Settings > Rules > Rulesets: require a pull request, block force pushes) so the token cannot push to `main` even if misused.
+New processes of your user inherit User environment variables, including a Claude Code session, so stage 1 would have the token in its environment. Its Bash deny rules (`*DUALFORGE_GH_TOKEN*`, `printenv`, `env`, `set`) filter **command strings only**: any code stage 1 writes and then runs (a test, an npm script, a git hook) can read the environment without naming the variable on a command line. That is why stage 2 is on hold (see the box above). Stage 2 also refuses a plan or branch that contains the token, which catches only careless leaks, not deliberate ones (encoded or split). Protect `main` with a ruleset (Settings > Rules > Rulesets: require a pull request, block force pushes) so the token cannot push to `main` even if misused.
 
 ### Stage 1: run it
 
@@ -86,11 +88,11 @@ New processes of your user inherit User environment variables, including a Claud
 $start = git rev-parse --abbrev-ref HEAD
 $issues = 'https://api.github.com/repos/etffmc-crypto/dualforge/issues'
 claude -p (Get-Content maintenance/RESPONDER.md -Raw) --permission-mode acceptEdits `
-  --allowedTools "Bash(git status --porcelain)" "Bash(git rev-parse --abbrev-ref HEAD)" "Bash(git checkout main)" "Bash(git checkout -b fix/issue-*)" "Bash(git checkout -b fix/watchdog-*)" "Bash(git checkout $start)" "Bash(git add apps/*)" "Bash(git add packages/*)" "Bash(git add site/*)" "Bash(git commit -m *)" "Bash(git log:*)" "Bash(git diff:*)" "Bash(npm ci)" "Bash(npm run typecheck)" "Bash(npm run lint)" "Bash(npm run format:check)" "Bash(npm run test)" "Bash(curl -sS `"$issues`?state=open&per_page=50`")" "Bash(curl -sS `"$issues/*/comments`")" Read Write Edit Grep Glob `
+  --allowedTools "Bash(git status --porcelain)" "Bash(git rev-parse --abbrev-ref HEAD)" "Bash(git checkout main)" "Bash(git checkout -b fix/issue-*)" "Bash(git checkout -b fix/watchdog-*)" "Bash(git checkout $start)" "Bash(git add apps/*)" "Bash(git add packages/*)" "Bash(git add site/*)" "Bash(git commit -m *)" "Bash(git log:*)" "Bash(git diff:*)" "Bash(npm ci)" "Bash(npm run typecheck)" "Bash(npm run lint)" "Bash(npm run format:check)" "Bash(npm run test)" "Bash(curl -sS `"$issues`?state=open&per_page=50`")" Read Write Edit Grep Glob `
   --disallowedTools "Bash(git push*)" "Bash(git fetch*)" "Bash(git pull*)" "Bash(git remote*)" "Bash(git config*)" "Bash(git commit *--amend*)" "Bash(git commit *--no-verify*)" "Bash(*DUALFORGE_GH_TOKEN*)" "Bash(*GITHUB_TOKEN*)" "Bash(printenv*)" "Bash(env*)" "Bash(set*)" "Edit(.git/**)" "Write(.git/**)" "Edit(.github/**)" "Write(.github/**)" "Edit(package.json)" "Write(package.json)" "Edit(**/package.json)" "Write(**/package.json)" "Edit(package-lock.json)" "Write(package-lock.json)" "Edit(.npmrc)" "Write(.npmrc)" "Edit(**/.npmrc)" "Write(**/.npmrc)" "Edit(vitest.config.ts)" "Write(vitest.config.ts)" "Edit(**/vitest.config.ts)" "Write(**/vitest.config.ts)" "Edit(eslint.config.js)" "Write(eslint.config.js)" "Edit(**/tsconfig*.json)" "Write(**/tsconfig*.json)" "Edit(tsconfig*.json)" "Write(tsconfig*.json)" "Edit(native/**)" "Write(native/**)" "Edit(scripts/**)" "Write(scripts/**)" "Edit(apps/desktop/electron-builder.yml)" "Write(apps/desktop/electron-builder.yml)" "Edit(maintenance/*.md)" "Write(maintenance/*.md)" "Edit(maintenance/*.ps1)" "Write(maintenance/*.ps1)" "Edit(maintenance/README.md)" "Write(maintenance/README.md)"
 ```
 
-Allowed, in short: git (status, branch name, checkout `main` / `fix/issue-*` / `fix/watchdog-*` / the starting branch, `add` under `apps/ packages/ site/`, `commit -m`, log, diff), `npm ci` and `npm run typecheck|lint|format:check|test`, two exact unauthenticated `curl` reads (the open-issue list and one issue's comments), and Read / Write / Edit / Glob / Grep. Write and Edit reach `maintenance/` only under `maintenance/outbox/` and `maintenance/reports/` (the deny list covers the routine's own files). No `git push`, `fetch`, `pull`, `remote` or `config` at all, no other hosts, no token. Note: the `*` in the comments rule matches any text, so it is the one place a crafted command could reach another URL path on `api.github.com`; with no token in play this exposes nothing private.
+Allowed, in short: git (status, branch name, checkout `main` / `fix/issue-*` / `fix/watchdog-*` / the starting branch, `add` under `apps/ packages/ site/`, `commit -m`, log, diff), `npm ci` and `npm run typecheck|lint|format:check|test`, one exact unauthenticated `curl` read (the open-issue list; its `comments` counts are enough to see new activity), and Read / Write / Edit / Glob / Grep. Write and Edit reach `maintenance/` only under `maintenance/outbox/` and `maintenance/reports/` (the deny list covers the routine's own files). No `git push`, `fetch`, `pull`, `remote` or `config` commands. These rules restrict the commands stage 1 may type. They do not sandbox the code it runs: `npm run test` executes whatever the branch contains, and that code can reach the network.
 
 ### Stage 2: run it
 
@@ -102,7 +104,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File maintenance\post-actions.ps1
 ### Schedule both
 
 - **Stage 1** runs in the **Claude desktop app's local scheduler** (Scheduled tasks), not as a `/schedule` cloud routine: it needs this PC's checkout on `F:\`, Node, the local test toolchain and the app's native build, none of which exist in a cloud sandbox. Create a local scheduled task with the stage 1 prompt and the same allowed/denied tool lists, working directory `F:\DualForge`, every 2 hours on the hour.
-- **Stage 2** runs from **Windows Task Scheduler**, every 2 hours, 10 minutes after stage 1:
+- **Stage 2** (**on hold**, see the box at the top of this section; for later, once it runs isolated) runs from **Windows Task Scheduler**, every 2 hours, 10 minutes after stage 1:
 
 ```powershell
 schtasks /Create /TN "DualForge\Responder post-actions" /SC HOURLY /MO 2 /ST 00:10 /F /TR "powershell.exe -NoProfile -ExecutionPolicy Bypass -File F:\DualForge\maintenance\post-actions.ps1"

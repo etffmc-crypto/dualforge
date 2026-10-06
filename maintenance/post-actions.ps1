@@ -1,4 +1,9 @@
 <#
+  ON HOLD: do not create DUALFORGE_GH_TOKEN or schedule this script until it runs isolated from stage 1 (separate
+  Windows account, or a locked copy outside the working tree pushing from a bare mirror with hooks disabled).
+  See maintenance/README.md "Issue responder". -DryRun needs no token and is safe to use.
+#>
+<#
 .SYNOPSIS
   Stage 2 of the issue responder: carries out maintenance/outbox/actions.json (written by stage 1, an LLM without a
   token) after strict validation. No LLM runs here; this script is the only place that holds the GitHub token.
@@ -164,20 +169,35 @@ if ($DryRun) {
 }
 
 try {
-  # 4. pushes: explicit URL and refspec, token only in this process's git config environment
+  # 4. pushes: explicit URL and refspec, token only in this process's git config environment. Repo-local settings
+  # that stage 1 could have planted are overridden: no hooks (empty hooks dir + --no-verify), no proxy, TLS verified,
+  # no credential helpers (generic and github.com-scoped).
   $basic = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("x-access-token:$script:Token"))
-  foreach ($p in $plan.pushes) {
-    $b = $p.branch
-    $env:GIT_CONFIG_COUNT = '1'
-    $env:GIT_CONFIG_KEY_0 = 'http.https://github.com/.extraHeader'
-    $env:GIT_CONFIG_VALUE_0 = "Authorization: Basic $basic"
-    $env:GIT_TERMINAL_PROMPT = '0'
-    try {
-      Invoke-Git @('-c', 'credential.helper=', 'push', $RemoteUrl, "refs/heads/${b}:refs/heads/$b") | Out-Null
-    } finally {
-      Remove-Item Env:GIT_CONFIG_COUNT, Env:GIT_CONFIG_KEY_0, Env:GIT_CONFIG_VALUE_0 -ErrorAction SilentlyContinue
+  $noHooks = Join-Path $env:TEMP "dualforge-nohooks-$Stamp"
+  New-Item -ItemType Directory -Force $noHooks | Out-Null
+  try {
+    foreach ($p in $plan.pushes) {
+      $b = $p.branch
+      $env:GIT_CONFIG_COUNT = '1'
+      $env:GIT_CONFIG_KEY_0 = 'http.https://github.com/.extraHeader'
+      $env:GIT_CONFIG_VALUE_0 = "Authorization: Basic $basic"
+      $env:GIT_TERMINAL_PROMPT = '0'
+      try {
+        Invoke-Git @(
+          '-c', "core.hooksPath=$noHooks",
+          '-c', 'credential.helper=',
+          '-c', 'credential.https://github.com.helper=',
+          '-c', 'http.proxy=',
+          '-c', 'http.sslVerify=true',
+          'push', '--no-verify', $RemoteUrl, "refs/heads/${b}:refs/heads/$b"
+        ) | Out-Null
+      } finally {
+        Remove-Item Env:GIT_CONFIG_COUNT, Env:GIT_CONFIG_KEY_0, Env:GIT_CONFIG_VALUE_0 -ErrorAction SilentlyContinue
+      }
+      Log "pushed $b"
     }
-    Log "pushed $b"
+  } finally {
+    Remove-Item -Path $noHooks -Recurse -Force -ErrorAction SilentlyContinue
   }
 
   # 5. pull requests (reuse an open one for the same branch)

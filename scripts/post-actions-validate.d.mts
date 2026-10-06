@@ -5,6 +5,8 @@ export const ALLOWED_LABELS: string[];
 export const MAINTAINER_ACTIONS: string[];
 export const TEMPLATES: Record<string, { vars: Record<string, string> }>;
 export const MARKER: string;
+export const INVISIBLE_RE: RegExp;
+export const CLOSING_RE: RegExp;
 export const FORBIDDEN_PATHS: RegExp[];
 export function forbiddenPaths(paths: string[]): string[];
 export interface Plan {
