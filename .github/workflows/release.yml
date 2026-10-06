@@ -1,0 +1,105 @@
+name: release
+
+# Push a tag v<package.json version> on a commit that is on main (see README "Release process"). The build job makes the
+# NSIS installer on Windows with read-only permissions; the publish job (contents: write, no npm, no repo code) only
+# uploads the built files to a GitHub release: installer, blockmap, latest.yml (read by the in-app updater) and
+# SHA256SUMS.txt (shown on the download page). Re-run for an existing tag with "Run workflow".
+# Every action is pinned to a full commit SHA; .github/dependabot.yml proposes updates.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build and publish, e.g. v0.3.3
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    outputs:
+      tag: ${{ inputs.tag || github.ref_name }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Tag must point at a commit on main
+        shell: bash
+        run: |
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          git merge-base --is-ancestor "refs/tags/$TAG" origin/main || { echo "::error::$TAG is not on main"; exit 1; }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+      - name: Tag must equal v<package.json version>
+        run: node scripts/release.mjs verify-tag "$env:TAG"
+      - name: Version without the v
+        id: version
+        run: Add-Content -Path $env:GITHUB_OUTPUT -Value "version=$($env:TAG.Substring(1))"
+      - run: npm ci
+      - name: Electron binary (npm 11 skips install scripts)
+        run: node node_modules/electron/install.js
+      - name: Build the sendinput addon
+        working-directory: native/sendinput
+        run: npx node-gyp rebuild
+      - name: Rebuild native modules for Electron (writes the ABI marker)
+        run: npm run rebuild -w @dualforge/desktop
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+      - name: Build the installer (never publishes by itself)
+        run: npm run dist:installer -- --publish never
+      - name: Release notes from CHANGELOG.md
+        run: node scripts/release.mjs notes "$env:TAG" apps/desktop/release/release-notes.md
+      - name: SHA256SUMS.txt
+        run: node scripts/release.mjs sums apps/desktop/release apps/desktop/release/SHA256SUMS.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-files
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            apps/desktop/release/DualForge-Setup-${{ steps.version.outputs.version }}.exe
+            apps/desktop/release/DualForge-Setup-${{ steps.version.outputs.version }}.exe.blockmap
+            apps/desktop/release/latest.yml
+            apps/desktop/release/SHA256SUMS.txt
+            apps/desktop/release/release-notes.md
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: release-files
+          path: dist
+      - name: Publish the GitHub release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        with:
+          tag_name: ${{ needs.build.outputs.tag }}
+          name: DualForge ${{ needs.build.outputs.version }}
+          body_path: dist/release-notes.md
+          prerelease: ${{ contains(needs.build.outputs.version, '-') }}
+          fail_on_unmatched_files: true
+          files: |
+            dist/DualForge-Setup-${{ needs.build.outputs.version }}.exe
+            dist/DualForge-Setup-${{ needs.build.outputs.version }}.exe.blockmap
+            dist/latest.yml
+            dist/SHA256SUMS.txt

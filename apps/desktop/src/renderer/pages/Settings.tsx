@@ -10,6 +10,11 @@ import { TurboPrefs } from './settings/TurboPrefs';
 type Flag =
   'hasRumble' | 'hidHide' | 'startWithWindows' | 'startMinimized' | 'closeToTray' | 'updates';
 type UpdateResult = { available: boolean; version?: string; code?: string };
+type DownloadState =
+  | { phase: 'idle' }
+  | { phase: 'downloading'; percent: number }
+  | { phase: 'ready'; version?: string | undefined }
+  | { phase: 'failed'; code: string };
 const THEMES: { value: SettingsT['theme']; label: string }[] = [
   { value: 'dark', label: 'Dark' },
   { value: 'light', label: 'Light' },
@@ -27,6 +32,15 @@ export function Settings() {
   const [checking, setChecking] = useState(false);
   const [updateResult, setUpdateResult] = useState<UpdateResult | { error: string } | null>(null);
   const [hidHideInstalled, setHidHideInstalled] = useState<boolean | null>(null);
+  // the two explicit clicks after a check found a version: download (with progress), then install & restart
+  const [dl, setDl] = useState<DownloadState>({ phase: 'idle' });
+  useEffect(() => {
+    const updates = window.dualforge.updates;
+    if (!updatesEnabled || !updates?.onProgress) return;
+    return updates.onProgress((p) =>
+      setDl((s) => (s.phase === 'downloading' ? { phase: 'downloading', percent: p.percent } : s)),
+    );
+  }, [updatesEnabled]);
   useEffect(() => {
     loadSettings().catch(() => undefined); // Health repairs can flip hidHide behind the page's back
     const health = window.dualforge.health;
@@ -57,6 +71,28 @@ export function Settings() {
       .then(setUpdateResult, (err: unknown) => setUpdateResult({ error: String(err) }))
       .finally(() => setChecking(false));
   };
+  const download = () => {
+    setDl({ phase: 'downloading', percent: 0 });
+    window.dualforge.updates.download().then(
+      (r) =>
+        setDl(
+          r.ok ? { phase: 'ready', version: r.version } : { phase: 'failed', code: r.code ?? '' },
+        ),
+      (err: unknown) => setDl({ phase: 'failed', code: String(err) }),
+    );
+  };
+  const install = () => {
+    window.dualforge.updates.install().then(
+      (r) => {
+        if (!r.ok) setDl({ phase: 'failed', code: r.code ?? '' });
+      },
+      (err: unknown) => setDl({ phase: 'failed', code: String(err) }),
+    );
+  };
+  const offered =
+    updateResult && !('error' in updateResult) && updateResult.available
+      ? updateResult.version
+      : undefined;
   const openDataDir = () => {
     window.dualforge.system
       .openDataDir()
@@ -139,6 +175,38 @@ export function Settings() {
             <p className="psec-hint" role="status" aria-live="polite">
               {updateText(updateResult)}
             </p>
+            {offered && (dl.phase === 'idle' || dl.phase === 'failed') && (
+              <button data-nav type="button" className="panel-btn" onClick={download}>
+                Download {offered}
+              </button>
+            )}
+            {dl.phase === 'downloading' && (
+              <div className="update-progress">
+                <progress
+                  max={100}
+                  value={dl.percent}
+                  aria-label="Update download progress"
+                  aria-valuetext={`${Math.round(dl.percent)}%`}
+                />
+                <span className="psec-hint">Downloading… {Math.round(dl.percent)}%</span>
+              </div>
+            )}
+            {dl.phase === 'ready' && (
+              <>
+                <p className="psec-hint">
+                  Version {dl.version ?? offered} is downloaded. DualForge will close, install it
+                  and start again.
+                </p>
+                <button data-nav type="button" className="panel-btn" onClick={install}>
+                  Install &amp; restart
+                </button>
+              </>
+            )}
+            {dl.phase === 'failed' && (
+              <p className="psec-hint" role="alert">
+                {UPDATE_CODES[dl.code] ?? `The update failed (${dl.code}).`}
+              </p>
+            )}
           </PanelSection>
         )}
         <PanelSection title="Data">
@@ -157,6 +225,9 @@ const UPDATE_CODES: Record<string, string> = {
   E_UPDATE_DISABLED: 'Turn on "Check for updates" first.',
   E_UPDATE_DEV: 'Update checks are not available in a development build.',
   E_UPDATE_CHECK: 'The update check failed. Try again later.',
+  E_UPDATE_NOT_READY: 'Check for updates again first.',
+  E_UPDATE_DOWNLOAD: 'The download failed. Check your connection and try again.',
+  E_UPDATE_INSTALL: 'The installer could not be started. Download the update again.',
 };
 
 function updateText(r: UpdateResult | { error: string } | null): string {

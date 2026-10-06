@@ -4,7 +4,7 @@ DualForge is a PS5 DualSense tuning app for Windows (GameSir-Connect style): rem
 
 ## 1. Install
 
-1. Run `DualForge-Setup-0.3.2.exe`. Windows SmartScreen will say "unknown publisher" (the installer is not code-signed yet): click **More info → Run anyway**. It installs per-user; no admin needed for the app itself.
+1. Run `DualForge-Setup-0.3.3.exe`. Windows SmartScreen will say "unknown publisher" (the installer is not code-signed yet): click **More info → Run anyway**. It installs per-user; no admin needed for the app itself.
 2. Plug the DualSense in over **USB** (Bluetooth is not supported yet).
 3. Open DualForge. The first page is Home; it should say "Connected · USB".
 

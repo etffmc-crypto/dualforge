@@ -16,10 +16,21 @@ const settingsApi = {
   }),
 };
 const openDataDir = vi.fn(async () => '');
+type ActionResult = { ok: boolean; version?: string; code?: string };
+type ProgressCb = (p: { percent: number; transferred: number; total: number }) => void;
+let progressCb: ProgressCb | null = null;
 const updatesApi = {
   check: vi.fn(async (): Promise<{ available: boolean; version?: string; code?: string }> => ({
     available: false,
   })),
+  download: vi.fn(async (): Promise<ActionResult> => ({ ok: true, version: '0.2.0' })),
+  install: vi.fn(async (): Promise<ActionResult> => ({ ok: true, version: '0.2.0' })),
+  onProgress: vi.fn((cb: ProgressCb) => {
+    progressCb = cb;
+    return () => {
+      progressCb = null;
+    };
+  }),
 };
 let healthState: HealthState = {
   results: [{ id: 'hidhide', status: 'ok', title: 'HidHide active', detail: '' }],
@@ -182,6 +193,39 @@ describe('Settings page', () => {
     updatesApi.check.mockResolvedValueOnce({ available: false, code: 'E_UPDATE_DISABLED' });
     fireEvent.click(screen.getByRole('button', { name: 'Check now' }));
     await waitFor(() => expect(screen.getByText(/Turn on "Check for updates"/)).toBeTruthy());
+  });
+
+  it('Download then Install & restart are two separate clicks, with progress in between', async () => {
+    let finish!: (r: ActionResult) => void;
+    updatesApi.check.mockResolvedValueOnce({ available: true, version: '0.2.0' });
+    updatesApi.download.mockImplementationOnce(() => new Promise((res) => (finish = res)));
+    render(<Settings />);
+    expect(screen.queryByRole('button', { name: /Download/ })).toBeNull(); // nothing offered before a check
+    fireEvent.click(screen.getByRole('button', { name: 'Check now' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Download 0.2.0' }));
+    expect(updatesApi.download).toHaveBeenCalledTimes(1);
+    expect(updatesApi.install).not.toHaveBeenCalled();
+    act(() => progressCb?.({ percent: 37.4, transferred: 374, total: 1000 }));
+    const bar = await screen.findByRole('progressbar', { name: 'Update download progress' });
+    expect(bar.getAttribute('value')).toBe('37.4');
+    expect(screen.getByText('Downloading… 37%')).toBeTruthy();
+    await act(async () => finish({ ok: true, version: '0.2.0' }));
+    expect(screen.getByText(/Version 0.2.0 is downloaded/)).toBeTruthy();
+    expect(updatesApi.install).not.toHaveBeenCalled(); // never automatic
+    fireEvent.click(screen.getByRole('button', { name: 'Install & restart' }));
+    await waitFor(() => expect(updatesApi.install).toHaveBeenCalledTimes(1));
+  });
+
+  it('a failed download explains the code and offers Download again', async () => {
+    updatesApi.check.mockResolvedValueOnce({ available: true, version: '0.2.0' });
+    updatesApi.download.mockResolvedValueOnce({ ok: false, code: 'E_UPDATE_DOWNLOAD' });
+    render(<Settings />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check now' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Download 0.2.0' }));
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(screen.getByText(/The download failed/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Download 0.2.0' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Install & restart' })).toBeNull();
   });
 
   it('remembers the theme for the next boot and applies it before React mounts', async () => {

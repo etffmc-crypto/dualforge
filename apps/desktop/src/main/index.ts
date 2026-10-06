@@ -38,7 +38,8 @@ import { createHidHide, createHidHideQueue } from './hidhide.js';
 import { createSettingsHooks } from './settings-hooks.js';
 import { applyLoginItem, shouldHideOnClose, shouldStartHidden } from './startup.js';
 import { createTray, type AppTray } from './tray.js';
-import { createUpdater } from './updater.js';
+import { createUpdater, registerUpdateIpc } from './updater.js';
+import { createQuitCleanup } from './quit-cleanup.js';
 import { createDriverInstaller, registerDriverIpc, type DriverStatus } from './driver-installer.js';
 
 let win: BrowserWindow | null = null;
@@ -72,8 +73,13 @@ const updater = createUpdater({
   onResult: () => {
     void health.run();
   },
+  onProgress: (p) => {
+    if (win && !win.isDestroyed()) win.webContents.send('updates:progress', p);
+  },
+  // un-hide the DualSense before the installer takes over; before-quit then finds the cleanup done
+  beforeInstall: () => quitCleanup.run(),
 });
-ipcMain.handle('updates:check', () => updater.check());
+registerUpdateIpc({ ipc: ipcMain, updater });
 const stuckMarker = join(dataDir, HIDHIDE_STUCK_MARKER);
 const markCloakStuck = (stuck: boolean) => {
   try {
@@ -94,6 +100,15 @@ const hidhide = createHidHide({
 const hidHideQueue = createHidHideQueue({
   hidhide,
   desired: () => settings.get().hidHide,
+  log: logger,
+});
+// While DualForge is closed the DualSense must be visible to games again: cloak off first (best effort, 5 s), then
+// really quit. Runs whenever this session cloaked, even if the setting was switched off meanwhile.
+const quitCleanup = createQuitCleanup({
+  hasCli: () => !!hidhide.findCli(),
+  cloakOff: () => hidHideQueue.quitCleanup(settings.get().hidHide),
+  cloakedThisSession: () => hidHideQueue.cloakedThisSession(),
+  markStuck: markCloakStuck,
   log: logger,
 });
 let hidHideWaitingForPad = false;
@@ -392,35 +407,18 @@ if (!app.requestSingleInstanceLock()) {
     health.start();
     if (settings.get().hidHide) void startupHidHide(); // cloak is off after a quit/reboot: switch it on again
   });
-  // While DualForge is closed the DualSense must be visible to games again: cloak off first (best effort, 5 s), then
-  // really quit. Runs whenever this session cloaked, even if the setting was switched off meanwhile.
-  let quitCleanup: 'idle' | 'running' | 'done' = 'idle';
+  // the cloak-off runs once (here or already from "Install & restart"); the real quit waits for it
   app.on('before-quit', (e) => {
     quitting = true;
-    const cloakOff =
-      quitCleanup === 'idle' && hidhide.findCli()
-        ? hidHideQueue.quitCleanup(settings.get().hidHide)
-        : null;
-    if (cloakOff) {
-      e.preventDefault();
-      quitCleanup = 'running';
-      // drain the queue (an op may be in flight) for at most 5 s; if cloak-off never ran, the pad may stay hidden
-      const timeout = new Promise<'timeout'>((r) => setTimeout(() => r('timeout'), 5000));
-      void Promise.race([cloakOff.then(() => 'done' as const), timeout])
-        .then((how) => {
-          if (how === 'timeout' && hidHideQueue.cloakedThisSession()) {
-            logger.error({ code: 'E_HIDHIDE_CLOAK_STUCK', msg: 'quit cloak-off timed out' });
-            markCloakStuck(true);
-          }
-        })
-        .catch(() => undefined)
-        .finally(() => {
-          quitCleanup = 'done';
-          app.quit();
-        });
-      return;
+    if (quitCleanup.state() === 'idle') {
+      const done = quitCleanup.run();
+      if (quitCleanup.state() === 'running') {
+        e.preventDefault();
+        void done.then(() => app.quit());
+        return;
+      }
     }
-    if (quitCleanup === 'running') {
+    if (quitCleanup.state() === 'running') {
       e.preventDefault();
       return;
     }

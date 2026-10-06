@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Download DualForge
+    url: https://etffmc-crypto.github.io/dualforge/
+    about: The latest installer, its SHA-256 and the quick-start steps.
+  - name: Quick-start guide
+    url: https://github.com/etffmc-crypto/dualforge/blob/main/docs/FRIEND-README.md
+    about: Drivers, first setup and what to check before reporting a problem.

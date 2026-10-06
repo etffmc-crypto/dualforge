@@ -340,6 +340,18 @@ The update check is not available: this is a development build (no `app-update.y
 
 The update check failed (offline, GitHub unreachable, bad release metadata; see `msg` in the log). Fix: try again later.
 
+### E_UPDATE_NOT_READY
+
+"Download" was clicked before a check found a newer version, or "Install & restart" before the download finished (for example after a restart). Nothing was downloaded or installed. Fix: click "Check now" again, then download.
+
+### E_UPDATE_DOWNLOAD
+
+Downloading the update failed (offline, GitHub unreachable, or electron-updater rejected the file because its sha512 did not match `latest.yml`; see `msg` in the log). Nothing was installed. Fix: try again; if it keeps failing, download the installer from the download page.
+
+### E_UPDATE_INSTALL
+
+`quitAndInstall` threw before DualForge quit (see `msg`). The app keeps running on the old version. Fix: download again, or run the installer from the download page.
+
 ## Driver installer (redirects, integrity)
 
 ### E_DRIVER_URL
@@ -439,6 +451,18 @@ Info: the start-with-Windows registry entry was not written because this is a de
 ### UPDATE_CHECK
 
 Info: an opt-in update check finished (`available`, `version`).
+
+### UPDATE_DOWNLOAD
+
+Info: the user clicked "Download" in Settings > Updates (`version`).
+
+### UPDATE_DOWNLOADED
+
+Info: the update finished downloading and was verified by electron-updater (`version`); it is not installed until the user clicks "Install & restart".
+
+### UPDATE_INSTALL
+
+Info: the user clicked "Install & restart" (`version`); DualForge quits and the installer runs.
 
 ### HEALTH_REPAIR
 
