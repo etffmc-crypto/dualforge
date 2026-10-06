@@ -16,6 +16,7 @@ import { existsSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { z } from 'zod';
 import { logger, LOG_DIR } from './logger.js';
 import { resolveAppVersion } from './app-version.js';
+import { resolveDataDir } from './data-dir.js';
 import { clearLogs, pruneLogs } from './log-prune.js';
 import { registerLogIpc } from './log-tail.js';
 import { createHealthService, createEngineFeed } from './health/service.js';
@@ -66,7 +67,7 @@ const APP_VERSION = resolveAppVersion({
   getVersion: () => app.getVersion(),
   electronVersion: process.versions.electron,
 });
-const dataDir = process.env.DUALFORGE_DATA_DIR ?? join(app.getPath('appData'), 'DualForge');
+const dataDir = resolveDataDir(app.getPath('appData'));
 // Crash dumps stay local (no upload) in <data dir>crashes; started before app ready so child processes are covered.
 const crashDir = join(dataDir, 'crashes');
 startCrashReporter(app, crashReporter, crashDir);

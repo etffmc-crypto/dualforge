@@ -2,8 +2,9 @@ import { app } from 'electron';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import pino from 'pino';
+import { logDirFor, resolveDataDir } from './data-dir.js';
 
-const dir = join(app.getPath('appData'), 'DualForge', 'logs');
+const dir = logDirFor(resolveDataDir(app.getPath('appData')));
 mkdirSync(dir, { recursive: true });
 
 export const logger = pino(
