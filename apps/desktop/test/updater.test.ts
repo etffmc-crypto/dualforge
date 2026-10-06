@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createUpdater, registerUpdateIpc } from '../src/main/updater.js';
+import { createQuitCleanup } from '../src/main/quit-cleanup.js';
 
 type ProgressCb = (p: { percent: number; transferred: number; total: number }) => void;
 
@@ -9,6 +10,7 @@ function rig(
     packaged?: boolean;
     check?: () => Promise<unknown>;
     download?: () => Promise<unknown>;
+    beforeInstall?: () => Promise<void>;
   } = {},
 ) {
   let progress: ProgressCb | null = null;
@@ -35,6 +37,7 @@ function rig(
     log,
     onResult: (r) => results.push(r),
     onProgress: (p) => progressSeen.push(p),
+    ...(opts.beforeInstall ? { beforeInstall: opts.beforeInstall } : {}),
     currentVersion: '0.1.0',
   });
   return { u, au, load, log, results, progressSeen, emitProgress: (p: never) => progress?.(p) };
@@ -155,14 +158,14 @@ describe('updater download and install (two explicit clicks)', () => {
   it('install before the download finished is E_UPDATE_NOT_READY', async () => {
     const r = rig();
     await r.u.check();
-    expect(r.u.install()).toEqual({ ok: false, code: 'E_UPDATE_NOT_READY' });
+    expect(await r.u.install()).toEqual({ ok: false, code: 'E_UPDATE_NOT_READY' });
     expect(r.au.quitAndInstall).not.toHaveBeenCalled();
   });
   it('install after a finished download quits and runs the installer (not silent, restarts)', async () => {
     const r = rig();
     await r.u.check();
     await r.u.download();
-    expect(r.u.install()).toEqual({ ok: true, version: '0.2.0' });
+    expect(await r.u.install()).toEqual({ ok: true, version: '0.2.0' });
     expect(r.au.quitAndInstall).toHaveBeenCalledWith(false, true);
   });
   it('a failed download is E_UPDATE_DOWNLOAD and can be retried', async () => {
@@ -178,7 +181,7 @@ describe('updater download and install (two explicit clicks)', () => {
     expect(r.log.error).toHaveBeenCalledWith(
       expect.objectContaining({ code: 'E_UPDATE_DOWNLOAD' }),
     );
-    expect(r.u.install()).toEqual({ ok: false, code: 'E_UPDATE_NOT_READY' });
+    expect(await r.u.install()).toEqual({ ok: false, code: 'E_UPDATE_NOT_READY' });
     expect(await r.u.download()).toEqual({ ok: true, version: '0.2.0' });
   });
   it('a throwing quitAndInstall is E_UPDATE_INSTALL', async () => {
@@ -188,17 +191,63 @@ describe('updater download and install (two explicit clicks)', () => {
     r.au.quitAndInstall.mockImplementationOnce(() => {
       throw new Error('spawn failed');
     });
-    expect(r.u.install()).toEqual({ ok: false, code: 'E_UPDATE_INSTALL' });
+    expect(await r.u.install()).toEqual({ ok: false, code: 'E_UPDATE_INSTALL' });
   });
   it('download and install are refused while updates are off or in a dev build', async () => {
     const off = rig({ enabled: false });
     expect(await off.u.download()).toEqual({ ok: false, code: 'E_UPDATE_DISABLED' });
-    expect(off.u.install()).toEqual({ ok: false, code: 'E_UPDATE_DISABLED' });
+    expect(await off.u.install()).toEqual({ ok: false, code: 'E_UPDATE_DISABLED' });
     const dev = rig({ packaged: false });
     expect(await dev.u.download()).toEqual({ ok: false, code: 'E_UPDATE_DEV' });
-    expect(dev.u.install()).toEqual({ ok: false, code: 'E_UPDATE_DEV' });
+    expect(await dev.u.install()).toEqual({ ok: false, code: 'E_UPDATE_DEV' });
     expect(off.load).not.toHaveBeenCalled();
     expect(dev.load).not.toHaveBeenCalled();
+  });
+});
+
+describe('install waits for the HidHide quit cleanup', () => {
+  it('un-hides the pad (fake queue) before quitAndInstall, once, and before-quit then has nothing to wait for', async () => {
+    const order: string[] = [];
+    let release!: () => void;
+    const cleanup = createQuitCleanup({
+      hasCli: () => true,
+      cloakOff: () =>
+        new Promise<void>((res) => {
+          order.push('cloakOff:start');
+          release = () => {
+            order.push('cloakOff:done');
+            res();
+          };
+        }),
+      cloakedThisSession: () => true,
+      markStuck: vi.fn(),
+      log: { error: vi.fn() },
+    });
+    const r = rig({ beforeInstall: () => cleanup.run() });
+    r.au.quitAndInstall.mockImplementation(() => order.push('quitAndInstall'));
+    await r.u.check();
+    await r.u.download();
+    const first = r.u.install();
+    const second = r.u.install(); // double click
+    await Promise.resolve();
+    expect(order).toEqual(['cloakOff:start']); // the installer has not started yet
+    expect(cleanup.state()).toBe('running');
+    release();
+    expect(await first).toEqual({ ok: true, version: '0.2.0' });
+    expect(await second).toEqual({ ok: true, version: '0.2.0' });
+    expect(order).toEqual(['cloakOff:start', 'cloakOff:done', 'quitAndInstall']);
+    expect(cleanup.state()).toBe('done'); // before-quit proceeds without waiting again
+  });
+  it('a failing cleanup hook still installs', async () => {
+    const r = rig({
+      beforeInstall: async () => {
+        throw new Error('queue broken');
+      },
+    });
+    await r.u.check();
+    await r.u.download();
+    expect(await r.u.install()).toEqual({ ok: true, version: '0.2.0' });
+    expect(r.log.warn).toHaveBeenCalled();
   });
 });
 
@@ -208,7 +257,7 @@ describe('registerUpdateIpc', () => {
     const updater = {
       check: vi.fn(async () => ({ available: false })),
       download: vi.fn(async () => ({ ok: true })),
-      install: vi.fn(() => ({ ok: true })),
+      install: vi.fn(async () => ({ ok: true })),
     };
     registerUpdateIpc({ ipc: { handle: (ch, fn) => handlers.set(ch, fn) }, updater });
     expect([...handlers.keys()]).toEqual(['updates:check', 'updates:download', 'updates:install']);

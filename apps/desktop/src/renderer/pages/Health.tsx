@@ -122,7 +122,7 @@ export function Health() {
           r
             ? {
                 ok: true,
-                text: `Saved ${r.path} (${r.files} files, ${(r.bytes / 1048576).toFixed(1)} MB). To report a problem, attach it to a GitHub issue.`,
+                text: `Saved ${r.path} (${r.files} files, ${(r.bytes / 1048576).toFixed(1)} MB). To report a problem, attach it to a GitHub issue. Issues are public and the bundle may contain your Windows user name and device serial numbers, so review it first.`,
               }
             : { ok: true, text: 'Export cancelled.' },
         ),

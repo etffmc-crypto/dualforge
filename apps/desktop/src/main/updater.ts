@@ -44,6 +44,8 @@ export interface UpdaterDeps {
   onResult: (r: UpdateResult) => void;
   /** Download progress for the Settings page (only while a user-started download runs). */
   onProgress?: (p: UpdateProgress) => void;
+  /** Awaited before quitAndInstall: the HidHide quit cleanup, so the installer never races it. */
+  beforeInstall?: () => Promise<void>;
 }
 
 /**
@@ -129,19 +131,35 @@ export function createUpdater(d: UpdaterDeps) {
     return downloading;
   }
 
-  /** Second explicit click: quit DualForge and run the downloaded installer (it restarts the app afterwards). */
-  function install(): UpdateActionResult {
+  /**
+   * Second explicit click: un-hide the pad (HidHide quit cleanup, capped), then quit DualForge and run the downloaded
+   * installer (it restarts the app afterwards).
+   */
+  let installing: Promise<UpdateActionResult> | null = null;
+  function install(): Promise<UpdateActionResult> {
     const blocked = gate();
-    if (blocked) return { ok: false, code: blocked };
-    if (!impl || !downloadedVersion) return { ok: false, code: 'E_UPDATE_NOT_READY' };
-    d.log.info({ code: 'UPDATE_INSTALL', version: downloadedVersion });
-    try {
-      impl.quitAndInstall(false, true);
-    } catch (e) {
-      d.log.error({ code: 'E_UPDATE_INSTALL', msg: (e as Error).message });
-      return { ok: false, code: 'E_UPDATE_INSTALL' };
-    }
-    return { ok: true, version: downloadedVersion };
+    if (blocked) return Promise.resolve({ ok: false, code: blocked });
+    const u = impl;
+    const version = downloadedVersion;
+    if (!u || !version) return Promise.resolve({ ok: false, code: 'E_UPDATE_NOT_READY' });
+    if (installing) return installing; // a double click must not start the installer twice
+    d.log.info({ code: 'UPDATE_INSTALL', version });
+    installing = (async (): Promise<UpdateActionResult> => {
+      try {
+        await d.beforeInstall?.();
+      } catch (e) {
+        d.log.warn({ code: 'E_UPDATE_INSTALL', msg: `quit cleanup: ${(e as Error).message}` });
+      }
+      try {
+        u.quitAndInstall(false, true);
+      } catch (e) {
+        d.log.error({ code: 'E_UPDATE_INSTALL', msg: (e as Error).message });
+        installing = null; // allow another try
+        return { ok: false, code: 'E_UPDATE_INSTALL' };
+      }
+      return { ok: true, version };
+    })();
+    return installing;
   }
 
   return {
