@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.4
+
+### Packaged-app fixes and update status
+
+- The app and the Health page now report DualForge's own version (the installed 0.3.3 logged Electron's 44.5.1).
+- HidHide: the CLI is probed with a short 2 s timeout (`--version` first). If it hangs or needs administrator rights, Health shows "HidHide installed - state unknown (CLI unresponsive, likely needs administrator)" with a **Retry now** button, and DualForge stops re-probing (and re-logging `E_HEALTH_TIMEOUT`) for 30 minutes instead of every 5-minute run.
+- A second launch now exits immediately, before any logging, so it no longer adds an `APP_START` line.
+- Share codes: whitespace and line breaks in a pasted code are ignored, and the import error says a valid code is one line starting with `DUALFORGE:`.
+- Settings > Updates shows the app version, "Not checked yet." and "Up to date (0.3.4)." after a check with nothing new. The Health app card words each state: updates off, not checked yet, up to date, update x.y.z available, check failed.
+
 ## 0.3.3
 
 ### Release pipeline and in-app updates
