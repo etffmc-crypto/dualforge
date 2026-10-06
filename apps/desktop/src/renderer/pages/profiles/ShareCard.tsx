@@ -50,7 +50,7 @@ export function ShareCard({ slots }: { slots: Slot[] }) {
     );
   };
   const importCode = async () => {
-    const text = paste.trim();
+    const text = paste.replace(/\s+/g, ''); // line-wrapped pastes
     const slot = slots.find((s) => s.id === target)!;
     if (!text) {
       setResult({ ok: false, msg: 'Paste a code first. It starts with DUALFORGE:' });
@@ -67,7 +67,7 @@ export function ShareCard({ slots }: { slots: Slot[] }) {
       setResult({
         ok: false,
         msg: bad
-          ? 'That is not a DualForge share code. Copy the whole code, from DUALFORGE: to the last character.'
+          ? 'That is not a DualForge share code. A valid code is one line that starts with DUALFORGE: - copy the whole code, to the last character.'
           : `Import failed (${errorCode(err)}).`,
       });
     } finally {

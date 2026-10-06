@@ -42,7 +42,8 @@ export function encodeShareCode(profile: Profile, deflate: Codec): string {
  * post-inflate check here cannot stop a decompression bomb. The encoded body is capped at 32 KiB before inflating. */
 export function decodeShareCode(code: string, inflate: Codec): Profile {
   try {
-    const trimmed = code.trim();
+    // pasted codes often carry line breaks or spaces (wrapped by chat apps and e-mail)
+    const trimmed = code.replace(/\s+/g, '');
     if (!trimmed.startsWith(SHARE_PREFIX)) throw new ShareCodeError('missing prefix');
     const body = trimmed.slice(SHARE_PREFIX.length);
     if (body.length > SHARE_MAX_BODY_CHARS) throw new ShareCodeError('too large');
