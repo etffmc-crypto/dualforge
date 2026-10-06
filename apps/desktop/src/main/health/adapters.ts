@@ -128,6 +128,12 @@ export function createHidHideMemo(): HidHideMemo {
   return { state: null, until: 0, logged: null };
 }
 
+/** Forget an unresponsive CLI so the next health run probes it again (the "Retry now" repair). */
+export function resetHidHideMemo(memo: HidHideMemo): void {
+  memo.state = null;
+  memo.until = 0;
+}
+
 export interface HidHideDeps {
   exec: Exec;
   cliPath: string;

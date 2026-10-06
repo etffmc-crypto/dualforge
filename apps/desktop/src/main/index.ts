@@ -23,6 +23,7 @@ import { createHealthService, createEngineFeed } from './health/service.js';
 import {
   gatherInput,
   createHidHideMemo,
+  resetHidHideMemo,
   defaultExec,
   queryVigemService,
   HIDHIDE_STUCK_MARKER,
@@ -238,10 +239,7 @@ const health = createHealthService({
     openLogs: () => shell.openPath(LOG_DIR),
     installViGEm: installRepair('vigem'),
     installHidHide: installRepair('hidhide'),
-    retryHidHide: () => {
-      hidhideMemo.state = null;
-      hidhideMemo.until = 0;
-    },
+    retryHidHide: () => resetHidHideMemo(hidhideMemo),
     enableHidHide: () =>
       // the setting is turned on inside the queue, before converge reads it; the quit/startup logic follows it
       hidHideQueue.repair(() => {
