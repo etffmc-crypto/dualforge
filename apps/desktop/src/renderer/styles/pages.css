@@ -374,6 +374,16 @@
   line-height: 1.45;
   color: var(--muted);
 }
+.update-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.update-progress progress {
+  flex: 1;
+  height: 6px;
+  accent-color: var(--accent);
+}
 .psec-toggles {
   display: flex;
   flex-direction: column;

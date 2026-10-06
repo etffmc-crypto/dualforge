@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.3
+
+### Release pipeline and in-app updates
+
+- DualForge now has a download page (GitHub Pages) with the latest installer, its size and SHA-256, the SmartScreen steps, a quick start and the requirements.
+- Releases are built and published by GitHub Actions from a version tag: installer, `latest.yml` for the updater and `SHA256SUMS.txt`.
+- In-app updates: turn on **Settings > Updates > Check for updates** (off by default). When a new version is found, click **Download** next to the version number (a progress bar shows the download), then **Install & restart**. Nothing is downloaded or installed without those two clicks. Install & restart un-hides the DualSense (HidHide) before the installer starts. The Health page's update card points there.
+- New error codes `E_UPDATE_NOT_READY`, `E_UPDATE_DOWNLOAD`, `E_UPDATE_INSTALL` (see docs/ERROR_CODES.md).
+- Bug report and feature request forms on GitHub; the diagnostics export now suggests attaching the bundle to an issue, and warns that it may contain your Windows user name and device serial numbers (review it first; issues are public).
+- A watchdog workflow checks the download page, the latest release and CI every 30 minutes and opens an issue when something breaks.
+
 ## 0.3.2
 
 ### Negative smoothing rewritten

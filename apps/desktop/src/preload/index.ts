@@ -112,6 +112,19 @@ const api = {
     /** Opt-in update check ("Check now"); { available:false, code } when updates are off, in a dev build, or the check failed. */
     check: (): Promise<{ available: boolean; version?: string; code?: string }> =>
       ipcRenderer.invoke('updates:check'),
+    /** First explicit click: downloads the update the last check found (progress via onProgress). Never installs. */
+    download: (): Promise<{ ok: boolean; version?: string; code?: string }> =>
+      ipcRenderer.invoke('updates:download'),
+    /** Second explicit click: quits DualForge and runs the downloaded installer, which restarts the app. */
+    install: (): Promise<{ ok: boolean; version?: string; code?: string }> =>
+      ipcRenderer.invoke('updates:install'),
+    onProgress(
+      cb: (p: { percent: number; transferred: number; total: number }) => void,
+    ): () => void {
+      const h = (_: unknown, p: { percent: number; transferred: number; total: number }) => cb(p);
+      ipcRenderer.on('updates:progress', h);
+      return () => ipcRenderer.removeListener('updates:progress', h);
+    },
   },
   app: {
     /** Main asks the window to open a page (tray "Health"). */

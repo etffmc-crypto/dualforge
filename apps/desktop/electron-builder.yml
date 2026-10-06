@@ -32,5 +32,5 @@ nsis:
   artifactName: DualForge-Setup-${version}.exe
 publish:
   provider: github
-  owner: dualforge
+  owner: etffmc-crypto
   repo: dualforge
