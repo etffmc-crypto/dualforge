@@ -64,6 +64,12 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 
 Every feature whose point is a felt or visible effect must ship with a test that samples the output **the way the consumer does** (a game polling at 60–250 Hz, a screen at 60 fps, a human reading a message) and asserts the effect is present at that rate. Internal correctness at 8 kHz is not enough. Design briefs state the consumer's timescale; reviewers ask "is this observable at the consumer's sampling rate, and which test proves it?"
 
+## From the 0.3.4 release day (2026-10-05)
+
+- Maximizing the frameless window turned the whole window black in a screen capture (installed 0.3.3, Windows 11, maximize then restore); the main process logged nothing. Reproduce on a real screen; if real, check the `frame: false` + `backgroundColor` repaint path and GPU compositing after a resize.
+- Dev note: Claude Code sessions run inside the Claude desktop app's MSIX package, so their `%APPDATA%` / `%TEMP%` writes are redirected to `AppData\Local\Packages\Claude_*\LocalCache\...`. Dev/e2e runs and the maintenance agent therefore see a private copy of `%APPDATA%\DualForge`, not the installed app's data or logs. The maintenance routine should copy the real logs through a non-virtualized process (or read a diagnostics bundle the user exports) before triaging them.
+- `scripts/share-code-from-file.mjs` prints a profile file's share code, which is the supported way to move a profile between data folders or PCs.
+
 ## From the 0.3.4 re-review (2026-10-05)
 
 - Updater: with an `unknown` current version the fallback `version !== currentVersion` reports an update when electron-updater omits `isUpdateAvailable` (not reachable in the packaged build).
