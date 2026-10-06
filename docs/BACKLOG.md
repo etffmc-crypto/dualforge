@@ -63,3 +63,10 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 ## Review rule (added 2026-10-05 after the negative-smoothing miss)
 
 Every feature whose point is a felt or visible effect must ship with a test that samples the output **the way the consumer does** (a game polling at 60–250 Hz, a screen at 60 fps, a human reading a message) and asserts the effect is present at that rate. Internal correctness at 8 kHz is not enough. Design briefs state the consumer's timescale; reviewers ask "is this observable at the consumer's sampling rate, and which test proves it?"
+
+## From the 0.3.4 re-review (2026-10-05)
+
+- Updater: with an `unknown` current version the fallback `version !== currentVersion` reports an update when electron-updater omits `isUpdateAvailable` (not reachable in the packaged build).
+- Health "Retry now" shows Done even if the CLI hangs again; the card keeps its title (wording only).
+- Health HidHide hang text hard-codes "2 s" / "30 minutes" instead of using HIDHIDE_PROBE_TIMEOUT_MS / HIDHIDE_BACKOFF_MS.
+- A non-timeout, non-denied HidHideCLI list failure is still logged on every run (no memo).

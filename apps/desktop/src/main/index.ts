@@ -1,3 +1,4 @@
+import { hasInstanceLock } from './instance-guard.js'; // first: a second instance exits before the logger starts
 import {
   app,
   BrowserWindow,
@@ -14,11 +15,15 @@ import { basename, join, resolve, extname } from 'node:path';
 import { existsSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { z } from 'zod';
 import { logger, LOG_DIR } from './logger.js';
+import { resolveAppVersion } from './app-version.js';
+import { resolveDataDir } from './data-dir.js';
 import { clearLogs, pruneLogs } from './log-prune.js';
 import { registerLogIpc } from './log-tail.js';
 import { createHealthService, createEngineFeed } from './health/service.js';
 import {
   gatherInput,
+  createHidHideMemo,
+  resetHidHideMemo,
   defaultExec,
   queryVigemService,
   HIDHIDE_STUCK_MARKER,
@@ -58,7 +63,12 @@ const engine = createEngineHost({
 });
 const engineFeed = createEngineFeed(() => engine.stats());
 
-const dataDir = process.env.DUALFORGE_DATA_DIR ?? join(app.getPath('appData'), 'DualForge');
+const APP_VERSION = resolveAppVersion({
+  built: typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : undefined,
+  getVersion: () => app.getVersion(),
+  electronVersion: process.versions.electron,
+});
+const dataDir = resolveDataDir(app.getPath('appData'));
 // Crash dumps stay local (no upload) in <data dir>crashes; started before app ready so child processes are covered.
 const crashDir = join(dataDir, 'crashes');
 startCrashReporter(app, crashReporter, crashDir);
@@ -67,10 +77,11 @@ const settings = createSettingsStore(dataDir, logger);
 const updater = createUpdater({
   enabled: () => __UPDATES_ENABLED__ && settings.get().updates, // build-time gate: off until a real publish owner is set
   isPackaged: app.isPackaged,
-  currentVersion: app.getVersion(),
+  currentVersion: APP_VERSION,
   log: logger,
   load: async () => (await import('electron-updater')).autoUpdater,
   onResult: () => {
+    if (win && !win.isDestroyed()) win.webContents.send('updates:changed');
     void health.run();
   },
   onProgress: (p) => {
@@ -184,6 +195,7 @@ const installRepair = (driver: 'vigem' | 'hidhide') => async () => {
       };
 };
 
+const hidhideMemo = createHidHideMemo();
 const health = createHealthService({
   gather: () =>
     gatherInput({
@@ -191,14 +203,16 @@ const health = createHealthService({
       dataDir,
       logDir: LOG_DIR,
       ownExe: process.execPath,
-      appVersion: app.getVersion(),
+      appVersion: APP_VERSION,
       engine: () => engineFeed.view(),
       updateAvailable: () => updater.last()?.available ?? null,
+      updateStatus: () => updater.status(),
       injector: {
         available: injector.available,
         lastForeign: () => watcher.lastForeignForeground(),
         selfElevated: () => injector.selfElevated(),
       },
+      hidhideMemo,
       onError: (code, msg) => logger.warn({ code, msg }),
     }),
   emit: (s) => {
@@ -225,6 +239,7 @@ const health = createHealthService({
     openLogs: () => shell.openPath(LOG_DIR),
     installViGEm: installRepair('vigem'),
     installHidHide: installRepair('hidhide'),
+    retryHidHide: () => resetHidHideMemo(hidhideMemo),
     enableHidHide: () =>
       // the setting is turned on inside the queue, before converge reads it; the quit/startup logic follows it
       hidHideQueue.repair(() => {
@@ -245,7 +260,7 @@ const bundle = createBundleExporter({
   health: () => health.get(),
   system: async () =>
     buildSystemInfo({
-      appVersion: app.getVersion(),
+      appVersion: APP_VERSION,
       vigemState: await queryVigemService(defaultExec, (code, msg) => logger.warn({ code, msg })),
       addonAvailable: injector.available,
       foregroundElevatedExport: injector.hasForegroundElevated,
@@ -364,12 +379,10 @@ function showWindow(): void {
   win.focus();
 }
 
-if (!app.requestSingleInstanceLock()) {
-  app.quit();
-} else {
+if (hasInstanceLock) {
   app.on('second-instance', () => showWindow());
   app.whenReady().then(() => {
-    logger.info({ code: 'APP_START', version: app.getVersion() });
+    logger.info({ code: 'APP_START', version: APP_VERSION });
     const pruned = pruneLogs(LOG_DIR, Date.now(), (msg) => logger.warn({ code: 'LOG_PRUNE', msg }));
     if (pruned.length) logger.info({ code: 'LOG_PRUNE', deleted: pruned.length });
     tray = createTray({

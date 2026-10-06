@@ -20,7 +20,7 @@ const updatesDefine = { __UPDATES_ENABLED__: JSON.stringify(updatesEnabled) };
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin({ exclude: bundled })],
-    define: updatesDefine,
+    define: { __APP_VERSION__: JSON.stringify(rootPkg.version), ...updatesDefine },
     build: {
       rollupOptions: {
         input: {

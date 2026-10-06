@@ -38,6 +38,7 @@ export const REPAIR_LABELS: Record<RepairId, string> = {
   installViGEm: 'Install ViGEmBus',
   installHidHide: 'Install HidHide',
   enableHidHide: 'Enable HidHide',
+  retryHidHide: 'Retry now',
   restartEngine: 'Restart engine',
   resetProfile: 'Reset profile…',
   clearLogs: 'Clear logs',

@@ -200,6 +200,17 @@ describe('Profiles page: share codes', () => {
     ).toBe('');
   });
 
+  it('sends a line-wrapped paste as one trimmed line', async () => {
+    render(<Profiles />);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Paste a share code' }), {
+      target: { value: `\n ${CODE.slice(0, 15)}\r\n${CODE.slice(15)}  \n` },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Import code' }));
+    await waitFor(() =>
+      expect(profilesApi.importShareCode).toHaveBeenCalledWith(CODE, expect.any(String)),
+    );
+  });
+
   it('a bad code shows an inline error and changes nothing', async () => {
     render(<Profiles />);
     fireEvent.change(screen.getByRole('textbox', { name: 'Paste a share code' }), {
@@ -207,7 +218,9 @@ describe('Profiles page: share codes', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Import code' }));
     await waitFor(() =>
-      expect(screen.getByRole('alert').textContent).toMatch(/not a DualForge share code/),
+      expect(screen.getByRole('alert').textContent).toMatch(
+        /not a DualForge share code.*starts with DUALFORGE:/,
+      ),
     );
     expect(names.p2).toBe('Profile 2');
   });

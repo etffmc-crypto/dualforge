@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { PROFILE_IDS } from '@dualforge/shared';
-import type { HealthInput } from './checks.js';
+import type { AppUpdateStatus, HealthInput } from './checks.js';
 
 export const ADAPTER_TIMEOUT_MS = 5000;
 export const FOREIGN_MAX_AGE_MS = 60_000;
@@ -110,22 +110,103 @@ export function hidHideCliPath(
   return join(programFiles, 'Nefarius Software Solutions', 'HidHide', 'x64', 'HidHideCLI.exe');
 }
 
+/** HidHideCLI answers instantly when healthy; a hang is the failure being detected, so probes are short. */
+export const HIDHIDE_PROBE_TIMEOUT_MS = 2000;
+/** After a hang / access-denied the CLI is not probed again for this long (Retry now clears it). */
+export const HIDHIDE_BACKOFF_MS = 30 * 60_000;
+
+export type HidHideCliState = 'hang' | 'needs-admin';
+/** Remembers an unresponsive CLI across health runs so it is neither re-probed nor re-logged every 5 minutes. */
+export interface HidHideMemo {
+  state: HidHideCliState | null;
+  /** Probing is skipped until this time (ms). */
+  until: number;
+  /** The state already written to the log (cleared when the CLI answers again). */
+  logged: HidHideCliState | null;
+}
+export function createHidHideMemo(): HidHideMemo {
+  return { state: null, until: 0, logged: null };
+}
+
+/** Forget an unresponsive CLI so the next health run probes it again (the "Retry now" repair). */
+export function resetHidHideMemo(memo: HidHideMemo): void {
+  memo.state = null;
+  memo.until = 0;
+}
+
 export interface HidHideDeps {
   exec: Exec;
   cliPath: string;
   exists: (p: string) => boolean;
   ownExe: string;
   onError: ErrorSink;
+  memo?: HidHideMemo;
+  now?: () => number;
 }
 
-/** Missing CLI means "not installed" (no error). CLI failures degrade to "not whitelisted / not hidden" plus a coded error. */
+const isTimeout = (e: unknown) => e instanceof HealthAdapterError && e.code === 'E_HEALTH_TIMEOUT';
+const isDenied = (e: unknown) => {
+  const x = e as { code?: unknown; errno?: unknown; stderr?: unknown; message?: unknown } | null;
+  if (!x) return false;
+  // 5 = ERROR_ACCESS_DENIED. ERROR_ELEVATION_REQUIRED (740, a requireAdministrator manifest) fails at spawn and libuv
+  // reports it as code 'UNKNOWN' / errno -4094 (or EACCES / EPERM); a spawn-level UNKNOWN on an existing CLI is that case.
+  if (x.code === 5 || x.code === 740 || x.errno === -4094) return true;
+  if (x.code === 'EACCES' || x.code === 'EPERM' || x.code === 'UNKNOWN') return true;
+  const text = `${typeof x.stderr === 'string' ? x.stderr : ''}\n${typeof x.message === 'string' ? x.message : ''}`;
+  return /access is denied|requires elevation|elevation required/i.test(text);
+};
+
+/**
+ * Missing CLI means "not installed" (no error). CLI failures degrade to "not whitelisted / not hidden" plus a coded error.
+ * A CLI that hangs or is refused (needs administrator) is probed once (`--version`, 2 s), remembered for 30 min and
+ * reported as `cliUnresponsive`; the timeout is logged once per state change, not every run.
+ */
 export async function queryHidHide(d: HidHideDeps): Promise<HealthInput['hidhide']> {
   if (!d.exists(d.cliPath))
     return { installed: false, cliPath: null, whitelisted: false, deviceHidden: false };
+  const memo = d.memo ?? createHidHideMemo();
+  const now = (d.now ?? Date.now)();
+  const unresponsive = (state: HidHideCliState): HealthInput['hidhide'] => ({
+    installed: true,
+    cliPath: d.cliPath,
+    whitelisted: null,
+    deviceHidden: false,
+    cliUnresponsive: state,
+  });
+  const enter = (state: HidHideCliState, msg: string): HealthInput['hidhide'] => {
+    memo.state = state;
+    memo.until = now + HIDHIDE_BACKOFF_MS;
+    if (memo.logged !== state) {
+      memo.logged = state;
+      d.onError(state === 'hang' ? 'E_HEALTH_TIMEOUT' : 'E_HEALTH_HIDHIDE', msg);
+    }
+    return unresponsive(state);
+  };
+  if (memo.state && now < memo.until) return unresponsive(memo.state);
+  memo.state = null;
+  try {
+    await d.exec(d.cliPath, ['--version'], { timeoutMs: HIDHIDE_PROBE_TIMEOUT_MS });
+  } catch (e) {
+    if (isTimeout(e)) return enter('hang', (e as Error).message);
+    if (isDenied(e))
+      return enter('needs-admin', `--version: ${(e as Error).message} (needs administrator)`);
+    // any other failure (e.g. no --version switch): carry on with the list calls
+  }
+  let hung: string | null = null;
+  let denied: string | null = null;
   const list = async (flag: string): Promise<string | null> => {
+    if (hung || denied) return null;
     try {
-      return (await d.exec(d.cliPath, [flag], { timeoutMs: ADAPTER_TIMEOUT_MS })).stdout;
+      return (await d.exec(d.cliPath, [flag], { timeoutMs: HIDHIDE_PROBE_TIMEOUT_MS })).stdout;
     } catch (e) {
+      if (isTimeout(e)) {
+        hung = (e as Error).message;
+        return null;
+      }
+      if (isDenied(e)) {
+        denied = `${flag}: ${(e as Error).message} (needs administrator)`;
+        return null;
+      }
       d.onError(
         e instanceof HealthAdapterError ? e.code : 'E_HEALTH_HIDHIDE',
         `${flag}: ${(e as Error).message}`,
@@ -134,6 +215,9 @@ export async function queryHidHide(d: HidHideDeps): Promise<HealthInput['hidhide
     }
   };
   const [apps, devs] = [await list('--app-list'), await list('--dev-list')];
+  if (hung) return enter('hang', hung);
+  if (denied) return enter('needs-admin', denied);
+  memo.logged = null;
   const norm = (p: string) =>
     p
       .trim()
@@ -227,9 +311,13 @@ export interface GatherDeps {
   onError: ErrorSink;
   /** Last opt-in update check result (null when updates are off or no check has run). */
   updateAvailable?: () => boolean | null;
+  /** Wording state for the Health `app` card; omitted in tests that only care about updateAvailable. */
+  updateStatus?: () => AppUpdateStatus;
   cliPath?: string;
   exists?: (p: string) => boolean;
   fs?: FsLike;
+  /** Shared across runs so an unresponsive HidHideCLI is remembered. */
+  hidhideMemo?: HidHideMemo;
 }
 /** Everything except `device.highestSeenHz`, which the service tracks across runs. */
 export type GatheredInput = Omit<HealthInput, 'device'> & {
@@ -247,6 +335,8 @@ export async function gatherInput(d: GatherDeps): Promise<GatheredInput> {
       exists: d.exists ?? existsSync,
       ownExe: d.ownExe,
       onError: d.onError,
+      ...(d.hidhideMemo ? { memo: d.hidhideMemo } : {}),
+      ...(d.now ? { now: d.now } : {}),
     }),
   ]);
   const e = d.engine();
@@ -285,7 +375,11 @@ export async function gatherInput(d: GatherDeps): Promise<GatheredInput> {
     },
     profiles: profileStatuses(d.dataDir, d.fs),
     disk: diskUsage(d.logDir, d.fs),
-    app: { version: d.appVersion, updateAvailable: d.updateAvailable?.() ?? null },
+    app: {
+      version: d.appVersion,
+      updateAvailable: d.updateAvailable?.() ?? null,
+      ...(d.updateStatus ? { update: d.updateStatus() } : {}),
+    },
     inject: { available: d.injector.available, foregroundElevated, ownElevated, foregroundSeen },
   };
 }

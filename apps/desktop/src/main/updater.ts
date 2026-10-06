@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { AppUpdateStatus } from './health/checks.js';
 
 export interface UpdateResult {
   available: boolean;
@@ -55,6 +56,7 @@ export interface UpdaterDeps {
 export function createUpdater(d: UpdaterDeps) {
   let impl: AutoUpdaterLike | null = null;
   let lastResult: UpdateResult | null = null;
+  let lastFailed = false;
   let downloading: Promise<UpdateActionResult> | null = null;
   let downloadedVersion: string | null = null;
 
@@ -93,6 +95,7 @@ export function createUpdater(d: UpdaterDeps) {
       const res: UpdateResult =
         available && version ? { available: true, version } : { available: false };
       lastResult = res;
+      lastFailed = false;
       d.log.info({ code: 'UPDATE_CHECK', available: res.available, version: res.version });
       d.onResult(res);
       return res;
@@ -100,7 +103,10 @@ export function createUpdater(d: UpdaterDeps) {
       const msg = (e as Error).message;
       if (/app-update\.yml|ENOENT/i.test(msg)) return { available: false, code: 'E_UPDATE_DEV' };
       d.log.error({ code: 'E_UPDATE_CHECK', msg });
-      return { available: false, code: 'E_UPDATE_CHECK' };
+      const res: UpdateResult = { available: false, code: 'E_UPDATE_CHECK' };
+      lastFailed = true; // Health shows the error until the next successful check
+      d.onResult(res);
+      return res;
     }
   }
 
@@ -168,6 +174,22 @@ export function createUpdater(d: UpdaterDeps) {
     install,
     /** The last successful result (Health's app.update check reads this); null while updates are off or before the first check. */
     last: (): UpdateResult | null => (d.enabled() ? lastResult : null),
+    /** The most recent check failed (cleared by the next successful one). */
+    failed: (): boolean => d.enabled() && lastFailed,
+    /**
+     * One state for Health and Settings. A known available update stays "available" even if a later re-check failed;
+     * "error" only shows when nothing better is known.
+     */
+    status: (): AppUpdateStatus => {
+      if (!d.enabled()) return { state: 'disabled' };
+      if (lastResult?.available)
+        return {
+          state: 'available',
+          ...(lastResult.version ? { version: lastResult.version } : {}),
+        };
+      if (lastFailed) return { state: 'error' };
+      return { state: lastResult ? 'none' : 'unchecked' };
+    },
   };
 }
 export type Updater = ReturnType<typeof createUpdater>;
@@ -178,7 +200,7 @@ type Handler = (event: unknown, ...args: unknown[]) => unknown;
 
 export function registerUpdateIpc(d: {
   ipc: { handle(channel: string, fn: Handler): void };
-  updater: Pick<Updater, 'check' | 'download' | 'install'>;
+  updater: Pick<Updater, 'check' | 'download' | 'install' | 'status'>;
 }): void {
   const h = (ch: string, fn: () => unknown) =>
     d.ipc.handle(ch, (_e, ...a) => {
@@ -186,6 +208,7 @@ export function registerUpdateIpc(d: {
       return fn();
     });
   h('updates:check', () => d.updater.check());
+  h('updates:last', () => d.updater.status());
   h('updates:download', () => d.updater.download());
   h('updates:install', () => d.updater.install());
 }

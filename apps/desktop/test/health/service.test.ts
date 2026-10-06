@@ -5,7 +5,14 @@ import {
   type EngineEvent,
   type HealthState,
 } from '@dualforge/shared';
-import type { GatheredInput } from '../../src/main/health/adapters.js';
+import {
+  createHidHideMemo,
+  HealthAdapterError,
+  queryHidHide,
+  resetHidHideMemo,
+  type Exec,
+  type GatheredInput,
+} from '../../src/main/health/adapters.js';
 import {
   createEngineFeed,
   createHealthService,
@@ -207,7 +214,13 @@ describe('health repairs', () => {
 
   it('install / enable repairs and an unwired exportBundle are unavailable until later tasks', async () => {
     const { svc } = rig();
-    for (const id of ['installViGEm', 'installHidHide', 'enableHidHide', 'exportBundle'] as const) {
+    for (const id of [
+      'installViGEm',
+      'installHidHide',
+      'enableHidHide',
+      'retryHidHide',
+      'exportBundle',
+    ] as const) {
       expect(await svc.repair({ id })).toEqual({ ok: false, code: 'E_HEALTH_REPAIR_UNAVAILABLE' });
     }
   });
@@ -228,6 +241,50 @@ describe('health repairs', () => {
     });
     expect(await svc.repair({ id: 'exportBundle' })).toEqual({ ok: true });
     expect(exportBundle).toHaveBeenCalled();
+  });
+
+  it('Retry now: the wired repair clears the HidHide memo, reruns the checks and the CLI is probed again', async () => {
+    let answers = false;
+    const exec = vi.fn<Exec>(async () => {
+      if (!answers) throw new HealthAdapterError('E_HEALTH_TIMEOUT', 'timed out after 2000 ms');
+      return { stdout: '' };
+    });
+    const memo = createHidHideMemo();
+    const probe = async (): Promise<GatheredInput> => ({
+      ...GOOD,
+      hidhide: await queryHidHide({
+        exec,
+        cliPath: 'C:\\HH\\HidHideCLI.exe',
+        exists: () => true,
+        ownExe: 'C:\\Apps\\DualForge.exe',
+        onError: vi.fn(),
+        memo,
+      }),
+    });
+    const svc = createHealthService({
+      gather: probe,
+      emit: vi.fn(),
+      log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+      repairs: {
+        restartEngine: vi.fn(),
+        resetProfile: vi.fn(),
+        clearLogs: () => 0,
+        openLogs: () => '',
+        retryHidHide: () => resetHidHideMemo(memo),
+      },
+    });
+    const first = await svc.run();
+    expect(first.results.find((r) => r.id === 'hidhide')?.repair).toBe('retryHidHide');
+    await svc.run(); // still inside the 30 min backoff: no new probe
+    expect(exec).toHaveBeenCalledTimes(1);
+    answers = true;
+    expect(await svc.repair({ id: 'retryHidHide' })).toEqual({ ok: true });
+    await vi.waitFor(() =>
+      expect(svc.cached()?.results.find((r) => r.id === 'hidhide')?.repair).not.toBe(
+        'retryHidHide',
+      ),
+    );
+    expect(exec).toHaveBeenCalledTimes(1 + 3); // --version, --app-list, --dev-list again
   });
 
   it('maps an openLogs error string and a throwing handler to coded failures', async () => {

@@ -112,6 +112,17 @@ const api = {
     /** Opt-in update check ("Check now"); { available:false, code } when updates are off, in a dev build, or the check failed. */
     check: (): Promise<{ available: boolean; version?: string; code?: string }> =>
       ipcRenderer.invoke('updates:check'),
+    /** Where the update check stands (startup or manual): disabled / unchecked / none / available / error. */
+    last: (): Promise<{
+      state: 'disabled' | 'unchecked' | 'none' | 'available' | 'error';
+      version?: string;
+    }> => ipcRenderer.invoke('updates:last'),
+    /** Pushed when a check finishes (the startup check can complete while Settings is open). */
+    onChanged(cb: () => void): () => void {
+      const h = () => cb();
+      ipcRenderer.on('updates:changed', h);
+      return () => ipcRenderer.removeListener('updates:changed', h);
+    },
     /** First explicit click: downloads the update the last check found (progress via onProgress). Never installs. */
     download: (): Promise<{ ok: boolean; version?: string; code?: string }> =>
       ipcRenderer.invoke('updates:download'),

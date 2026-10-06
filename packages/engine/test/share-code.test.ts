@@ -19,6 +19,14 @@ describe('share code', () => {
     expect(q.id.length).toBeGreaterThan(0);
     expect({ ...q, id: 'x' }).toEqual({ ...p, id: 'x' });
   });
+  it('ignores whitespace and line breaks around and inside a pasted code', () => {
+    const code = encodeShareCode(defaultProfile('a', 'Wrapped'), id);
+    const mangled = ` 
+${code.slice(0, 20)}
+${code.slice(20, 41)} ${code.slice(41)}
+	`;
+    expect(decodeShareCode(mangled, id).name).toBe('Wrapped');
+  });
   it('uses the injected deflate/inflate', () => {
     const rev = (b: Uint8Array) => Uint8Array.from(b).reverse();
     const p = defaultProfile('a', 'b');

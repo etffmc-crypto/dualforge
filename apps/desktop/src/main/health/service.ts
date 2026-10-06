@@ -25,6 +25,8 @@ export interface HealthRepairs {
   installViGEm?(): Promise<HealthRepairResult>;
   installHidHide?(): Promise<HealthRepairResult>;
   enableHidHide?(): Promise<HealthRepairResult>;
+  /** Forget that HidHideCLI was unresponsive so the next run probes it again. */
+  retryHidHide?(): void;
 }
 export interface HealthDeps {
   gather: () => Promise<GatheredInput>;
@@ -129,6 +131,12 @@ export function createHealthService(d: HealthDeps) {
           break;
         case 'installHidHide':
           res = d.repairs.installHidHide ? await d.repairs.installHidHide() : UNAVAILABLE;
+          break;
+        case 'retryHidHide':
+          if (d.repairs.retryHidHide) {
+            d.repairs.retryHidHide();
+            res = { ok: true };
+          } else res = UNAVAILABLE;
           break;
         case 'enableHidHide':
           res = d.repairs.enableHidHide ? await d.repairs.enableHidHide() : UNAVAILABLE;
