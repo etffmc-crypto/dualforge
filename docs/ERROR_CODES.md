@@ -340,6 +340,10 @@ The update check is not available: this is a development build (no `app-update.y
 
 The update check failed (offline, GitHub unreachable, bad release metadata; see `msg` in the log). Fix: try again later.
 
+### E_UPDATE_LOAD
+
+The updater module (electron-updater) could not be loaded or did not provide an `autoUpdater`, so no check can run. Logged once per session; Health shows the update status as an error. In 0.3.3 and 0.3.4 this surfaced as E_UPDATE_CHECK "Cannot set properties of undefined (setting 'autoDownload')" because the packaged ESM bundle read the CommonJS getter export the wrong way. Fix: install the latest version from the download page.
+
 ### E_UPDATE_NOT_READY
 
 "Download" was clicked before a check found a newer version, or "Install & restart" before the download finished (for example after a restart). Nothing was downloaded or installed. Fix: click "Check now" again, then download.

@@ -1,5 +1,11 @@
+import { createRequire, Module } from 'node:module';
 import { describe, expect, it, vi } from 'vitest';
-import { createUpdater, registerUpdateIpc } from '../src/main/updater.js';
+import {
+  createUpdater,
+  registerUpdateIpc,
+  resolveAutoUpdater,
+  UpdateLoadError,
+} from '../src/main/updater.js';
 import { createQuitCleanup } from '../src/main/quit-cleanup.js';
 
 type ProgressCb = (p: { percent: number; transferred: number; total: number }) => void;
@@ -118,7 +124,7 @@ describe('updater', () => {
       },
     });
     await f.u.check();
-    expect(f.u.status()).toEqual({ state: 'error' });
+    expect(f.u.status()).toEqual({ state: 'error', code: 'E_UPDATE_CHECK' });
   });
   it('turning updates off forgets the last result', async () => {
     let on = true;
@@ -141,6 +147,102 @@ describe('updater', () => {
     await u.check();
     on = false;
     expect(u.last()).toBeNull();
+  });
+});
+
+describe('loading electron-updater (E_UPDATE_LOAD)', () => {
+  it('resolves autoUpdater from the real dynamic import of electron-updater', async () => {
+    // Under vitest `require('electron')` is the npm package (a path string), so the autoUpdater getter has no app to
+    // read its version from. Seed Node's CJS cache with a minimal electron `app`; the import itself stays real.
+    const req = createRequire(createRequire(import.meta.url).resolve('electron-updater'));
+    const electronPath = req.resolve('electron');
+    const prev = req.cache[electronPath];
+    const stub = new Module(electronPath);
+    stub.filename = electronPath;
+    stub.loaded = true;
+    stub.exports = {
+      app: {
+        getVersion: () => '0.0.0',
+        getName: () => 'DualForge',
+        isPackaged: false,
+        getAppPath: () => process.cwd(),
+        getPath: () => process.cwd(),
+        whenReady: () => Promise.resolve(),
+        on: () => undefined,
+        once: () => undefined,
+      },
+    };
+    req.cache[electronPath] = stub;
+    let mod: unknown;
+    try {
+      mod = await import('electron-updater');
+      resolveAutoUpdater(mod); // the getter runs (and caches the instance) while the stub is in place
+    } finally {
+      if (prev) req.cache[electronPath] = prev;
+      else delete req.cache[electronPath];
+    }
+    const u = resolveAutoUpdater(mod);
+    // the same instance the packaged ESM bundle reaches through `default` (its named export is not detected there)
+    expect(resolveAutoUpdater({ default: (mod as { default: unknown }).default })).toBe(u);
+    expect(typeof u.checkForUpdates).toBe('function');
+    expect(typeof u.downloadUpdate).toBe('function');
+    expect(typeof u.autoDownload).toBe('boolean');
+    u.autoDownload = false; // the exact assignment that crashed 0.3.3 / 0.3.4
+    expect(u.autoDownload).toBe(false);
+  });
+  it('accepts both the ESM namespace shape ({ default: { autoUpdater } }) and the CJS shape ({ autoUpdater })', () => {
+    const au = { checkForUpdates: () => Promise.resolve(null), autoDownload: true };
+    expect(resolveAutoUpdater({ default: { autoUpdater: au } })).toBe(au);
+    expect(resolveAutoUpdater({ autoUpdater: au })).toBe(au);
+    // the packaged-app namespace: the named export is missing, only default carries the getter
+    expect(resolveAutoUpdater({ autoUpdater: undefined, default: { autoUpdater: au } })).toBe(au);
+  });
+  it('throws E_UPDATE_LOAD when neither shape holds an updater', () => {
+    for (const bad of [
+      null,
+      {},
+      { default: {} },
+      { autoUpdater: {} },
+      { default: { autoUpdater: 1 } },
+    ])
+      expect(() => resolveAutoUpdater(bad)).toThrow(UpdateLoadError);
+    expect(() => resolveAutoUpdater({})).toThrow(/E_UPDATE_LOAD/);
+  });
+  it('a rejecting load() is E_UPDATE_LOAD, logged once, and Health status "error"', async () => {
+    const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    const results: unknown[] = [];
+    const u = createUpdater({
+      enabled: () => true,
+      isPackaged: true,
+      currentVersion: '0.1.0',
+      load: async () => resolveAutoUpdater({ default: {} }),
+      log,
+      onResult: (r) => results.push(r),
+    });
+    expect(await u.check()).toEqual({ available: false, code: 'E_UPDATE_LOAD' });
+    expect(await u.check()).toEqual({ available: false, code: 'E_UPDATE_LOAD' });
+    expect(log.error).toHaveBeenCalledTimes(1);
+    expect(log.error).toHaveBeenCalledWith(expect.objectContaining({ code: 'E_UPDATE_LOAD' }));
+    expect(log.error).not.toHaveBeenCalledWith(expect.objectContaining({ code: 'E_UPDATE_CHECK' }));
+    expect(u.failed()).toBe(true);
+    expect(u.status()).toEqual({ state: 'error', code: 'E_UPDATE_LOAD' });
+    expect(results).toEqual([
+      { available: false, code: 'E_UPDATE_LOAD' },
+      { available: false, code: 'E_UPDATE_LOAD' },
+    ]);
+  });
+  it('a load() that resolves to undefined (the 0.3.4 bug) is E_UPDATE_LOAD, not a TypeError E_UPDATE_CHECK', async () => {
+    const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
+    const u = createUpdater({
+      enabled: () => true,
+      isPackaged: true,
+      currentVersion: '0.1.0',
+      load: async () => undefined as never,
+      log,
+      onResult: () => {},
+    });
+    expect(await u.check()).toEqual({ available: false, code: 'E_UPDATE_LOAD' });
+    expect(log.error).toHaveBeenCalledWith(expect.objectContaining({ code: 'E_UPDATE_LOAD' }));
   });
 });
 

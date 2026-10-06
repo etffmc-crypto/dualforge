@@ -34,6 +34,34 @@ export interface AutoUpdaterLike {
   ): unknown;
 }
 
+const isAutoUpdater = (u: unknown): u is AutoUpdaterLike =>
+  !!u &&
+  typeof u === 'object' &&
+  typeof (u as { checkForUpdates?: unknown }).checkForUpdates === 'function';
+
+/** Thrown when electron-updater's autoUpdater could not be loaded (see E_UPDATE_LOAD). */
+export class UpdateLoadError extends Error {
+  readonly code = 'E_UPDATE_LOAD';
+}
+
+/**
+ * The autoUpdater from an `import('electron-updater')` namespace. electron-updater is CommonJS and defines
+ * `autoUpdater` as a lazy getter, which Node's ESM named-export detection does not see: in the packaged (ESM) main
+ * bundle only `default.autoUpdater` exists. Throws E_UPDATE_LOAD when neither is an updater.
+ */
+export function resolveAutoUpdater(mod: unknown): AutoUpdaterLike {
+  const m = mod as { autoUpdater?: unknown; default?: { autoUpdater?: unknown } } | null;
+  let u: unknown;
+  try {
+    u = m?.autoUpdater ?? m?.default?.autoUpdater;
+  } catch (e) {
+    throw new UpdateLoadError(`E_UPDATE_LOAD: autoUpdater getter threw: ${(e as Error).message}`);
+  }
+  if (!isAutoUpdater(u))
+    throw new UpdateLoadError('E_UPDATE_LOAD: electron-updater exports no autoUpdater');
+  return u;
+}
+
 export interface UpdaterDeps {
   /** settings.updates; nothing is loaded or fetched while it is false. */
   enabled: () => boolean;
@@ -56,13 +84,22 @@ export interface UpdaterDeps {
 export function createUpdater(d: UpdaterDeps) {
   let impl: AutoUpdaterLike | null = null;
   let lastResult: UpdateResult | null = null;
-  let lastFailed = false;
+  /** The code of the most recent failed check (cleared by the next successful one). */
+  let lastFailed: string | null = null;
+  let loadLogged = false;
   let downloading: Promise<UpdateActionResult> | null = null;
   let downloadedVersion: string | null = null;
 
   async function ensureImpl(): Promise<AutoUpdaterLike> {
     if (!impl) {
-      const u = await d.load();
+      let u: unknown;
+      try {
+        u = await d.load();
+      } catch (e) {
+        throw e instanceof UpdateLoadError ? e : new UpdateLoadError((e as Error).message);
+      }
+      if (!isAutoUpdater(u))
+        throw new UpdateLoadError('E_UPDATE_LOAD: the loaded autoUpdater is not an updater');
       u.autoDownload = false;
       u.autoInstallOnAppQuit = false;
       u.on('download-progress', (p) =>
@@ -95,16 +132,23 @@ export function createUpdater(d: UpdaterDeps) {
       const res: UpdateResult =
         available && version ? { available: true, version } : { available: false };
       lastResult = res;
-      lastFailed = false;
+      lastFailed = null;
       d.log.info({ code: 'UPDATE_CHECK', available: res.available, version: res.version });
       d.onResult(res);
       return res;
     } catch (e) {
       const msg = (e as Error).message;
-      if (/app-update\.yml|ENOENT/i.test(msg)) return { available: false, code: 'E_UPDATE_DEV' };
-      d.log.error({ code: 'E_UPDATE_CHECK', msg });
-      const res: UpdateResult = { available: false, code: 'E_UPDATE_CHECK' };
-      lastFailed = true; // Health shows the error until the next successful check
+      let code = 'E_UPDATE_CHECK';
+      if (e instanceof UpdateLoadError) {
+        code = 'E_UPDATE_LOAD';
+        if (!loadLogged) d.log.error({ code, msg }); // the module will not load any better next time
+        loadLogged = true;
+      } else {
+        if (/app-update\.yml|ENOENT/i.test(msg)) return { available: false, code: 'E_UPDATE_DEV' };
+        d.log.error({ code, msg });
+      }
+      const res: UpdateResult = { available: false, code };
+      lastFailed = code; // Health shows the error until the next successful check
       d.onResult(res);
       return res;
     }
@@ -175,7 +219,7 @@ export function createUpdater(d: UpdaterDeps) {
     /** The last successful result (Health's app.update check reads this); null while updates are off or before the first check. */
     last: (): UpdateResult | null => (d.enabled() ? lastResult : null),
     /** The most recent check failed (cleared by the next successful one). */
-    failed: (): boolean => d.enabled() && lastFailed,
+    failed: (): boolean => d.enabled() && lastFailed !== null,
     /**
      * One state for Health and Settings. A known available update stays "available" even if a later re-check failed;
      * "error" only shows when nothing better is known.
@@ -187,7 +231,7 @@ export function createUpdater(d: UpdaterDeps) {
           state: 'available',
           ...(lastResult.version ? { version: lastResult.version } : {}),
         };
-      if (lastFailed) return { state: 'error' };
+      if (lastFailed) return { state: 'error', code: lastFailed };
       return { state: lastResult ? 'none' : 'unchecked' };
     },
   };
