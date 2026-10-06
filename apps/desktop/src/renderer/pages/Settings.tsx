@@ -158,6 +158,7 @@ export function Settings() {
         </PanelSection>
         {updatesEnabled && (
           <PanelSection title="Updates">
+            <p className="psec-hint">DualForge {appVersion()}</p>
             {flag(
               'updates',
               'Check for updates',
@@ -231,10 +232,12 @@ const UPDATE_CODES: Record<string, string> = {
 };
 
 function updateText(r: UpdateResult | { error: string } | null): string {
-  if (!r) return '';
+  if (!r) return 'Not checked yet.';
   if ('error' in r) return `The update check failed (${r.error}).`;
   if (r.code) return UPDATE_CODES[r.code] ?? `The update check failed (${r.code}).`;
-  return r.available
-    ? `Version ${r.version ?? ''} is available.`
-    : 'You are on the latest version.';
+  return r.available ? `Version ${r.version ?? ''} is available.` : `Up to date (${appVersion()}).`;
 }
+
+/** DualForge's own version (build-time constant; absent in unit tests that do not stub it). */
+const appVersion = (): string =>
+  typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : 'unknown';

@@ -56,6 +56,7 @@ beforeEach(() => {
     health: healthApi,
     updates: updatesApi,
   });
+  vi.stubGlobal('__APP_VERSION__', '0.3.4');
   vi.stubGlobal('__UPDATES_ENABLED__', true); // build-time define; a release with a real publish owner
   useStore.setState({ settings: defaultSettings(), lastError: null, hidHidePending: false });
   delete document.documentElement.dataset.theme;
@@ -183,10 +184,12 @@ describe('Settings page', () => {
   it('Check now shows what the updater found', async () => {
     updatesApi.check.mockResolvedValueOnce({ available: true, version: '0.2.0' });
     render(<Settings />);
+    expect(screen.getByText('DualForge 0.3.4')).toBeTruthy();
+    expect(screen.getByText('Not checked yet.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Check now' }));
     await waitFor(() => expect(screen.getByText('Version 0.2.0 is available.')).toBeTruthy());
     fireEvent.click(screen.getByRole('button', { name: 'Check now' }));
-    await waitFor(() => expect(screen.getByText('You are on the latest version.')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Up to date (0.3.4).')).toBeTruthy());
     updatesApi.check.mockResolvedValueOnce({ available: false, code: 'E_UPDATE_DEV' });
     fireEvent.click(screen.getByRole('button', { name: 'Check now' }));
     await waitFor(() => expect(screen.getByText(/development build/)).toBeTruthy());

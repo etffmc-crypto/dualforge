@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { PROFILE_IDS } from '@dualforge/shared';
-import type { HealthInput } from './checks.js';
+import type { AppUpdateStatus, HealthInput } from './checks.js';
 
 export const ADAPTER_TIMEOUT_MS = 5000;
 export const FOREIGN_MAX_AGE_MS = 60_000;
@@ -296,6 +296,8 @@ export interface GatherDeps {
   onError: ErrorSink;
   /** Last opt-in update check result (null when updates are off or no check has run). */
   updateAvailable?: () => boolean | null;
+  /** Wording state for the Health `app` card; omitted in tests that only care about updateAvailable. */
+  updateStatus?: () => AppUpdateStatus;
   cliPath?: string;
   exists?: (p: string) => boolean;
   fs?: FsLike;
@@ -358,7 +360,11 @@ export async function gatherInput(d: GatherDeps): Promise<GatheredInput> {
     },
     profiles: profileStatuses(d.dataDir, d.fs),
     disk: diskUsage(d.logDir, d.fs),
-    app: { version: d.appVersion, updateAvailable: d.updateAvailable?.() ?? null },
+    app: {
+      version: d.appVersion,
+      updateAvailable: d.updateAvailable?.() ?? null,
+      ...(d.updateStatus ? { update: d.updateStatus() } : {}),
+    },
     inject: { available: d.injector.available, foregroundElevated, ownElevated, foregroundSeen },
   };
 }

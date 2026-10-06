@@ -83,6 +83,7 @@ describe('updater', () => {
     });
     expect(await b.u.check()).toEqual({ available: false, code: 'E_UPDATE_CHECK' });
     expect(b.log.error).toHaveBeenCalledWith(expect.objectContaining({ code: 'E_UPDATE_CHECK' }));
+    expect(b.u.failed()).toBe(true); // Health shows the failure
   });
   it('a failed check does not replace the last good result', async () => {
     let n = 0;
@@ -95,6 +96,7 @@ describe('updater', () => {
     await r.u.check();
     await r.u.check();
     expect(r.u.last()).toEqual({ available: true, version: '0.2.0' });
+    expect(r.u.failed()).toBe(true);
   });
   it('turning updates off forgets the last result', async () => {
     let on = true;

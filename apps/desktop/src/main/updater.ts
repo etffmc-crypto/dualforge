@@ -55,6 +55,7 @@ export interface UpdaterDeps {
 export function createUpdater(d: UpdaterDeps) {
   let impl: AutoUpdaterLike | null = null;
   let lastResult: UpdateResult | null = null;
+  let lastFailed = false;
   let downloading: Promise<UpdateActionResult> | null = null;
   let downloadedVersion: string | null = null;
 
@@ -93,6 +94,7 @@ export function createUpdater(d: UpdaterDeps) {
       const res: UpdateResult =
         available && version ? { available: true, version } : { available: false };
       lastResult = res;
+      lastFailed = false;
       d.log.info({ code: 'UPDATE_CHECK', available: res.available, version: res.version });
       d.onResult(res);
       return res;
@@ -100,7 +102,10 @@ export function createUpdater(d: UpdaterDeps) {
       const msg = (e as Error).message;
       if (/app-update\.yml|ENOENT/i.test(msg)) return { available: false, code: 'E_UPDATE_DEV' };
       d.log.error({ code: 'E_UPDATE_CHECK', msg });
-      return { available: false, code: 'E_UPDATE_CHECK' };
+      const res: UpdateResult = { available: false, code: 'E_UPDATE_CHECK' };
+      lastFailed = true; // Health shows the error until the next successful check
+      d.onResult(res);
+      return res;
     }
   }
 
@@ -168,6 +173,8 @@ export function createUpdater(d: UpdaterDeps) {
     install,
     /** The last successful result (Health's app.update check reads this); null while updates are off or before the first check. */
     last: (): UpdateResult | null => (d.enabled() ? lastResult : null),
+    /** The most recent check failed (cleared by the next successful one). */
+    failed: (): boolean => d.enabled() && lastFailed,
   };
 }
 export type Updater = ReturnType<typeof createUpdater>;

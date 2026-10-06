@@ -1,5 +1,11 @@
 import type { HealthResult } from '@dualforge/shared';
 
+/** Where the opt-in update check stands (Health `app` card wording). */
+export interface AppUpdateStatus {
+  state: 'disabled' | 'unchecked' | 'none' | 'available' | 'error';
+  version?: string;
+}
+
 export interface HealthInput {
   vigem: { serviceState: 'running' | 'stopped' | 'missing' | 'unknown'; busDevicePresent: boolean };
   /** `whitelisted` is null when the CLI call failed (unknown). */
@@ -23,7 +29,7 @@ export interface HealthInput {
   engine: { alive: boolean; restartsLastHour: number; p99Ms: number; lastErrorCodes: string[] };
   profiles: { slot: string; status: 'ok' | 'quarantined' | 'default' }[];
   disk: { logBytes: number; logFiles: number };
-  app: { version: string; updateAvailable: boolean | null };
+  app: { version: string; updateAvailable: boolean | null; update?: AppUpdateStatus };
   inject: {
     available: boolean;
     foregroundElevated: boolean | null;
@@ -280,14 +286,35 @@ export function runChecks(i: HealthInput): HealthResult[] {
     out.push(ok('inject', 'Keyboard and mouse output ready', 'The native input addon is loaded.'));
 
   // App
-  if (i.app.updateAvailable === true)
+  const u = i.app.update;
+  if (u?.state === 'available' || (!u && i.app.updateAvailable === true))
     out.push({
       id: 'app',
       status: 'warn',
-      title: 'Update available',
+      title: u?.version ? `Update ${u.version} available` : 'Update available',
       detail: `A newer version than ${i.app.version} is available. Download and install it from Settings > Updates.`,
     });
-  else out.push(ok('app', `DualForge ${i.app.version}`, 'Up to date, or update checks are off.'));
+  else if (u?.state === 'error')
+    out.push({
+      id: 'app',
+      status: 'warn',
+      title: `DualForge ${i.app.version}`,
+      detail:
+        'The last update check failed (E_UPDATE_CHECK). Check your connection and use Check now in Settings > Updates.',
+    });
+  else if (u?.state === 'disabled')
+    out.push(
+      ok(
+        'app',
+        `DualForge ${i.app.version}`,
+        'Update checks are off. Turn on "Check for updates" in Settings to look for new versions.',
+      ),
+    );
+  else if (u?.state === 'none') out.push(ok('app', `DualForge ${i.app.version}`, 'Up to date.'));
+  else
+    out.push(
+      ok('app', `DualForge ${i.app.version}`, 'No update check has run yet (Settings > Updates).'),
+    );
 
   return out;
 }

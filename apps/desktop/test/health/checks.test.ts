@@ -302,6 +302,30 @@ describe('runChecks', () => {
       status: 'warn',
     },
     {
+      name: 'update state "available" names the version',
+      patch: (i) => {
+        i.app.update = { state: 'available', version: '0.3.5' };
+      },
+      id: 'app',
+      status: 'warn',
+    },
+    {
+      name: 'update state "error" warns',
+      patch: (i) => {
+        i.app.update = { state: 'error' };
+      },
+      id: 'app',
+      status: 'warn',
+    },
+    {
+      name: 'update states disabled / none / unchecked are ok',
+      patch: (i) => {
+        i.app.update = { state: 'none' };
+      },
+      id: 'app',
+      status: 'ok',
+    },
+    {
       name: 'an unknown update state is fine',
       patch: (i) => {
         i.app.updateAvailable = null;
@@ -362,5 +386,23 @@ describe('runChecks', () => {
       expect(r.title.length).toBeGreaterThan(0);
       expect(r.detail.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('app update card wording', () => {
+  const title = (update?: NonNullable<HealthInput['app']['update']>) => {
+    const input = structuredClone(GOOD);
+    if (update) input.app.update = update;
+    return runChecks(input).find((r) => r.id === 'app')!;
+  };
+  it('says what each update state means', () => {
+    expect(title({ state: 'available', version: '0.3.5' }).title).toBe('Update 0.3.5 available');
+    expect(title({ state: 'none' }).detail).toBe('Up to date.');
+    expect(title({ state: 'disabled' }).detail).toMatch(/Update checks are off/);
+    expect(title({ state: 'unchecked' }).detail).toMatch(/No update check has run yet/);
+    const err = title({ state: 'error' });
+    expect(err.status).toBe('warn');
+    expect(err.detail).toMatch(/E_UPDATE_CHECK/);
+    expect(title({ state: 'none' }).title).toBe('DualForge 0.1.0');
   });
 });
