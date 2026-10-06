@@ -52,7 +52,14 @@ describe('error-code registry', () => {
   });
 
   it('lists the non-E_ structured log codes', () => {
-    for (const c of ['APP_START', 'ENGINE_STATUS', 'ENGINE_EXIT', 'ENGINE_STDERR'])
+    for (const c of [
+      'APP_START',
+      'ENGINE_STATUS',
+      'ENGINE_EXIT',
+      'ENGINE_STDERR',
+      'HIDHIDE_CLI_HANG',
+      'HIDHIDE_STILL_CLOAKED',
+    ])
       expect(documented.has(c)).toBe(true);
   });
 });

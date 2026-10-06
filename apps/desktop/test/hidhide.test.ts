@@ -1,6 +1,11 @@
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { defaultExec, HealthAdapterError, needsElevation } from '../src/main/health/adapters.js';
+import {
+  defaultExec,
+  HealthAdapterError,
+  HIDHIDE_STUCK_MARKER,
+  needsElevation,
+} from '../src/main/health/adapters.js';
 import {
   composeElevatedCloakOff,
   composeElevatedSetup,
@@ -31,6 +36,8 @@ function rig(
     devList?: string;
     elevation?: 'accept' | 'decline';
     cloaked?: () => boolean;
+    /** The stuck marker a previous session's failed quit cloak-off left in the data dir. */
+    stuckMarker?: boolean;
   } = {},
 ) {
   const calls: { file: string; args: string[] }[] = [];
@@ -60,7 +67,9 @@ function rig(
   });
   const h = createHidHide({
     exec,
-    exists: (p) => (opts.installed ?? true) && p === CLI,
+    exists: (p) =>
+      ((opts.installed ?? true) && p === CLI) ||
+      (!!opts.stuckMarker && p === join(DATA, HIDHIDE_STUCK_MARKER)),
     ownExe: EXE,
     programFiles: 'C:\\Program Files',
     dataDir: DATA,
@@ -401,6 +410,52 @@ describe('hidhide: a CLI that hangs unelevated takes the elevated path (0.3.5)',
     expect(elevatedCalls(r)).toHaveLength(1);
     await r.h.enable();
     expect(elevatedCalls(r)).toHaveLength(2);
+  });
+
+  it('startup: hung CLI + stuck marker from the last quit → no elevated setup, HIDHIDE_STILL_CLOAKED logged once', async () => {
+    const r = rig({ stuckMarker: true, failWith: (a) => (a[0] === '--app-reg' ? hang() : null) });
+    expect(await r.h.startup()).toEqual({ ok: true, skipped: false });
+    expect(await r.h.startup()).toEqual({ ok: true, skipped: false });
+    expect(elevatedCalls(r)).toHaveLength(0);
+    expect(r.writes).toEqual([]);
+    const still = r.log.info.mock.calls.filter(
+      (c) => (c[0] as { code?: string }).code === 'HIDHIDE_STILL_CLOAKED',
+    );
+    expect(still).toHaveLength(1);
+    expect(r.stuck).toEqual([]); // the marker stays: the cloak really is still on
+  });
+
+  it('startup: hung CLI without the marker keeps the one auto UAC prompt per session (none after a decline)', async () => {
+    const r = rig({
+      failWith: (a) => (a[0] === '--app-reg' ? hang() : null),
+      elevation: 'decline',
+    });
+    expect(await r.h.startup()).toMatchObject({ ok: false, code: 'E_HIDHIDE_ELEVATION_DECLINED' });
+    expect(await r.h.startup()).toMatchObject({ ok: false, code: 'E_HIDHIDE_ELEVATION_DECLINED' });
+    expect(elevatedCalls(r)).toHaveLength(1);
+    const ok = rig({ failWith: (a) => (a[0] === '--app-reg' ? hang() : null) });
+    expect(await ok.h.startup()).toEqual({ ok: true });
+    expect(elevatedCalls(ok)).toHaveLength(1);
+  });
+
+  it('a user enable with the marker present still offers the prompt (the marker only spares startup)', async () => {
+    const r = rig({ stuckMarker: true, failWith: (a) => (a[0] === '--app-reg' ? hang() : null) });
+    expect(await r.h.enable()).toEqual({ ok: true });
+    expect(elevatedCalls(r)).toHaveLength(1);
+  });
+
+  it('HIDHIDE_CLI_HANG is logged once per process per args, not on every attempt', async () => {
+    const r = rig({
+      failWith: (a) => (a[0] === '--app-reg' || a[0] === '--cloak-off' ? hang() : null),
+    });
+    await r.h.enable();
+    await r.h.enable();
+    await r.h.disable();
+    await r.h.disable();
+    const hangs = r.log.warn.mock.calls
+      .map((c) => c[0] as { code?: string; args?: string[] })
+      .filter((o) => o.code === 'HIDHIDE_CLI_HANG');
+    expect(hangs.map((o) => o.args)).toEqual([['--app-reg', EXE], ['--cloak-off']]);
   });
 
   it('quit: a hung cloak-off never prompts and marks the pad stuck', async () => {

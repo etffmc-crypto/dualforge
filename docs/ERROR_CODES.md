@@ -308,7 +308,7 @@ No connected DualSense game-controller HID collection was found through PnP (mat
 
 ### E_HIDHIDE_CLI
 
-A `HidHideCLI.exe` call failed (`msg` names the command). Cause: the driver service is stopped. A refusal for lack of rights (exit code 5 / 740, "Access is denied", "requires elevation") and, since 0.3.5, a call that hangs until the 5 s timeout (unelevated HidHideCLI can wait forever; logged once as `HIDHIDE_CLI_HANG` with the args) are not reported here: enable and disable then run the elevated setup instead (see E_HIDHIDE_ELEVATION_DECLINED). Fix: restart the PC, then retry.
+A `HidHideCLI.exe` call failed (`msg` names the command). Cause: the driver service is stopped. A refusal for lack of rights (exit code 5 / 740, "Access is denied", "requires elevation") and, since 0.3.5, a call that hangs until the 5 s timeout (unelevated HidHideCLI can wait forever; see `HIDHIDE_CLI_HANG`) are not reported here: enable and disable then run the elevated setup instead (see E_HIDHIDE_ELEVATION_DECLINED). Fix: restart the PC, then retry.
 
 ### E_HIDHIDE_ELEVATION_DECLINED
 
@@ -423,6 +423,14 @@ Info: HidHide was enabled (`instance` is the hidden HID instance path).
 ### HIDHIDE_ACCESS_DENIED
 
 Warning: a HidHide CLI call was refused for lack of administrator rights; enable continues with the elevated setup (UAC).
+
+### HIDHIDE_CLI_HANG
+
+Warning (`args`, `msg`): an unelevated `HidHideCLI.exe` call never answered and was killed at the 5 s timeout. Treated like access denied: enable/disable continue with the elevated setup (UAC), quit marks the pad stuck. Logged once per process per command line (`args`), not on every attempt.
+
+### HIDHIDE_STILL_CLOAKED
+
+Info: at startup the CLI hung and the stuck marker (`hidhide-cloak-stuck`) shows the last quit left the cloak on, so the elevated setup is not run (no UAC prompt at every launch); the pad stays hidden and Health keeps its "state unknown / Retry now" card. Turning the switch off and on, or Retry now, still offers the prompt. Logged once per process.
 
 ### HIDHIDE_ELEVATED_SETUP
 

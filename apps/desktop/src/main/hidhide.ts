@@ -6,6 +6,7 @@ import {
   isExecDenied,
   isExecTimeout,
   needsElevation,
+  HIDHIDE_STUCK_MARKER,
   POWERSHELL_EXE,
   type Exec,
 } from './health/adapters.js';
@@ -39,6 +40,8 @@ export interface HidHideDeps {
   onCloakStuck?: (stuck: boolean) => void;
   /** Whether this session cloaked (the queue knows); the stuck marker is written only then. Default: assume yes. */
   cloakedThisSession?: () => boolean;
+  /** A previous session's quit could not cloak off (the stuck marker exists). Default: the marker file in dataDir. */
+  stillCloaked?: () => boolean;
   log: { info(o: object): void; warn(o: object): void; error(o: object): void };
 }
 
@@ -105,6 +108,11 @@ export function createHidHide(d: HidHideDeps) {
   const exists = d.exists ?? existsSync;
   const writeFile = d.writeFile ?? ((p: string, data: string) => writeFileSync(p, data, 'utf8'));
   const cliPath = hidHideCliPath(d.programFiles);
+  const stillCloaked =
+    d.stillCloaked ?? (() => (d.dataDir ? exists(join(d.dataDir, HIDHIDE_STUCK_MARKER)) : false));
+  /** Hangs already logged this process (by args), so a hung CLI is reported once, not on every attempt. */
+  const hangLogged = new Set<string>();
+  let stillCloakedLogged = false;
 
   const findCli = (): string | null => (exists(cliPath) ? cliPath : null);
 
@@ -116,7 +124,11 @@ export function createHidHide(d: HidHideDeps) {
     } catch (e) {
       // unelevated, HidHideCLI may never answer instead of refusing: treat the hang like access denied
       const hung = isExecTimeout(e);
-      if (hung) d.log.warn({ code: 'HIDHIDE_CLI_HANG', args, msg: (e as Error).message });
+      const key = args.join('\0');
+      if (hung && !hangLogged.has(key)) {
+        hangLogged.add(key);
+        d.log.warn({ code: 'HIDHIDE_CLI_HANG', args, msg: (e as Error).message });
+      }
       throw new HidHideError(
         'E_HIDHIDE_CLI',
         `${args[0]}: ${(e as Error).message}`,
@@ -229,6 +241,17 @@ export function createHidHide(d: HidHideDeps) {
       } catch (e) {
         if (!(e instanceof HidHideError && e.needsElevation)) throw e;
         if (!e.hung) d.log.warn({ code: 'HIDHIDE_ACCESS_DENIED', msg: e.message });
+        // startup on a hung CLI after a quit that could not cloak off: the cloak (and HidHide's registrations) are still
+        // in place, so no UAC prompt at every launch; Health keeps its "state unknown / Retry now" card
+        if (startup && e.hung && stillCloaked()) {
+          if (!stillCloakedLogged)
+            d.log.info({
+              code: 'HIDHIDE_STILL_CLOAKED',
+              msg: 'HidHideCLI hangs and the last quit left the cloak on; not running the elevated setup',
+            });
+          stillCloakedLogged = true;
+          return { ok: true, skipped: false };
+        }
         // a hung CLI would hang again on --dev-list: at startup an absent pad then waits until it is plugged in
         inst ??= await locate(e.hung ? [] : undefined);
         if (!inst) return skip();
