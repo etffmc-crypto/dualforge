@@ -43,7 +43,7 @@ import { createHidHide, createHidHideQueue } from './hidhide.js';
 import { createSettingsHooks } from './settings-hooks.js';
 import { applyLoginItem, shouldHideOnClose, shouldStartHidden } from './startup.js';
 import { createTray, type AppTray } from './tray.js';
-import { createUpdater, registerUpdateIpc } from './updater.js';
+import { createUpdater, registerUpdateIpc, resolveAutoUpdater } from './updater.js';
 import { createQuitCleanup } from './quit-cleanup.js';
 import { createDriverInstaller, registerDriverIpc, type DriverStatus } from './driver-installer.js';
 
@@ -79,7 +79,8 @@ const updater = createUpdater({
   isPackaged: app.isPackaged,
   currentVersion: APP_VERSION,
   log: logger,
-  load: async () => (await import('electron-updater')).autoUpdater,
+  // CJS getter export: only `default.autoUpdater` exists under ESM (resolveAutoUpdater handles both)
+  load: async () => resolveAutoUpdater(await import('electron-updater')),
   onResult: () => {
     if (win && !win.isDestroyed()) win.webContents.send('updates:changed');
     void health.run();

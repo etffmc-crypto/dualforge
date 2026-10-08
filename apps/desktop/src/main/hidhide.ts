@@ -1,6 +1,15 @@
 import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { defaultExec, hidHideCliPath, POWERSHELL_EXE, type Exec } from './health/adapters.js';
+import {
+  defaultExec,
+  hidHideCliPath,
+  isExecDenied,
+  isExecTimeout,
+  needsElevation,
+  HIDHIDE_STUCK_MARKER,
+  POWERSHELL_EXE,
+  type Exec,
+} from './health/adapters.js';
 
 export const HIDHIDE_TIMEOUT_MS = 5000;
 /** The elevated setup waits for the user to answer the UAC prompt. */
@@ -31,6 +40,8 @@ export interface HidHideDeps {
   onCloakStuck?: (stuck: boolean) => void;
   /** Whether this session cloaked (the queue knows); the stuck marker is written only then. Default: assume yes. */
   cloakedThisSession?: () => boolean;
+  /** A previous session's quit could not cloak off (the stuck marker exists). Default: the marker file in dataDir. */
+  stillCloaked?: () => boolean;
   log: { info(o: object): void; warn(o: object): void; error(o: object): void };
 }
 
@@ -38,7 +49,10 @@ class HidHideError extends Error {
   constructor(
     readonly code: string,
     msg: string,
-    readonly accessDenied = false,
+    /** The unelevated CLI was refused or hung (see needsElevation): the elevated script is the way forward. */
+    readonly needsElevation = false,
+    /** It hung (timed out) rather than refusing. */
+    readonly hung = false,
   ) {
     super(msg);
   }
@@ -52,14 +66,8 @@ export function parseLines(stdout: string): string[] {
     .filter((l) => l.length > 0);
 }
 
-/** A failed exec that Windows refused for lack of rights: exit code 5 or "Access is denied" in stderr/message. */
-export function isAccessDenied(e: unknown): boolean {
-  const err = e as { code?: unknown; stderr?: unknown; message?: unknown } | null;
-  if (!err) return false;
-  if (err.code === 5) return true;
-  const text = `${typeof err.stderr === 'string' ? err.stderr : ''}\n${typeof err.message === 'string' ? err.message : ''}`;
-  return /access is denied/i.test(text);
-}
+/** A failed exec that Windows refused for lack of rights (the classification Health uses too). */
+export const isAccessDenied = isExecDenied;
 
 /**
  * PnP output lines `InstanceId|CompatibleIDs (;-joined)|FriendlyName`: the DualSense collection whose compatible IDs
@@ -100,6 +108,11 @@ export function createHidHide(d: HidHideDeps) {
   const exists = d.exists ?? existsSync;
   const writeFile = d.writeFile ?? ((p: string, data: string) => writeFileSync(p, data, 'utf8'));
   const cliPath = hidHideCliPath(d.programFiles);
+  const stillCloaked =
+    d.stillCloaked ?? (() => (d.dataDir ? exists(join(d.dataDir, HIDHIDE_STUCK_MARKER)) : false));
+  /** Hangs already logged this process (by args), so a hung CLI is reported once, not on every attempt. */
+  const hangLogged = new Set<string>();
+  let stillCloakedLogged = false;
 
   const findCli = (): string | null => (exists(cliPath) ? cliPath : null);
 
@@ -109,10 +122,18 @@ export function createHidHide(d: HidHideDeps) {
     try {
       return (await exec(cli, args, { timeoutMs: HIDHIDE_TIMEOUT_MS })).stdout;
     } catch (e) {
+      // unelevated, HidHideCLI may never answer instead of refusing: treat the hang like access denied
+      const hung = isExecTimeout(e);
+      const key = args.join('\0');
+      if (hung && !hangLogged.has(key)) {
+        hangLogged.add(key);
+        d.log.warn({ code: 'HIDHIDE_CLI_HANG', args, msg: (e as Error).message });
+      }
       throw new HidHideError(
         'E_HIDHIDE_CLI',
         `${args[0]}: ${(e as Error).message}`,
-        isAccessDenied(e),
+        needsElevation(e),
+        hung,
       );
     }
   }
@@ -182,8 +203,8 @@ export function createHidHide(d: HidHideDeps) {
   }
 
   /**
-   * Register this app, hide the DualSense game controller, cloak on. Without admin rights the CLI is refused: then the
-   * same steps run once from an elevated script (UAC). At startup an absent pad is not an error: a pad hidden earlier
+   * Register this app, hide the DualSense game controller, cloak on. Without admin rights the CLI is refused or hangs
+   * until the timeout: then the same steps run once from an elevated script (UAC). At startup an absent pad is not an error: a pad hidden earlier
    * is cloaked again; one never hidden is skipped until it shows up.
    */
   const enableFlow = (startup: boolean, auto: boolean): Promise<HidHideResult> =>
@@ -218,9 +239,21 @@ export function createHidHide(d: HidHideDeps) {
         if (!hidden.some((l) => l.toLowerCase() === target)) await devHide(inst);
         await cloak(true);
       } catch (e) {
-        if (!(e instanceof HidHideError && e.accessDenied)) throw e;
-        d.log.warn({ code: 'HIDHIDE_ACCESS_DENIED', msg: e.message });
-        inst ??= await locate();
+        if (!(e instanceof HidHideError && e.needsElevation)) throw e;
+        if (!e.hung) d.log.warn({ code: 'HIDHIDE_ACCESS_DENIED', msg: e.message });
+        // startup on a hung CLI after a quit that could not cloak off: the cloak (and HidHide's registrations) are still
+        // in place, so no UAC prompt at every launch; Health keeps its "state unknown / Retry now" card
+        if (startup && e.hung && stillCloaked()) {
+          if (!stillCloakedLogged)
+            d.log.info({
+              code: 'HIDHIDE_STILL_CLOAKED',
+              msg: 'HidHideCLI hangs and the last quit left the cloak on; not running the elevated setup',
+            });
+          stillCloakedLogged = true;
+          return { ok: true, skipped: false };
+        }
+        // a hung CLI would hang again on --dev-list: at startup an absent pad then waits until it is plugged in
+        inst ??= await locate(e.hung ? [] : undefined);
         if (!inst) return skip();
         await runElevated(composeElevatedSetup(cli, d.ownExe, inst), auto);
       }
@@ -231,7 +264,7 @@ export function createHidHide(d: HidHideDeps) {
   const enable = (opts: { auto?: boolean } = {}) => enableFlow(false, !!opts.auto);
   const startup = () => enableFlow(true, true);
 
-  /** Cloak off; the registrations stay. Refused for lack of rights → one elevated --cloak-off. Not installed → nothing to undo. */
+  /** Cloak off; the registrations stay. Refused (or hung) for lack of rights → one elevated --cloak-off. Not installed → nothing to undo. */
   const disable = (opts: { auto?: boolean } = {}): Promise<HidHideResult> => {
     const cli = findCli();
     return cli
@@ -239,8 +272,8 @@ export function createHidHide(d: HidHideDeps) {
           try {
             await cloak(false);
           } catch (e) {
-            if (!(e instanceof HidHideError && e.accessDenied)) throw e;
-            d.log.warn({ code: 'HIDHIDE_ACCESS_DENIED', msg: e.message });
+            if (!(e instanceof HidHideError && e.needsElevation)) throw e;
+            if (!e.hung) d.log.warn({ code: 'HIDHIDE_ACCESS_DENIED', msg: e.message });
             await runElevated(composeElevatedCloakOff(cli), !!opts.auto);
           }
           d.onCloakStuck?.(false);
@@ -248,14 +281,14 @@ export function createHidHide(d: HidHideDeps) {
       : Promise.resolve({ ok: true });
   };
 
-  /** Quit/logoff: cloak off without ever prompting. Refused for lack of rights → the pad stays hidden (E_HIDHIDE_CLOAK_STUCK). */
+  /** Quit/logoff: cloak off without ever prompting. Refused (or hung) for lack of rights → the pad stays hidden (E_HIDHIDE_CLOAK_STUCK). */
   const quitCloakOff = (): Promise<HidHideResult> =>
     findCli()
       ? guarded(async () => {
           try {
             await cloak(false);
           } catch (e) {
-            if (e instanceof HidHideError && e.accessDenied) {
+            if (e instanceof HidHideError && e.needsElevation) {
               if (d.cloakedThisSession?.() ?? true) d.onCloakStuck?.(true);
               throw new HidHideError('E_HIDHIDE_CLOAK_STUCK', e.message);
             }

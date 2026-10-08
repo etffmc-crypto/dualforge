@@ -54,7 +54,7 @@ export function Settings() {
             if (s.state === 'available')
               return { available: true, ...(s.version ? { version: s.version } : {}) };
             if (s.state === 'none') return { available: false };
-            if (s.state === 'error') return { available: false, code: 'E_UPDATE_CHECK' };
+            if (s.state === 'error') return { available: false, code: s.code ?? 'E_UPDATE_CHECK' };
             return prev; // disabled / unchecked: keep what a manual check showed
           });
         },
@@ -252,6 +252,8 @@ const UPDATE_CODES: Record<string, string> = {
   E_UPDATE_DISABLED: 'Turn on "Check for updates" first.',
   E_UPDATE_DEV: 'Update checks are not available in a development build.',
   E_UPDATE_CHECK: 'The update check failed. Try again later.',
+  E_UPDATE_LOAD:
+    'The updater could not be loaded. Download the latest installer from the download page.',
   E_UPDATE_NOT_READY: 'Check for updates again first.',
   E_UPDATE_DOWNLOAD: 'The download failed. Check your connection and try again.',
   E_UPDATE_INSTALL: 'The installer could not be started. Download the update again.',

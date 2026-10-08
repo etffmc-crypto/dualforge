@@ -2,7 +2,7 @@
 
 DualForge is a Windows desktop app (Electron) that configures a PlayStation 5 DualSense controller over USB. It reads the pad, applies your profile (button mappings, macros, stick curves, deadzones, calibration, trigger effects, gyro, lights), and presents the result to games as a virtual Xbox 360 controller through ViGEm.
 
-Version 0.3.4. See [CHANGELOG.md](CHANGELOG.md).
+Version 0.3.5. See [CHANGELOG.md](CHANGELOG.md).
 
 ## Download
 

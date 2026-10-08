@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.5
+
+### Updates and HidHide work again in the installed app
+
+- **Update checks never worked in 0.3.3 and 0.3.4.** In the installed app every "Check now" (and the startup check) failed with `E_UPDATE_CHECK` "Cannot set properties of undefined (setting 'autoDownload')": DualForge could not find the updater inside its own package, so it never contacted GitHub. Fixed. If the updater ever fails to load again it says so plainly (new code `E_UPDATE_LOAD`, logged once, shown in Health and Settings) instead of looking like a network problem. Because 0.3.3 / 0.3.4 cannot update themselves, install 0.3.5 from the download page once; later versions arrive through **Settings > Updates** as intended.
+- **Turning HidHide on could fail and flip straight back off.** On some PCs `HidHideCLI.exe` does not refuse when it lacks administrator rights; it simply never answers. DualForge waited 5 seconds, gave up with `E_HIDHIDE_CLI … timed out after 5000 ms`, and never offered the one-time Windows (UAC) prompt that fixes it. A command that hangs is now treated like "access denied": DualForge asks for administrator rights once and runs the setup elevated, for turning HidHide on and off. Automatic attempts (startup, re-applying the setting) still never ask again after you declined the prompt; clicking the switch does.
+- When the HidHide switch does fail, the footer now says what happened in words, "HidHide needs administrator rights — accept the Windows prompt" or "HidHide command timed out — open the HidHide Configuration Client, or retry", with the error code kept in the chip, instead of the raw `E_SETTINGS_SEND Error: Error invoking remote method …` text.
+- Health and the HidHide switch now use the same rule for "needs administrator rights" (refused, elevation required, or hung).
+- Test runs of the packaged build no longer share the single-instance lock with an installed DualForge.
+
 ## 0.3.4
 
 ### Packaged-app fixes and update status

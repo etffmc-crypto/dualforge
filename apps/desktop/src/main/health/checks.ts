@@ -4,6 +4,8 @@ import type { HealthResult } from '@dualforge/shared';
 export interface AppUpdateStatus {
   state: 'disabled' | 'unchecked' | 'none' | 'available' | 'error';
   version?: string;
+  /** state 'error': why the last check failed (E_UPDATE_CHECK, E_UPDATE_LOAD). */
+  code?: string;
 }
 
 export interface HealthInput {
@@ -300,7 +302,9 @@ export function runChecks(i: HealthInput): HealthResult[] {
       status: 'warn',
       title: `DualForge ${i.app.version}`,
       detail:
-        'The last update check failed (E_UPDATE_CHECK). Check your connection and use Check now in Settings > Updates.',
+        u.code === 'E_UPDATE_LOAD'
+          ? 'The updater could not be loaded (E_UPDATE_LOAD), so DualForge cannot check for updates. Download the latest installer from the download page.'
+          : 'The last update check failed (E_UPDATE_CHECK). Check your connection and use Check now in Settings > Updates.',
     });
   else if (u?.state === 'disabled')
     out.push(

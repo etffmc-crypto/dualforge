@@ -144,8 +144,18 @@ export interface HidHideDeps {
   now?: () => number;
 }
 
-const isTimeout = (e: unknown) => e instanceof HealthAdapterError && e.code === 'E_HEALTH_TIMEOUT';
-const isDenied = (e: unknown) => {
+/** An exec that hit its hard timeout (defaultExec's E_HEALTH_TIMEOUT, or any error saying it timed out). */
+export function isExecTimeout(e: unknown): boolean {
+  if (e instanceof HealthAdapterError && e.code === 'E_HEALTH_TIMEOUT') return true;
+  const x = e as { code?: unknown; message?: unknown } | null;
+  return (
+    x?.code === 'E_HEALTH_TIMEOUT' ||
+    (typeof x?.message === 'string' && /timed out/i.test(x.message))
+  );
+}
+
+/** An exec Windows refused for lack of rights. */
+export function isExecDenied(e: unknown): boolean {
   const x = e as { code?: unknown; errno?: unknown; stderr?: unknown; message?: unknown } | null;
   if (!x) return false;
   // 5 = ERROR_ACCESS_DENIED. ERROR_ELEVATION_REQUIRED (740, a requireAdministrator manifest) fails at spawn and libuv
@@ -154,7 +164,18 @@ const isDenied = (e: unknown) => {
   if (x.code === 'EACCES' || x.code === 'EPERM' || x.code === 'UNKNOWN') return true;
   const text = `${typeof x.stderr === 'string' ? x.stderr : ''}\n${typeof x.message === 'string' ? x.message : ''}`;
   return /access is denied|requires elevation|elevation required/i.test(text);
-};
+}
+
+/**
+ * The one "this HidHideCLI call needs administrator rights" rule, shared by Health and the HidHide toggle: refused
+ * (see isExecDenied) or hung until the timeout (HidHideCLI waits forever for rights it does not have when unelevated).
+ */
+export function needsElevation(e: unknown): boolean {
+  return isExecDenied(e) || isExecTimeout(e);
+}
+
+const isTimeout = isExecTimeout;
+const isDenied = isExecDenied;
 
 /**
  * Missing CLI means "not installed" (no error). CLI failures degrade to "not whitelisted / not hidden" plus a coded error.

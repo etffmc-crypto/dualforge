@@ -2,7 +2,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStore } from '../../src/renderer/store';
-import { Footer, ERROR_CHIP_MS } from '../../src/renderer/components/Footer';
+import { Footer, ERROR_CHIP_MS, stripIpcError } from '../../src/renderer/components/Footer';
 
 const raise = (code: string, msg = 'boom') =>
   act(() => {
@@ -77,6 +77,80 @@ describe('Footer', () => {
     });
     expect(chip()!.textContent).toContain('E_PROFILE_INVALID');
     expect(chip()!.textContent).toContain('trigger deadzone: initial must be below max');
+  });
+
+  it('a failed HidHide toggle reads as words, not the raw IPC error; the code stays in the chip', () => {
+    render(<Footer />);
+    const ipc = (rest: string) =>
+      `Error: Error invoking remote method 'settings:set': Error: ${rest}`;
+    raise(
+      'E_HIDHIDE_ELEVATION_DECLINED',
+      ipc('E_HIDHIDE_ELEVATION_DECLINED: elevated HidHide call did not complete: canceled'),
+    );
+    expect(chip()!.textContent).toContain('E_HIDHIDE_ELEVATION_DECLINED');
+    expect(chip()!.textContent).toContain(
+      'HidHide needs administrator rights — accept the Windows prompt',
+    );
+    expect(chip()!.textContent).not.toContain('Error invoking remote method');
+    raise(
+      'E_HIDHIDE_CLI',
+      ipc(
+        'E_HIDHIDE_CLI: --app-reg: C:\\Program Files\\Nefarius Software Solutions\\HidHide\\x64\\HidHideCLI.exe timed out after 5000 ms',
+      ),
+    );
+    expect(chip()!.textContent).toContain('E_HIDHIDE_CLI');
+    expect(chip()!.textContent).toContain(
+      'HidHide command timed out — open the HidHide Configuration Client, or retry',
+    );
+    expect(chip()!.textContent).not.toContain('Error invoking remote method');
+    // the full text is still there on hover
+    expect(chip()!.getAttribute('title')).toContain('timed out after 5000 ms');
+  });
+
+  it('chips raised by the store from a real IPC rejection show main’s text without "Error: Error invoking remote method"', async () => {
+    // exactly what ipcRenderer.invoke rejects with, run through the store (which keeps String(err))
+    const reject = (inner: string) =>
+      new Error(`Error invoking remote method 'settings:set': Error: ${inner}`);
+    const settings = { set: vi.fn(), get: vi.fn(async () => null) };
+    vi.stubGlobal('dualforge', { settings }); // window.dualforge (jsdom: window is globalThis)
+    render(<Footer />);
+    const send = async (inner: string, patch: object) => {
+      settings.set.mockRejectedValueOnce(reject(inner));
+      await act(() => useStore.getState().updateSettings(patch));
+    };
+
+    await send('E_HIDHIDE_CLI: --app-reg: Command failed: HidHideCLI.exe exited 1', {
+      hidHide: true,
+    });
+    expect(useStore.getState().lastError!.msg).toMatch(/^Error: Error invoking remote method/);
+    expect(chip()!.querySelector('.err-code')!.textContent).toBe('E_HIDHIDE_CLI');
+    expect(chip()!.querySelector('.err-msg')!.textContent).toBe(
+      '--app-reg: Command failed: HidHideCLI.exe exited 1',
+    );
+
+    await send('E_STARTUP_LOGIN_ITEM', { startWithWindows: true });
+    expect(chip()!.querySelector('.err-code')!.textContent).toBe('E_SETTINGS_SEND');
+    expect(chip()!.querySelector('.err-msg')!.textContent).toBe('E_STARTUP_LOGIN_ITEM');
+
+    await send('E_HIDHIDE_NO_DEVICE: PnP query failed: powershell.exe timed out after 5000 ms', {
+      hidHide: true,
+    });
+    expect(chip()!.querySelector('.err-msg')!.textContent).toBe(
+      'Connect the DualSense over USB, then turn HidHide on',
+    );
+    for (const el of document.querySelectorAll('.err-msg'))
+      expect(el.textContent).not.toMatch(/^Error|Error invoking remote method/);
+  });
+
+  it('stripIpcError drops the wrapper in either order and the chip’s own code', () => {
+    const inner = 'E_HIDHIDE_CLI: --cloak-on: Command failed';
+    for (const raw of [
+      `Error: Error invoking remote method 'settings:set': Error: ${inner}`,
+      `Error invoking remote method 'settings:set': Error: ${inner}`,
+      `Error: ${inner}`,
+      inner,
+    ])
+      expect(stripIpcError('E_HIDHIDE_CLI', raw)).toBe('--cloak-on: Command failed');
   });
 
   it('clearError() empties lastError', () => {

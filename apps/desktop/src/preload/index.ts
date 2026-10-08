@@ -116,6 +116,7 @@ const api = {
     last: (): Promise<{
       state: 'disabled' | 'unchecked' | 'none' | 'available' | 'error';
       version?: string;
+      code?: string;
     }> => ipcRenderer.invoke('updates:last'),
     /** Pushed when a check finishes (the startup check can complete while Settings is open). */
     onChanged(cb: () => void): () => void {

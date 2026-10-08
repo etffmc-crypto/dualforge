@@ -4,7 +4,7 @@ import { createSettingsHooks } from '../src/main/settings-hooks.js';
 import { createHidHideQueue } from '../src/main/hidhide.js';
 
 function rig(
-  enable: { ok: boolean; code?: string } = { ok: true },
+  enable: { ok: boolean; code?: string; msg?: string } = { ok: true },
   login: () => void = () => undefined,
 ) {
   let stored: Settings = defaultSettings();
@@ -38,6 +38,16 @@ describe('settings hooks', () => {
       { type: 'setSettings', settings: expect.objectContaining({ hidHide: false }) },
     ]);
     expect(r.refreshHealth).toHaveBeenCalled();
+  });
+  it('the rejection carries the code first, then why (the footer tells a timeout from a refusal by it)', async () => {
+    const r = rig({
+      ok: false,
+      code: 'E_HIDHIDE_ELEVATION_DECLINED',
+      msg: 'elevated HidHide call did not complete: powershell.exe timed out after 120000 ms',
+    });
+    await expect(r.run({ hidHide: true })).rejects.toThrow(
+      /^E_HIDHIDE_ELEVATION_DECLINED: elevated HidHide call did not complete: .*timed out/,
+    );
   });
   it('a successful enable and a disable leave the setting alone', async () => {
     const r = rig();

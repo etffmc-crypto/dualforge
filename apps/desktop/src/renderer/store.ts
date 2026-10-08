@@ -156,7 +156,10 @@ export const useStore = create<State>((set, get) => {
       } catch (err) {
         // main may have persisted a corrected value (e.g. hidHide forced off after a failed enable), so resync from it; fall back to the old value
         const actual = await window.dualforge.settings.get().catch(() => before);
-        set({ settings: actual, lastError: { code: 'E_SETTINGS_SEND', msg: String(err) } });
+        const msg = String(err);
+        // a refused HidHide toggle carries its own code (E_HIDHIDE_…); the footer words it for people
+        const code = /\b(E_HIDHIDE_[A-Z_]+)/.exec(msg)?.[1] ?? 'E_SETTINGS_SEND';
+        set({ settings: actual, lastError: { code, msg } });
       } finally {
         if (hid) set({ hidHidePending: false });
       }

@@ -403,6 +403,10 @@ describe('app update card wording', () => {
     const err = title({ state: 'error' });
     expect(err.status).toBe('warn');
     expect(err.detail).toMatch(/E_UPDATE_CHECK/);
+    const load = title({ state: 'error', code: 'E_UPDATE_LOAD' });
+    expect(load.status).toBe('warn');
+    expect(load.detail).toMatch(/E_UPDATE_LOAD/);
+    expect(load.detail).not.toMatch(/E_UPDATE_CHECK/);
     expect(title({ state: 'none' }).title).toBe('DualForge 0.1.0');
   });
 });
