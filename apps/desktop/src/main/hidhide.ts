@@ -155,12 +155,14 @@ export function createHidHide(d: HidHideDeps) {
   const appList = async () => parseLines(await run(['--app-list']));
   const devList = async () => parseLines(await run(['--dev-list']));
 
-  /** Instance path of the DualSense's game-controller collection, from PnP (null when not connected). */
+  /**
+   * Instance path of the DualSense's game-controller collection, from PnP (null when not connected). The query
+   * filters by instance id only; the compatible-ID choice is made by parseDualSenseInstance, because a pad HidHide
+   * already hides has no compatible IDs at all and must still be found.
+   */
   async function findDualSenseInstance(): Promise<string | null> {
     const cmd =
-      "Get-PnpDevice -PresentOnly -Class HIDClass -ErrorAction SilentlyContinue | Where-Object { ($_.InstanceId -like 'HID\\VID_054C&PID_0CE6*' -or $_.InstanceId -like 'HID\\VID_054C&PID_0DF2*') -and ($_.CompatibleID -contains '" +
-      GAME_CONTROLLER_COMPAT_ID +
-      "') } | ForEach-Object { $_.InstanceId + '|' + ($_.CompatibleID -join ';') + '|' + $_.FriendlyName }";
+      "Get-PnpDevice -PresentOnly -Class HIDClass -ErrorAction SilentlyContinue | Where-Object { $_.InstanceId -like 'HID\\VID_054C&PID_0CE6*' -or $_.InstanceId -like 'HID\\VID_054C&PID_0DF2*' } | ForEach-Object { $_.InstanceId + '|' + ($_.CompatibleID -join ';') + '|' + $_.FriendlyName }";
     let out: string;
     try {
       out = (

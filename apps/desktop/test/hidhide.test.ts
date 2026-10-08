@@ -195,15 +195,22 @@ describe('hidhide device lookup (locale-independent)', () => {
     expect(parseDualSenseInstance('HID\\VID_045E&PID_028E\\1||Xbox')).toBe(null);
   });
 
-  it('the PnP query filters by instance id and compatible id, not by FriendlyName', async () => {
+  it('the PnP query filters by instance id only (not FriendlyName, not compatible id), the parser picks the collection', async () => {
     const { h, calls } = rig({
       pnp: `${INSTANCE}|HID_DEVICE_UP:0001_U:0005|Contrôleur de jeu HID\r\n`,
     });
     expect(await h.findDualSenseInstance()).toBe(INSTANCE);
     const q = calls.find((c) => c.file !== CLI)!.args.join(' ');
     expect(q).toContain("-like 'HID\\VID_054C&PID_0CE6*'");
-    expect(q).toContain('HID_DEVICE_UP:0001_U:0005');
+    // 0.3.6: a pad HidHide already hides reports no compatible IDs; filtering on them in the query hid it from us
+    expect(q).not.toContain('CompatibleID -contains');
+    expect(q).toContain('CompatibleID -join');
     expect(q).not.toContain('FriendlyName -eq');
+  });
+
+  it('finds a pad that HidHide already hides (no compatible IDs) through the real query shape', async () => {
+    const { h } = rig({ pnp: `${INSTANCE}||HID-compliant game controller\r\n` });
+    expect(await h.findDualSenseInstance()).toBe(INSTANCE);
   });
 });
 
