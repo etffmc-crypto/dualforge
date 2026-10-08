@@ -69,7 +69,7 @@ scheduled run has no issue number: sweep every open issue.
 8. **Commit** only the files you changed, with explicit paths, as `fix(<area>): <summary> (#<n>)` plus a second line
    `Co-Authored-By: DualForge Responder <noreply@dualforge.local>`. Push the branch, then open the PR against `main`
    with `gh pr create --base main --title "<the commit title>" --body "<what was wrong, what changed, which test
-   covers it, a line 'Refs #<n>'>"` (plain prose; no closing keywords, the maintainer closes the issue after
+covers it, a line 'Refs #<n>'>"` (plain prose; no closing keywords, the maintainer closes the issue after
    verifying). Then start the Windows checks on that branch:
    `gh workflow run check.yml --ref <branch>` and mention in the PR body that `check` was dispatched.
 9. **Comment** once per handled issue with `gh issue comment <n> --body "<text>"` (write the text to a file first
