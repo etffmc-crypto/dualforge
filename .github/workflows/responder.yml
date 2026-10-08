@@ -1,0 +1,94 @@
+name: responder
+
+# The issue responder (maintenance/RESPONDER.md) runs in GitHub's sandbox with the repository's own token, so no token
+# or key ever lives on the maintainer's PC. It triages issues, fixes watchdog failures and reproducible bugs on
+# `claude/*` branches and opens pull requests; `main` is protected by a ruleset and only changes through a reviewed PR.
+# Triggers: a user opens or reopens an issue; every 2 hours (watchdog issues are filed by the GITHUB_TOKEN, which
+# raises no `issues` event); or by hand. A second job answers `@claude` comments from users with write access.
+# Pushes and PRs made with the GITHUB_TOKEN do not start check.yml by themselves; the responder dispatches it.
+on:
+  issues:
+    types: [opened, reopened]
+  issue_comment:
+    types: [created]
+  schedule:
+    - cron: '15 */2 * * *'
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Issue number to handle (empty = sweep all open issues)
+        required: false
+
+permissions: {}
+
+concurrency:
+  group: responder
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    if: github.event_name != 'issue_comment'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write # push claude/* branches (main and v* tags are protected by rulesets)
+      pull-requests: write
+      issues: write
+      actions: write # dispatch check.yml on the fix branch
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+      # Linux runner: Windows-only native modules (vigemclient, sendinput) are not built; the test suite skips them.
+      - run: npm ci --ignore-scripts
+      - uses: anthropics/claude-code-action@c3d45e8e941e1b2ad7b278c57482d9c5bf1f35b3 # v1.0.99
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          base_branch: main
+          branch_prefix: claude/
+          # Only numbers from the event reach the prompt; issue text is read by the agent as data via gh.
+          prompt: |
+            Read maintenance/RESPONDER.md and follow it exactly; it is your complete brief.
+            EVENT=${{ github.event_name }}
+            ISSUE=${{ github.event.issue.number || inputs.issue || '' }}
+          claude_args: |
+            --model claude-sonnet-5-5
+            --max-turns 60
+            --allowedTools "Read,Glob,Grep,Edit,Write,Bash(npm run typecheck),Bash(npm run lint),Bash(npm run format:check),Bash(npm run test),Bash(npm run test -- *),Bash(npx prettier --write *),Bash(npx vitest run *),Bash(git status*),Bash(git diff*),Bash(git log*),Bash(git show*),Bash(git add *),Bash(git commit -m *),Bash(git checkout -b claude/*),Bash(git switch -c claude/*),Bash(git switch main),Bash(git checkout main),Bash(git push origin claude/*),Bash(git push -u origin claude/*),Bash(gh issue list*),Bash(gh issue view*),Bash(gh issue comment*),Bash(gh issue edit * --add-label enhancement),Bash(gh pr list*),Bash(gh pr view*),Bash(gh pr create*),Bash(gh workflow run check.yml --ref claude/*),Bash(gh run list*),Bash(gh run view*),Bash(cat *),Bash(ls*),Bash(mkdir -p *)"
+            --disallowedTools "WebFetch,WebSearch,Bash(git push --force*),Bash(git push -f*),Bash(git commit *--amend*),Bash(git commit *--no-verify*),Bash(git add -A*),Bash(git add -u*),Bash(git add .),Bash(gh api*),Bash(gh pr merge*),Bash(gh release*),Bash(gh secret*),Bash(gh workflow run release*),Bash(npm install*),Bash(npm update*),Bash(curl*),Bash(wget*),Bash(env*),Bash(printenv*),Bash(echo $*),Edit(.github/**),Write(.github/**),Edit(package.json),Write(package.json),Edit(**/package.json),Write(**/package.json),Edit(package-lock.json),Write(package-lock.json),Edit(native/**),Write(native/**),Edit(maintenance/**),Write(maintenance/**),Edit(scripts/**),Write(scripts/**),Edit(apps/desktop/electron-builder.yml),Write(apps/desktop/electron-builder.yml),Edit(**/tsconfig*.json),Write(**/tsconfig*.json),Edit(**/vitest.config.ts),Write(**/vitest.config.ts),Edit(eslint.config.js),Write(eslint.config.js)"
+
+  # "@claude <question or request>" on an issue or PR by someone with write access to the repo.
+  mention:
+    if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - uses: anthropics/claude-code-action@c3d45e8e941e1b2ad7b278c57482d9c5bf1f35b3 # v1.0.99
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          base_branch: main
+          branch_prefix: claude/
+          claude_args: |
+            --model claude-sonnet-5-5
+            --max-turns 40
+            --disallowedTools "WebFetch,WebSearch,Bash(git push --force*),Bash(git push -f*),Bash(git commit *--amend*),Bash(git commit *--no-verify*),Bash(gh api*),Bash(gh pr merge*),Bash(gh release*),Bash(gh secret*),Bash(gh workflow run release*),Bash(npm install*),Bash(npm update*),Bash(curl*),Bash(wget*),Bash(env*),Bash(printenv*),Edit(.github/**),Write(.github/**),Edit(native/**),Write(native/**),Edit(maintenance/**),Write(maintenance/**),Edit(scripts/**),Write(scripts/**),Edit(package.json),Write(package.json),Edit(**/package.json),Write(**/package.json),Edit(package-lock.json),Write(package-lock.json)"
