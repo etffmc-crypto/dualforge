@@ -184,6 +184,17 @@ describe('hidhide device lookup (locale-independent)', () => {
     );
   });
 
+  it('accepts a pad HidHide already hides: its compatible-ID list comes back empty (field output, 0.3.6)', () => {
+    // exact Get-PnpDevice line from a PC where HidHide hid the DualSense before DualForge was whitelisted
+    const hidden = 'HID\\VID_054C&PID_0CE6&MI_03\\B&15810585&0&0000||HID-compliant game controller';
+    expect(parseDualSenseInstance(hidden)).toBe('HID\\VID_054C&PID_0CE6&MI_03\\B&15810585&0&0000');
+    // a visible game-controller collection still wins over a hidden one, and a non-DualSense with no IDs is refused
+    expect(parseDualSenseInstance(`${hidden}\r\n${INSTANCE}|HID_DEVICE_UP:0001_U:0005|x`)).toBe(
+      INSTANCE,
+    );
+    expect(parseDualSenseInstance('HID\\VID_045E&PID_028E\\1||Xbox')).toBe(null);
+  });
+
   it('the PnP query filters by instance id and compatible id, not by FriendlyName', async () => {
     const { h, calls } = rig({
       pnp: `${INSTANCE}|HID_DEVICE_UP:0001_U:0005|Contrôleur de jeu HID\r\n`,
