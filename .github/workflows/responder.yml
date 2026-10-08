@@ -59,7 +59,6 @@ jobs:
             EVENT=${{ github.event_name }}
             ISSUE=${{ github.event.issue.number || inputs.issue || '' }}
           claude_args: |
-            --model claude-sonnet-5-5
             --max-turns 60
             --allowedTools "Read,Glob,Grep,Edit,Write,Bash(npm run typecheck),Bash(npm run lint),Bash(npm run format:check),Bash(npm run test),Bash(npm run test -- *),Bash(npx prettier --write *),Bash(npx vitest run *),Bash(git status*),Bash(git diff*),Bash(git log*),Bash(git show*),Bash(git add *),Bash(git commit -m *),Bash(git checkout -b claude/*),Bash(git switch -c claude/*),Bash(git switch main),Bash(git checkout main),Bash(git push origin claude/*),Bash(git push -u origin claude/*),Bash(gh issue list*),Bash(gh issue view*),Bash(gh issue comment*),Bash(gh issue edit * --add-label enhancement),Bash(gh pr list*),Bash(gh pr view*),Bash(gh pr create*),Bash(gh workflow run check.yml --ref claude/*),Bash(gh run list*),Bash(gh run view*),Bash(cat *),Bash(ls*),Bash(mkdir -p *)"
             --disallowedTools "WebFetch,WebSearch,Bash(git push --force*),Bash(git push -f*),Bash(git commit *--amend*),Bash(git commit *--no-verify*),Bash(git add -A*),Bash(git add -u*),Bash(git add .),Bash(gh api*),Bash(gh pr merge*),Bash(gh release*),Bash(gh secret*),Bash(gh workflow run release*),Bash(npm install*),Bash(npm update*),Bash(curl*),Bash(wget*),Bash(env*),Bash(printenv*),Bash(echo $*),Edit(.github/**),Write(.github/**),Edit(package.json),Write(package.json),Edit(**/package.json),Write(**/package.json),Edit(package-lock.json),Write(package-lock.json),Edit(native/**),Write(native/**),Edit(maintenance/**),Write(maintenance/**),Edit(scripts/**),Write(scripts/**),Edit(apps/desktop/electron-builder.yml),Write(apps/desktop/electron-builder.yml),Edit(**/tsconfig*.json),Write(**/tsconfig*.json),Edit(**/vitest.config.ts),Write(**/vitest.config.ts),Edit(eslint.config.js),Write(eslint.config.js)"
@@ -91,6 +90,5 @@ jobs:
           base_branch: main
           branch_prefix: claude/
           claude_args: |
-            --model claude-sonnet-5-5
             --max-turns 40
             --disallowedTools "WebFetch,WebSearch,Bash(git push --force*),Bash(git push -f*),Bash(git commit *--amend*),Bash(git commit *--no-verify*),Bash(gh api*),Bash(gh pr merge*),Bash(gh release*),Bash(gh secret*),Bash(gh workflow run release*),Bash(npm install*),Bash(npm update*),Bash(curl*),Bash(wget*),Bash(env*),Bash(printenv*),Edit(.github/**),Write(.github/**),Edit(native/**),Write(native/**),Edit(maintenance/**),Write(maintenance/**),Edit(scripts/**),Write(scripts/**),Edit(package.json),Write(package.json),Edit(**/package.json),Write(**/package.json),Edit(package-lock.json),Write(package-lock.json)"
