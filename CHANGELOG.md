@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.6
+
+### HidHide: enabling works when the pad is already hidden
+
+- If HidHide was already hiding the DualSense (for example after setting it up by hand in the HidHide Configuration Client), **Settings > Hide the DualSense from games** answered `E_HIDHIDE_NO_DEVICE` ("Connect the DualSense over USB") even though the pad was plugged in, and DualForge itself could not see the controller. Cause: a hidden pad reports an empty compatible-ID list to Windows (that is how HidHide hides it), and DualForge only accepted the game-controller collection by that ID. A DualSense instance with no compatible IDs is now accepted, so enabling registers DualForge with HidHide (admin prompt) and the pad connects again.
+
 ## 0.3.5
 
 ### Updates and HidHide work again in the installed app

@@ -73,15 +73,26 @@ export const isAccessDenied = isExecDenied;
  * PnP output lines `InstanceId|CompatibleIDs (;-joined)|FriendlyName`: the DualSense collection whose compatible IDs
  * mark it as a game controller. FriendlyName is ignored (it is localized).
  */
+/**
+ * The game-controller collection is the one with the HID_DEVICE_UP:0001_U:0005 compatible ID. A pad that HidHide
+ * already hides reports an EMPTY compatible-ID list (stripping those IDs is how HidHide hides it), so a matching
+ * instance with no compatible IDs at all is accepted too; otherwise the enable flow would report "no device" exactly
+ * when the user needs it to register the app and un-hide the pad.
+ */
 export function parseDualSenseInstance(stdout: string): string | null {
+  let hidden: string | null = null;
   for (const line of stdout.split(/\r?\n/)) {
     const [id = '', compat = ''] = line.split('|');
     const inst = id.trim();
     if (!DUALSENSE_INSTANCE.test(inst)) continue;
-    if (compat.split(';').some((c) => c.trim().toUpperCase() === GAME_CONTROLLER_COMPAT_ID))
-      return inst;
+    const ids = compat
+      .split(';')
+      .map((c) => c.trim().toUpperCase())
+      .filter(Boolean);
+    if (ids.includes(GAME_CONTROLLER_COMPAT_ID)) return inst;
+    if (ids.length === 0) hidden ??= inst;
   }
-  return null;
+  return hidden;
 }
 
 /** `%` would be expanded by cmd.exe even inside quotes. */
@@ -144,12 +155,14 @@ export function createHidHide(d: HidHideDeps) {
   const appList = async () => parseLines(await run(['--app-list']));
   const devList = async () => parseLines(await run(['--dev-list']));
 
-  /** Instance path of the DualSense's game-controller collection, from PnP (null when not connected). */
+  /**
+   * Instance path of the DualSense's game-controller collection, from PnP (null when not connected). The query
+   * filters by instance id only; the compatible-ID choice is made by parseDualSenseInstance, because a pad HidHide
+   * already hides has no compatible IDs at all and must still be found.
+   */
   async function findDualSenseInstance(): Promise<string | null> {
     const cmd =
-      "Get-PnpDevice -PresentOnly -Class HIDClass -ErrorAction SilentlyContinue | Where-Object { ($_.InstanceId -like 'HID\\VID_054C&PID_0CE6*' -or $_.InstanceId -like 'HID\\VID_054C&PID_0DF2*') -and ($_.CompatibleID -contains '" +
-      GAME_CONTROLLER_COMPAT_ID +
-      "') } | ForEach-Object { $_.InstanceId + '|' + ($_.CompatibleID -join ';') + '|' + $_.FriendlyName }";
+      "Get-PnpDevice -PresentOnly -Class HIDClass -ErrorAction SilentlyContinue | Where-Object { $_.InstanceId -like 'HID\\VID_054C&PID_0CE6*' -or $_.InstanceId -like 'HID\\VID_054C&PID_0DF2*' } | ForEach-Object { $_.InstanceId + '|' + ($_.CompatibleID -join ';') + '|' + $_.FriendlyName }";
     let out: string;
     try {
       out = (
