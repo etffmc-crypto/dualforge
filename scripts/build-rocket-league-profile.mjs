@@ -30,14 +30,6 @@ const profile = ProfileSchema.parse({
   triggers: { left: trigger(base.triggers.left), right: trigger(base.triggers.right) },
   gyro: { ...base.gyro, output: 'off', activate: 'always', activateButton: null },
   lights: { ...base.lights, r: 255, g: 110, b: 0, mode: 'static' }, // Rocket League orange
-  // Paddles: the old pad's paddles were wired left=Circle / right=Cross, the new pad's are mirrored
-  // (left=Cross / right=Circle). Swapping Cross<->Circle makes each new paddle send what the old one did.
-  // The face buttons share the wire, so physical Cross now sends B and Circle sends A (unavoidable).
-  mappings: {
-    ...base.mappings,
-    cross: { ...base.mappings.cross, targets: [{ type: 'xbutton', button: 'B' }] },
-    circle: { ...base.mappings.circle, targets: [{ type: 'xbutton', button: 'A' }] },
-  },
 });
 const code = encodeShareCode(profile, (buf) => deflateRawSync(buf));
 const out = process.argv[2];
