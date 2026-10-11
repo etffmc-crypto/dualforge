@@ -62,6 +62,19 @@ describe('injector', () => {
   });
 });
 
+describe('injector foregroundPid', () => {
+  it('passes the addon answer through and degrades to null', () => {
+    const a = fakeAddon();
+    expect(createInjector(vi.fn(), () => a).foregroundPid()).toBeNull(); // old addon without the export
+    (a as { foregroundPid?: unknown }).foregroundPid = vi.fn(() => 4242);
+    expect(createInjector(vi.fn(), () => a).foregroundPid()).toBe(4242);
+    (a as { foregroundPid?: unknown }).foregroundPid = vi.fn(() => {
+      throw new Error('x');
+    });
+    expect(createInjector(vi.fn(), () => a).foregroundPid()).toBeNull();
+  });
+});
+
 describe('VK table', () => {
   it('has the expected breadth and sorted names', () => {
     expect(VK_NAMES.length).toBeGreaterThanOrEqual(110);

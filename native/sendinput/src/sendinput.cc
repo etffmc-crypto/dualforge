@@ -96,6 +96,17 @@ Napi::Value ForegroundProcessName(const Napi::CallbackInfo& info) {
   return Napi::String::New(env, reinterpret_cast<const char16_t*>(base.c_str()), base.size());
 }
 
+// Pid of the process owning the foreground window; null when there is no foreground window.
+Napi::Value ForegroundPid(const Napi::CallbackInfo& info) {
+  Napi::Env env = info.Env();
+  HWND hwnd = ::GetForegroundWindow();
+  if (!hwnd) return env.Null();
+  DWORD pid = 0;
+  ::GetWindowThreadProcessId(hwnd, &pid);
+  if (!pid) return env.Null();
+  return Napi::Number::New(env, static_cast<double>(pid));
+}
+
 // Whether the token of `proc`'s process is elevated: 1 / 0, or -1 when it cannot be read.
 int TokenElevatedOf(HANDLE proc, DWORD* err) {
   HANDLE token = nullptr;
@@ -148,7 +159,8 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
   exports.Set("sendMouseButton", Napi::Function::New(env, SendMouseButton));
   exports.Set("sendMouseMove", Napi::Function::New(env, SendMouseMove));
   exports.Set("foregroundProcessName", Napi::Function::New(env, ForegroundProcessName));
-  exports.Set("selfElevated", Napi::Function::New(env, SelfElevatedJs));
+  exports.Set("foregroundPid", Napi::Function::New(env, ForegroundPid));
+  exports.Set("selfElevated",Napi::Function::New(env, SelfElevatedJs));
   exports.Set("foregroundElevated", Napi::Function::New(env, ForegroundElevated));
   return exports;
 }
