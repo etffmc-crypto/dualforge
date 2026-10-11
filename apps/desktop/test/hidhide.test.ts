@@ -38,11 +38,14 @@ function rig(
     cloaked?: () => boolean;
     /** The stuck marker a previous session's failed quit cloak-off left in the data dir. */
     stuckMarker?: boolean;
+    /** A persisted decline latch (as left by a previous launch); the rig keeps it in `latch.value`. */
+    latch?: boolean;
   } = {},
 ) {
   const calls: { file: string; args: string[] }[] = [];
   const writes: { path: string; data: string }[] = [];
   const stuck: boolean[] = [];
+  const latch = { value: !!opts.latch };
   const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
   const exec = vi.fn(async (file: string, args: string[]) => {
     calls.push({ file, args });
@@ -75,10 +78,13 @@ function rig(
     dataDir: DATA,
     writeFile: (path, data) => writes.push({ path, data }),
     onCloakStuck: (s) => stuck.push(s),
+    ...(opts.latch === undefined
+      ? {}
+      : { declineLatch: { get: () => latch.value, set: (v: boolean) => (latch.value = v) } }),
     ...(opts.cloaked ? { cloakedThisSession: opts.cloaked } : {}),
     log,
   });
-  return { h, calls, log, exec, writes, stuck };
+  return { h, calls, log, exec, writes, stuck, latch };
 }
 const cli = (calls: { file: string; args: string[] }[]) =>
   calls.filter((c) => c.file === CLI).map((c) => c.args);
@@ -327,6 +333,33 @@ describe('hidhide residual: disable elevation, stuck marker, decline latch', () 
     expect(elevatedCalls(r)).toHaveLength(1); // latched: no new UAC prompt
     await r.h.enable(); // user-initiated: clears the latch and prompts again
     expect(elevatedCalls(r)).toHaveLength(2);
+  });
+});
+
+describe('hidhide: persisted decline latch', () => {
+  const elevatedCalls = (r: ReturnType<typeof rig>) =>
+    r.calls.filter((c) => c.args.join(' ').includes('Start-Process'));
+
+  it('a decline left by a previous launch stops automatic prompts; a user enable clears it', async () => {
+    const r = rig({
+      latch: true,
+      failWith: (a) => (a[0] === '--cloak-on' ? denied() : null),
+    });
+    expect(await r.h.startup()).toMatchObject({ code: 'E_HIDHIDE_ELEVATION_DECLINED' });
+    expect(elevatedCalls(r)).toHaveLength(0);
+    await r.h.enable(); // user click: new UAC prompt, accepted
+    expect(elevatedCalls(r)).toHaveLength(1);
+    expect(r.latch.value).toBe(false);
+  });
+
+  it('a decline is written to the latch', async () => {
+    const r = rig({
+      latch: false,
+      failWith: (a) => (a[0] === '--cloak-on' ? denied() : null),
+      elevation: 'decline',
+    });
+    await r.h.enable();
+    expect(r.latch.value).toBe(true);
   });
 });
 
