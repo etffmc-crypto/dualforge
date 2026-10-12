@@ -14,6 +14,12 @@ export interface DraftNumberProps extends Omit<
 /** Integer field that keeps a local draft while typing; commits (rounded, clamped) on blur/Enter, Escape reverts the draft, empty or non-numeric drafts are ignored. */
 export function DraftNumber({ value, label, min, max, onCommit, ...rest }: DraftNumberProps) {
   const [draft, setDraft] = useState<string | null>(null);
+  const [seen, setSeen] = useState(value);
+  // The parent changed the value mid-edit (e.g. a preset switch): the open draft is stale, drop it.
+  if (seen !== value) {
+    setSeen(value);
+    if (draft !== null) setDraft(null);
+  }
   const commit = () => {
     if (draft === null) return;
     const n = Number(draft);

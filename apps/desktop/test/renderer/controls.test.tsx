@@ -8,6 +8,7 @@ import { Toggle } from '../../src/renderer/components/controls/Toggle';
 import { SubTabs } from '../../src/renderer/components/controls/SubTabs';
 import { CurvePreview } from '../../src/renderer/components/controls/CurvePreview';
 import { CurveEditor } from '../../src/renderer/components/controls/CurveEditor';
+import { DraftNumber } from '../../src/renderer/components/controls/DraftNumber';
 import { StickLive } from '../../src/renderer/components/controls/StickLive';
 import { moveFocus } from '../../src/renderer/hooks/useGamepadNav';
 
@@ -355,6 +356,27 @@ describe('CurveEditor', () => {
     expect(screen.queryByTestId('ce-zero')).toBeNull();
     fireEvent.keyDown(screen.getByTestId('handle-0'), { key: 'ArrowDown' });
     expect((onChange.mock.calls.at(-1)![0] as [number, number][])[0]).toEqual([0, 0]);
+  });
+});
+
+describe('DraftNumber', () => {
+  const field = (value: number) => (
+    <DraftNumber value={value} label="Point X" min={0} max={100} onCommit={() => {}} />
+  );
+  it('drops an open draft when the committed value changes underneath it', () => {
+    const { rerender } = render(field(10));
+    const input = screen.getByLabelText('Point X') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '42' } });
+    expect(input.value).toBe('42');
+    rerender(field(77));
+    expect(input.value).toBe('77');
+  });
+  it('keeps the draft while the value is unchanged', () => {
+    const { rerender } = render(field(10));
+    const input = screen.getByLabelText('Point X') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '42' } });
+    rerender(field(10));
+    expect(input.value).toBe('42');
   });
 });
 
