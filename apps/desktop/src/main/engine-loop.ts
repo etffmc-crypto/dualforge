@@ -302,9 +302,10 @@ export function createEngineLoop(d: LoopDeps) {
         graceTimer = null;
       }
       if (!d.sink.ready)
-        void ensureConnected().then(() =>
-          d.emit({ type: 'status', connected, vigemReady: d.sink.ready }),
-        );
+        // Only a successful connect changes anything; a failed one would repeat the emit below.
+        void ensureConnected().then(() => {
+          if (d.sink.ready) d.emit({ type: 'status', connected, vigemReady: true });
+        });
     }
     d.emit({ type: 'status', connected, vigemReady: d.sink.ready });
     if (!c) {

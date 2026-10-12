@@ -603,6 +603,39 @@ describe('engine loop plan 2: compiled profiles, grace release, trigger effects'
     await loop.stop();
     vi.useRealTimers();
   });
+  it('emits no second status event after a failed vigem connect', async () => {
+    vi.useFakeTimers();
+    const sink = fakeSink();
+    sink.ready = false;
+    sink.connect = async () => {
+      throw new Error('E_VIGEM_INIT missing');
+    };
+    const events: { type: string; vigemReady?: boolean }[] = [];
+    let status!: (c: boolean) => void;
+    const src: InputSource = {
+      kind: 'device',
+      start(_r, st) {
+        status = st;
+      },
+      async write() {},
+      async stop() {},
+    };
+    const loop = createEngineLoop({
+      source: src,
+      sink,
+      emit: (e) => events.push(e as never),
+      now: () => performance.now(),
+    });
+    loop.setProfile(defaultProfile('p', 'p'));
+    await loop.start();
+    const before = events.filter((e) => e.type === 'status').length;
+    status(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(events.filter((e) => e.type === 'status').length - before).toBe(1);
+    await loop.stop();
+    vi.useRealTimers();
+  });
+
   it('does not run concurrent connect() calls', async () => {
     vi.useFakeTimers();
     const sink = fakeSink();
