@@ -71,10 +71,15 @@ function snap(t: number, buttons: Record<string, boolean> = {}): EngineSnapshot 
 }
 
 let runMacro: ReturnType<typeof vi.fn>;
+let stopMacro: ReturnType<typeof vi.fn>;
 beforeEach(() => {
   vi.useFakeTimers();
   runMacro = vi.fn(async () => {});
-  vi.stubGlobal('dualforge', { profiles: { set: vi.fn(async () => true) }, engine: { runMacro } });
+  stopMacro = vi.fn(async () => {});
+  vi.stubGlobal('dualforge', {
+    profiles: { set: vi.fn(async () => true) },
+    engine: { runMacro, stopMacro },
+  });
   useStore.setState({
     profile: stubProfile(),
     snapshot: snap(0),
@@ -200,6 +205,21 @@ describe('Macros page', () => {
       (dialog('Edit macro').getByRole('button', { name: 'Play test' }) as HTMLButtonElement)
         .disabled,
     ).toBe(true);
+  });
+
+  it('closing the editor after a play test asks the engine to stop it; without a play test nothing is sent', () => {
+    const { unmount } = render(<Macros />);
+    fireEvent.click(within(row('Reload')).getByRole('button', { name: 'Edit Reload' }));
+    fireEvent.click(dialog('Edit macro').getByRole('button', { name: 'Play test' }));
+    expect(stopMacro).not.toHaveBeenCalled();
+    fireEvent.click(dialog('Edit macro').getByRole('button', { name: 'Save' }));
+    expect(stopMacro).toHaveBeenCalledWith('m1');
+    unmount();
+    stopMacro.mockClear();
+    render(<Macros />);
+    fireEvent.click(within(row('Reload')).getByRole('button', { name: 'Edit Reload' }));
+    fireEvent.click(dialog('Edit macro').getByRole('button', { name: 'Save' }));
+    expect(stopMacro).not.toHaveBeenCalled();
   });
 
   it('a draft the profile schema rejects keeps the editor open and says why; Play test does not run it', () => {

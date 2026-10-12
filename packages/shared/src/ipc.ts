@@ -67,6 +67,7 @@ export const EngineCommandSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('uiFocused'), focused: z.boolean() }),
   z.object({ type: z.literal('setSettings'), settings: SettingsSchema }),
   z.object({ type: z.literal('runMacro'), id: z.string().min(1).max(64) }), // play-test a macro of the running profile
+  z.object({ type: z.literal('stopMacro'), id: z.string().min(1).max(64) }), // end a play-test early
   TestRumbleSchema.extend({ type: z.literal('testRumble') }),
   z.object({ type: z.literal('shutdown') }),
 ]);

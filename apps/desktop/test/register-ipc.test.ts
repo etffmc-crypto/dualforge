@@ -165,6 +165,13 @@ describe('system IPC', () => {
 });
 
 describe('engine IPC', () => {
+  it('engine:stopMacro validates the id and forwards a stopMacro command', () => {
+    const { call, sent } = rig();
+    call('engine:stopMacro', 'm-1');
+    expect(sent.at(-1)).toEqual({ type: 'stopMacro', id: 'm-1' });
+    expect(() => call('engine:stopMacro', '')).toThrow();
+  });
+
   it('engine:runMacro validates the id and forwards a runMacro command', () => {
     const { call, sent } = rig();
     call('engine:runMacro', 'm-1');

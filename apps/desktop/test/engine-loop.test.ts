@@ -1130,6 +1130,79 @@ describe('engine loop plan 3b: runMacro and the focus gate', () => {
   });
 });
 
+describe('engine loop: play-test stops when it should', () => {
+  // reuses the focus-gate rig shape: a key step then an xbutton step
+  async function rig() {
+    const injector = fakeInjector();
+    const sink = fakeSink();
+    let report!: (b: Uint8Array, t: number) => void;
+    const src: InputSource = {
+      kind: 'device',
+      start(r, st) {
+        report = r;
+        st(true);
+      },
+      async write() {},
+      async stop() {},
+    };
+    let now = 0;
+    const loop = createEngineLoop({
+      source: src,
+      sink,
+      emit: () => {},
+      now: () => now,
+      injector,
+      allowInject: true,
+    });
+    const p = defaultProfile('p', 'p');
+    p.macros = [
+      {
+        id: 'm',
+        name: 'Long key',
+        loop: false,
+        steps: [{ target: { type: 'key', code: 'VK_SPACE' }, holdMs: 500, delayMs: 0 }],
+      },
+    ];
+    loop.setProfile(p);
+    await loop.start();
+    const at = (t: number) => {
+      now = t;
+      report(usbReport(false), t);
+    };
+    return { loop, at, injector };
+  }
+  it('losing DualForge focus mid play-test ends it and releases the key', async () => {
+    vi.useFakeTimers();
+    const { loop, at, injector } = await rig();
+    loop.setUiFocused(false);
+    at(1000);
+    loop.runMacro('m');
+    at(1010);
+    expect(injector.calls).toEqual(['key VK_SPACE down']);
+    loop.setUiFocused(true); // focus-in releases injected keys
+    loop.setUiFocused(false); // and out again: the run must not resume
+    at(1100);
+    at(1200);
+    expect(injector.calls.filter((c) => c.endsWith('down'))).toHaveLength(1);
+    await loop.stop();
+    vi.useRealTimers();
+  });
+  it('stopPlayTest ends a play-test early; an unknown id is a no-op', async () => {
+    vi.useFakeTimers();
+    const { loop, at, injector } = await rig();
+    loop.setUiFocused(false);
+    at(1000);
+    loop.runMacro('m');
+    at(1010);
+    expect(() => loop.stopPlayTest('nope')).not.toThrow();
+    loop.stopPlayTest('m');
+    at(1020);
+    expect(injector.calls).toEqual(['key VK_SPACE down', 'key VK_SPACE up']);
+    await loop.stop();
+    vi.useRealTimers();
+  });
+});
+
 describe('engine loop plan 3b: testRumble', () => {
   async function rumbleRig(hasRumble: boolean) {
     const writes: Uint8Array[] = [];

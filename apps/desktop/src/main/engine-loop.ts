@@ -6,6 +6,7 @@ import {
   applyTurboEdits,
   applyTurboPulse,
   startMacro,
+  stopMacro,
   compileProfile,
   computeLightbar,
   createPipelineState,
@@ -100,6 +101,8 @@ export function createEngineLoop(d: LoopDeps) {
   let settings: Settings = defaultSettings();
   // Safe until main reports otherwise: never type into the DualForge window itself.
   let uiFocused = true;
+  /** ids of macros a UI play-test started (as opposed to ones the pad triggered) */
+  const playTests = new Set<string>();
   const allowInject = d.allowInject ?? process.env.DUALFORGE_NO_INJECT !== '1';
   const heldKeys = new Set<string>();
   const heldMouse = new Set<'left' | 'right' | 'middle'>();
@@ -396,6 +399,11 @@ export function createEngineLoop(d: LoopDeps) {
     setUiFocused(focused: boolean) {
       uiFocused = focused;
       if (focused) releaseInjected();
+      else {
+        // DualForge lost focus (alt-tab): a play-test must not go on injecting keys into whatever is in front now
+        for (const id of playTests) stopMacro(state.macros, id);
+        playTests.clear();
+      }
     },
     setProfile(p: Profile) {
       const prev = compiled;
@@ -420,7 +428,15 @@ export function createEngineLoop(d: LoopDeps) {
      */
     runMacro(id: string) {
       if (!compiled) return;
+      const wasRunning = state.macros.running.some((r) => r.id === id);
       startMacro(state.macros, id, Math.max(0, state.lastMs), compiled.macros);
+      // only a run this call started is a play-test; a macro the pad already triggered is left alone
+      if (!wasRunning && state.macros.running.some((r) => r.id === id)) playTests.add(id);
+    },
+    /** Ends a play-test early (editor closed). Leaves a macro the pad itself triggered running. */
+    stopPlayTest(id: string) {
+      if (!playTests.delete(id)) return;
+      stopMacro(state.macros, id);
     },
     /** Plays a rumble test pulse (levels 0..1) for `ms`, then hands rumble back to the game. No-op without rumble motors. */
     testRumble(left: number, right: number, ms: number) {
