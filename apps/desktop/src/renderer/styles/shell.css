@@ -131,6 +131,31 @@
   outline-offset: -2px;
 }
 
+/* Below ~1200 px the 11 labelled tabs plus the L1/R1 pills no longer fit between the brand and the
+   header buttons (they overlapped and swallowed clicks): drop the pills and show icon-only tabs.
+   The label stays in the DOM, visually hidden, so the accessible name is unchanged. */
+@media (max-width: 1200px) {
+  .tabstrip {
+    gap: 0;
+  }
+  .pill {
+    display: none;
+  }
+  .tab {
+    flex: 1 1 44px;
+    min-width: 40px;
+    max-width: 52px;
+  }
+  .tab-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
 /* ---------- right side ---------- */
 .header-actions {
   display: flex;

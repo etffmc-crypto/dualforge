@@ -43,6 +43,7 @@ export function TabStrip() {
           role="tab"
           aria-selected={page === id}
           className={`tab${page === id ? ' active' : ''}`}
+          title={label}
           onClick={() => setPage(id)}
         >
           <Icon size={24} />
