@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import { useStore, type Page } from '../store';
+import { onTabKeyDown } from './controls/tabKeys';
 import {
   ButtonsIcon,
   FlaskIcon,
@@ -32,7 +33,19 @@ export function TabStrip() {
   const page = useStore((s) => s.page);
   const setPage = useStore((s) => s.setPage);
   return (
-    <nav className="tabstrip" role="tablist" aria-label="Sections">
+    <nav
+      className="tabstrip"
+      role="tablist"
+      aria-label="Sections"
+      onKeyDown={(e) =>
+        onTabKeyDown(
+          e,
+          TABS.length,
+          TABS.findIndex((t) => t.id === page),
+          (i) => setPage(TABS[i]!.id),
+        )
+      }
+    >
       <span className="pill" aria-hidden="true">
         L1
       </span>
@@ -42,6 +55,7 @@ export function TabStrip() {
           key={id}
           role="tab"
           aria-selected={page === id}
+          tabIndex={page === id ? 0 : -1}
           className={`tab${page === id ? ' active' : ''}`}
           title={label}
           onClick={() => setPage(id)}

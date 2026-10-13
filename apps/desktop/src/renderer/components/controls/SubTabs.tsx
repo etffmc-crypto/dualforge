@@ -1,3 +1,5 @@
+import { onTabKeyDown } from './tabKeys';
+
 export interface SubTabsProps<T extends string> {
   tabs: { value: T; label: string }[];
   value: T;
@@ -17,7 +19,19 @@ export function SubTabs<T extends string>({ tabs, value, onChange, pills }: SubT
           {pills[0]}
         </span>
       )}
-      <div className="subtabs-list" role="tablist" data-subtabs>
+      <div
+        className="subtabs-list"
+        role="tablist"
+        data-subtabs
+        onKeyDown={(e) =>
+          onTabKeyDown(
+            e,
+            tabs.length,
+            tabs.findIndex((t) => t.value === value),
+            (i) => onChange(tabs[i]!.value),
+          )
+        }
+      >
         {tabs.map((t) => (
           <button
             data-nav
@@ -25,6 +39,7 @@ export function SubTabs<T extends string>({ tabs, value, onChange, pills }: SubT
             type="button"
             role="tab"
             aria-selected={t.value === value}
+            tabIndex={t.value === value ? 0 : -1}
             className={`subtab${t.value === value ? ' active' : ''}`}
             onClick={() => onChange(t.value)}
           >

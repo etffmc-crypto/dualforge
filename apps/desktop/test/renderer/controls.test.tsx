@@ -232,6 +232,51 @@ describe('SubTabs', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Right' }));
     expect(onChange).toHaveBeenCalledWith('right');
   });
+
+  it('keeps only the active tab in the tab order and moves with arrows, Home and End', () => {
+    const onChange = vi.fn();
+    render(
+      <SubTabs
+        tabs={[
+          { value: 'a', label: 'A' },
+          { value: 'b', label: 'B' },
+          { value: 'c', label: 'C' },
+        ]}
+        value="b"
+        onChange={onChange}
+      />,
+    );
+    const tab = (n: string) => screen.getByRole('tab', { name: n });
+    expect(tab('A').tabIndex).toBe(-1);
+    expect(tab('B').tabIndex).toBe(0);
+    fireEvent.keyDown(tab('B'), { key: 'ArrowRight' });
+    expect(onChange).toHaveBeenLastCalledWith('c');
+    fireEvent.keyDown(tab('B'), { key: 'ArrowLeft' });
+    expect(onChange).toHaveBeenLastCalledWith('a');
+    fireEvent.keyDown(tab('B'), { key: 'Home' });
+    expect(onChange).toHaveBeenLastCalledWith('a');
+    fireEvent.keyDown(tab('B'), { key: 'End' });
+    expect(onChange).toHaveBeenLastCalledWith('c');
+    onChange.mockClear();
+    fireEvent.keyDown(tab('B'), { key: 'x' });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('wraps around at the ends', () => {
+    const onChange = vi.fn();
+    render(
+      <SubTabs
+        tabs={[
+          { value: 'a', label: 'A' },
+          { value: 'b', label: 'B' },
+        ]}
+        value="b"
+        onChange={onChange}
+      />,
+    );
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'B' }), { key: 'ArrowRight' });
+    expect(onChange).toHaveBeenLastCalledWith('a');
+  });
 });
 
 describe('CurvePreview', () => {
