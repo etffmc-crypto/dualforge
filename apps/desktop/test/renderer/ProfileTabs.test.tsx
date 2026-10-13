@@ -93,6 +93,34 @@ describe('ProfileTabs', () => {
     expect(screen.getByRole('tab', { name: 'Profile 3' })).toBeTruthy();
   });
 
+  it('only the selected slot is in the Tab order; arrows move focus without switching profile', () => {
+    render(<ProfileTabs />);
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.map((t) => t.tabIndex)).toEqual([0, -1, -1, -1]);
+    tabs[0]!.focus();
+    fireEvent.keyDown(tabs[0]!, { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(tabs[1]);
+    fireEvent.keyDown(tabs[1]!, { key: 'End' });
+    expect(document.activeElement).toBe(tabs[3]);
+    fireEvent.keyDown(tabs[3]!, { key: 'ArrowRight' });
+    expect(document.activeElement).toBe(tabs[0]);
+    expect(profilesApi.activate).not.toHaveBeenCalled();
+  });
+
+  it('F2 on a focused slot opens the rename field', () => {
+    render(<ProfileTabs />);
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'Profile 2' }), { key: 'F2' });
+    expect(screen.getByRole('textbox', { name: 'Rename Profile 2' })).toBeTruthy();
+  });
+
+  it('arrow keys inside the rename field are left to the field', () => {
+    render(<ProfileTabs />);
+    fireEvent.contextMenu(screen.getByRole('tab', { name: 'Profile 2' }));
+    const input = screen.getByRole('textbox', { name: 'Rename Profile 2' });
+    fireEvent.keyDown(input, { key: 'ArrowLeft' });
+    expect(document.activeElement).toBe(input);
+  });
+
   it('the pencil on the selected slot renames too; a blank name is ignored', () => {
     render(<ProfileTabs />);
     fireEvent.click(screen.getByRole('button', { name: 'Rename Profile 1' }));

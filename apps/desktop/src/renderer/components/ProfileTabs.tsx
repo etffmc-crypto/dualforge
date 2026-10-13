@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { PROFILE_IDS } from '@dualforge/shared';
 import { useStore } from '../store';
+import { onTabKeyDown } from './controls/tabKeys';
 import { PencilIcon } from './icons';
 
 const MAX_NAME = 40;
@@ -75,7 +76,23 @@ export function ProfileTabs() {
   };
 
   return (
-    <div className="ptabs" role="tablist" aria-label="Profiles">
+    <div
+      className="ptabs"
+      role="tablist"
+      aria-label="Profiles"
+      onKeyDown={(e) => {
+        const tab = (e.target as HTMLElement).closest<HTMLElement>('[role="tab"]');
+        if (!tab) return; // the pencil and the rename field keep their own keys
+        const focused = Array.from(e.currentTarget.querySelectorAll('[role="tab"]')).indexOf(tab);
+        if (e.key === 'F2') {
+          e.preventDefault();
+          if (focused >= 0) setEditing(slots[focused]!.id);
+          return;
+        }
+        // arrows only move focus: activating a slot reloads the engine profile, so Enter/Space does that
+        onTabKeyDown(e, slots.length, focused, () => {});
+      }}
+    >
       {slots.map(({ id, name }) => {
         const active = id === activeId;
         if (editing === id) {
@@ -96,8 +113,9 @@ export function ProfileTabs() {
               type="button"
               role="tab"
               aria-selected={active}
+              tabIndex={active ? 0 : -1}
               className="ptab-btn"
-              title={`${name} — right-click to rename`}
+              title={`${name} — right-click or F2 to rename`}
               onClick={() => {
                 if (!active)
                   void activate(id).catch((err: unknown) =>
