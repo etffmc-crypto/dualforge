@@ -29,6 +29,11 @@ export const TABS: { id: Page; label: string; Icon: ComponentType<{ size?: numbe
   { id: 'inputTest', label: 'Input Test', Icon: FlaskIcon },
 ];
 
+/** The page body is the one panel every section tab controls; Shell gives `<main>` this id. */
+export const PAGE_PANEL_ID = 'page-panel';
+
+export const tabId = (id: Page): string => `tab-${id}`;
+
 export function TabStrip() {
   const page = useStore((s) => s.page);
   const setPage = useStore((s) => s.setPage);
@@ -53,8 +58,10 @@ export function TabStrip() {
         <button
           data-nav
           key={id}
+          id={tabId(id)}
           role="tab"
           aria-selected={page === id}
+          aria-controls={page === id ? PAGE_PANEL_ID : undefined}
           tabIndex={page === id ? 0 : -1}
           className={`tab${page === id ? ' active' : ''}`}
           title={label}
