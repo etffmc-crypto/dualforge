@@ -8,7 +8,7 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 - [done] vigem-sink pad orphaned if p.connect() fails (try/catch disconnect + null, 64899b9); redundant status event after a failed connect (engine-loop onStatus only re-emits when the sink became ready).
 - Tasks 7-9 minor (deferred): points.slice(0,pointCount) truncation; no memo on 60 Hz path (DualSenseTop re-renders per tick); [done] tabs roving tabindex + arrow/Home/End nav (TabStrip, SubTabs; aria-controls still open); [done] Toggle/Segmented/RangeSlider accessible names (aria-label / ariaLabel); test gaps (drag stop, keyboard nudge, document.fonts.check); hover/transition hard-coded colours.
 - [done] DraftNumber now drops an open draft when the parent value changes mid-edit (preset switch).
-- Tasks 10-13 minor (deferred): RangeSlider pct unclamped (fill overflow when value outside range); stash-restore path untested; no focus trap in wizard; gamepad nav threshold on `out` may not fire under heavy curves; wizard step 3 lacks Back; lastError not surfaced on pages; per-frame setState in wizard.
+- Tasks 10-13 minor (deferred): RangeSlider pct unclamped (fill overflow when value outside range); stash-restore path untested; [done] focus trap in wizard (Modal already traps Tab); gamepad nav threshold on `out` may not fire under heavy curves; [done] wizard step 3 Back; lastError not surfaced on pages; per-frame setState in wizard.
 - Deferred minors (final review): phantom virtual pad at launch; [done Plan 4] E_VIGEM_TARGET folded into E_VIGEM_INIT; [done Plan 4: spec amended] trigger effect modes narrowed vs spec (Trigger/Weapon/Custom → Plan 3); vibration hint wording; [done Plan 4: spec amended] anti-deadzone-before-curve; StickLive rings ignore calibration; wizard step 2 lacks live dot; .ttf vs .woff2; gamepad nav not built yet; lastError sticky; regression-test gaps (calibration+invert pipeline, stop clears effects — now added, filter dt=1 — now added, disconnect during in-flight connect).
 - USER HANDS-ON CHECKS pending (user will run after merge): L2 stiffens with Resistance; calibration wizard → full-right X ≈ 1.0.
 
@@ -36,7 +36,7 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 - Header: Home + Input Test duplicated (tab strip and right icons) — settle when adding Health.
 - Header profile tabs vs active auto-switch semantics (manual activate during a game rule).
 - [done Plan 4] Spec: .dfprofile vs .dualforge.json; Vibrations trigger-effect strength missing from schema (moot for digital triggers).
-- a11y: ProfileTabs tablist contains pencil buttons/no arrow keys; Modal doesn't inert background; mcard-roll aria-hidden button.
+- a11y: ProfileTabs tablist contains pencil buttons/no arrow keys; [done] Modal inerts the background; mcard-roll aria-hidden button.
 - Gyro calibration: no stillness check; success shown even if updateProfile returned false; hue slider at red for white; linear sensitivity slider (log later); Motion stage re-renders pad+curve at 60 Hz; calibration unmount test.
 - Settings: exe format refine in schema; [done Plan 4] >32 rules file quarantines whole settings (per-field salvage, autoSwitch resets to []); 'Services' session filter locale-dependent (use session number).
 - Macros: play test persists new macro before cancel; recorder timing ~16 ms (document).

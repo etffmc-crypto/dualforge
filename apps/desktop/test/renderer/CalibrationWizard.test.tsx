@@ -124,6 +124,29 @@ describe('CalibrationWizard', () => {
     expect(r).toBeLessThan(1.05);
   });
 
+  it('Back returns from Verify to Edge, then to Center, and the wizard can finish again', () => {
+    render(<CalibrationWizard side="left" onClose={() => {}} />);
+    const back = () => fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
+    for (let i = 0; i < 130; i++) feed(0, 0);
+    fireEvent.click(next());
+    for (let i = 0; i < 300; i++) {
+      const a = (i / 150) * 2 * Math.PI;
+      feed(0.8 * Math.cos(a), 0.8 * Math.sin(a));
+    }
+    fireEvent.click(next());
+    expect(screen.getByTestId('cal-radius')).toBeTruthy();
+    back();
+    expect(screen.queryByTestId('cal-radius')).toBeNull();
+    expect(next().disabled).toBe(false); // the trace was kept
+    back();
+    expect(screen.queryByTestId('cal-center')).toBeNull();
+    expect(next().disabled).toBe(true);
+    for (let i = 0; i < 130; i++) feed(0, 0);
+    expect(screen.getByTestId('cal-center')).toBeTruthy();
+    expect(next().disabled).toBe(false);
+  });
+
   it('Escape and Cancel close without touching the profile', () => {
     const onClose = vi.fn();
     const before = useStore.getState().profile;

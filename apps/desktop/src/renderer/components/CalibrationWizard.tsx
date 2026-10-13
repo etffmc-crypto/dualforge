@@ -99,6 +99,18 @@ export function CalibrationWizard({ side, onClose }: { side: Side; onClose(): vo
       setStep(2);
     }
   };
+  const back = () => {
+    if (step === 2) {
+      // re-open the edge step with what was already traced; Next recomputes the radius
+      seen.current = snapshot;
+      setRadius(null);
+      setStep(1);
+    } else if (step === 1) {
+      restartCenter();
+      setReach(Array<number>(BINS).fill(0));
+      setStep(0);
+    }
+  };
   const apply = () => {
     if (!center || radius === null) return;
     updateProfile((d) => {
@@ -205,6 +217,11 @@ export function CalibrationWizard({ side, onClose }: { side: Side; onClose(): vo
         <button data-nav type="button" className="panel-btn" onClick={onClose}>
           Cancel
         </button>
+        {step > 0 && (
+          <button data-nav type="button" className="panel-btn" onClick={back}>
+            Back
+          </button>
+        )}
         {step === 0 && (center || restFail) && (
           <button data-nav type="button" className="panel-btn" onClick={restartCenter}>
             Measure again
