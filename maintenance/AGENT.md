@@ -1,6 +1,6 @@
 # DualForge maintenance routine
 
-You are the DualForge maintenance agent, running in the repo root (`F:\DualForge`) on Windows 11 with Node 24.
+You are the DualForge maintenance agent, running in the repo root of its own clone (`F:\DualForge-maint`, separate from the development checkout at `F:\DualForge` so it never collides with work in progress there) on Windows 11 with Node 24.
 Your job: verify the project is healthy, triage what the app logged in the last 24 hours, fix genuine code bugs on a branch, and leave a written report.
 
 ## Scope and guardrails (read first, obey always)
@@ -11,7 +11,7 @@ Your job: verify the project is healthy, triage what the app logged in the last 
 - Never touch other applications or the clipboard. Do not run `npm run dev`.
 - Never: `git push`, force-push, `git reset --hard`, `git clean`, `git checkout -- .`, `git checkout -f`, `git stash drop`, `git commit --amend`, `--no-verify`, `git branch -D`, rewrite history, delete files, `git add -A` / `git add -u`, or any `npm install` / `npm update` (only `npm ci`).
 - Your tools are restricted by the command that launched you (see `maintenance/README.md`): only the exact git commands listed there are allowed, `$env:APPDATA\DualForge\logs` and `crashes` are readable but not writable, and the protected files below cannot be edited. A denied tool call is a guardrail, not a problem to work around.
-- Never merge into `main`. The only direct commit to `main` is the report-only commit in step 9.
+- Never merge into `main` and never commit to `main`. The daily report is gitignored and stays on disk; the only commits you make are code fixes on a `maint/*` branch (step 8).
 - Never bump dependency versions. A failing `npm audit` is reported, not "fixed".
 - Never edit `package.json`, `package-lock.json`, `.github/`, `maintenance/` (except writing the dated report), `electron-builder.yml`, or anything under `native/`.
 - Do not weaken checks (no lowering coverage thresholds, no skipping tests, no lint disables) to get green.
@@ -28,11 +28,8 @@ Your job: verify the project is healthy, triage what the app logged in the last 
 5. **Read results.** Open `maintenance/reports/last-check.json`: `{ ranAt, node, steps:[{name, ok, skipped, ms, tail}], ok }`. For each failed step read its `tail` (`timeout` means it was killed); re-run that single step with `npm run <step>` to investigate (never `test:ui`). Report `test:ui` as "skipped (manual)". Note `npm outdated` output from the audit step under "Outdated packages".
 6. **Logs.** Read `$env:APPDATA\DualForge\logs\app*.log` (pino JSON lines; keep entries whose `time` is within the last 24 h; level 40 = warn, 50 = error, 60 = fatal). List the most recent files in `$env:APPDATA\DualForge\crashes` with the Glob tool (Glob sorts by mtime). Group entries by the `code` field (entries without `code` and level >= 50: group by `msg`) and count each. Look every code up in `docs/ERROR_CODES.md`; a code missing from the registry is itself a finding.
 7. **Triage.** For each code or crash decide: new or recurring (compare with the most recent earlier file in `maintenance/reports/`); user-actionable (driver missing, pad unplugged, another app holds the device: goes into "Suggested user actions") or a code bug (stack trace in our code, violated invariant, failing check that is not environmental).
-8. **Fix code bugs.** Only clear code bugs within the scope caps above. Check existing branches with `git branch --list maint/*`, then `git checkout -b maint/YYYY-MM-DD` (if that branch exists use `maint/YYYY-MM-DD-2`, then `-3`). Make the minimal fix plus a regression test, run `npm run typecheck`, `npm run lint` and `npm run test` (not `npm run check`, which includes `test:ui`), keep them green. Stage with explicit paths under `apps/` or `packages/` (`git add apps/<file> packages/<file>`) and commit with `git commit -m "fix(<area>): ..." -m "Co-Authored-By: DualForge Maintenance <noreply@dualforge.local>"` (every commit, including the report commit, ends with that trailer).
-9. **Report.** Write `maintenance/reports/YYYY-MM-DD.md` from the template below.
-   - With code changes: commit the report on the maint branch with `git add maintenance/reports/<file>` only.
-   - Without code changes: `git checkout main` and commit the report there (`docs: maintenance report YYYY-MM-DD`), again adding only that file.
-   - Do not commit `last-check.json` (gitignored). When finished run `git checkout <START>` (the branch recorded in step 1, not necessarily `main`). Never push.
+8. **Fix code bugs.** Only clear code bugs within the scope caps above. Check existing branches with `git branch --list maint/*`, then `git checkout -b maint/YYYY-MM-DD` (if that branch exists use `maint/YYYY-MM-DD-2`, then `-3`). Make the minimal fix plus a regression test, run `npm run typecheck`, `npm run lint` and `npm run test` (not `npm run check`, which includes `test:ui`), keep them green. Stage with explicit paths under `apps/` or `packages/` (`git add apps/<file> packages/<file>`) and commit with `git commit -m "fix(<area>): ..." -m "Co-Authored-By: DualForge Maintenance <noreply@dualforge.local>"` (every commit ends with that trailer).
+9. **Report.** Write `maintenance/reports/YYYY-MM-DD.md` from the template below. Do not commit it: daily reports and `last-check.json` are gitignored and live only on this PC, so `main` always stays identical to `origin/main` and step 2 cannot fail on local commits. When finished run `git checkout <START>` (the branch recorded in step 1, not necessarily `main`). Never push.
 10. **Final message.** Reply with the report's Summary section, the branch name (if any) and the suggested user actions.
 
 ## Report template

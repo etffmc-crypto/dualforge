@@ -15,5 +15,6 @@ native/sendinput/build/
 native/sendinput/bin/
 maintenance/reports/last-check.json
 maintenance/reports/responder-*.md
+maintenance/reports/????-??-??.md
 maintenance/reports/actions-*.json
 maintenance/outbox/*.json

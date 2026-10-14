@@ -10,14 +10,14 @@ From the repo root in PowerShell, with a restricted tool set (use this exact for
 $start = git rev-parse --abbrev-ref HEAD
 $ad = ($env:APPDATA -replace '\\','/') -replace '^([A-Za-z]):','//$1'
 claude -p (Get-Content maintenance/AGENT.md -Raw) --permission-mode acceptEdits `
-  --allowedTools "Bash(git status --porcelain)" "Bash(git status)" "Bash(git rev-parse --abbrev-ref HEAD)" "Bash(git remote)" "Bash(git branch --list maint/*)" "Bash(git checkout main)" "Bash(git checkout -b maint/*)" "Bash(git checkout $start)" "Bash(git add maintenance/reports/*)" "Bash(git add apps/*)" "Bash(git add packages/*)" "Bash(git commit -m *)" "Bash(git log:*)" "Bash(git diff:*)" "Bash(git pull --ff-only)" "Bash(npm run typecheck)" "Bash(npm run lint)" "Bash(npm run test)" "Bash(npm run format:check)" "Bash(npm run coverage)" "Bash(npm run audit)" "Bash(npm ci)" "Bash(powershell -File maintenance/run-checks.ps1 -SkipUi)" Read Write Edit Grep Glob `
+  --allowedTools "Bash(git status --porcelain)" "Bash(git status)" "Bash(git rev-parse --abbrev-ref HEAD)" "Bash(git remote)" "Bash(git branch --list maint/*)" "Bash(git checkout main)" "Bash(git checkout -b maint/*)" "Bash(git checkout $start)" "Bash(git add apps/*)" "Bash(git add packages/*)" "Bash(git commit -m *)" "Bash(git log:*)" "Bash(git diff:*)" "Bash(git pull --ff-only)" "Bash(npm run typecheck)" "Bash(npm run lint)" "Bash(npm run test)" "Bash(npm run format:check)" "Bash(npm run coverage)" "Bash(npm run audit)" "Bash(npm ci)" "Bash(powershell -File maintenance/run-checks.ps1 -SkipUi)" Read Write Edit Grep Glob `
   --disallowedTools "Edit(package.json)" "Edit(package-lock.json)" "Edit(maintenance/run-checks.ps1)" "Edit(maintenance/AGENT.md)" "Edit(.github/**)" "Edit(native/**)" "Edit(apps/desktop/electron-builder.yml)" "Write(package.json)" "Write(package-lock.json)" "Write(maintenance/run-checks.ps1)" "Write(maintenance/AGENT.md)" "Write(.github/**)" "Write(native/**)" "Write(apps/desktop/electron-builder.yml)" "Edit(~/AppData/Roaming/DualForge/**)" "Write(~/AppData/Roaming/DualForge/**)" "Edit($ad/DualForge/**)" "Write($ad/DualForge/**)" "Bash(git commit *--amend*)" "Bash(git commit *--no-verify*)" `
   --add-dir "$env:APPDATA\DualForge\logs" "$env:APPDATA\DualForge\crashes"
 ```
 
 - `$start` is the branch you are on when the routine starts; the routine records the same name and returns to it at the end (`git checkout $start` is the only other checkout it may run).
 - `$ad` is `$env:APPDATA` in Claude Code's absolute-path rule form (`//C/Users/<you>/AppData/Roaming`). `--add-dir` makes only the app logs and crash dumps readable; the `Edit`/`Write` deny rules (home-relative `~/AppData/Roaming/...` and absolute `$ad/...` forms) keep everything under `$env:APPDATA\DualForge` read-only. `git commit` with `--amend` or `--no-verify` is denied even though `git commit -m *` is allowed. Directory listings use the Glob tool.
-- Git is limited to the exact commands above: no `git add` outside `maintenance/reports/`, `apps/` and `packages/`, no `git branch` other than listing `maint/*`, no other checkouts.
+- Git is limited to the exact commands above: no `git add` outside `apps/` and `packages/`, no `git branch` other than listing `maint/*`, no other checkouts, no push.
 - The agent runs the checks with `-SkipUi`. A full run including `test:ui` launches the app and drives the DualSense, so run it yourself when you are not playing: `powershell -File maintenance/run-checks.ps1`.
 
 Alternatively open Claude Code in the repo and paste the contents of `AGENT.md` as the prompt.
@@ -33,11 +33,13 @@ The runner never touches a DualForge you have open: before each step it records 
 
 ## Schedule it
 
-Use the Claude Code scheduler (`/schedule`) with the contents of `AGENT.md` as the prompt and the same `--permission-mode acceptEdits`, `--allowedTools`, `--disallowedTools` and `--add-dir` lists as above, in the same PowerShell form (`$env:APPDATA`, not `%APPDATA%`; compute `$start` and `$ad` first), repo `F:\DualForge`, daily at 09:00. The machine must be on and the repo checked out; the routine reads the local app logs, so it must run on this PC.
+Use the Claude Code scheduler (`/schedule`) with the contents of `AGENT.md` as the prompt and the same `--permission-mode acceptEdits`, `--allowedTools`, `--disallowedTools` and `--add-dir` lists as above, in the same PowerShell form (`$env:APPDATA`, not `%APPDATA%`; compute `$start` and `$ad` first), repo `F:\DualForge-maint`, daily at 09:00. The machine must be on and the repo checked out; the routine reads the local app logs, so it must run on this PC.
+
+`F:\DualForge-maint` is a separate clone of `origin` used only by this routine (created 2026-10-14). Development, including the automated jarvis workflow, happens in `F:\DualForge`; keeping the two apart means the routine's `git checkout main`, `npm ci` and check run never collide with a dirty tree or a branch switch in progress. The routine never pushes and never commits to `main` (daily reports are gitignored, see below), so the clone's `main` always equals `origin/main` and `git pull --ff-only` in step 2 cannot fail on local commits. `main` is protected by a ruleset that requires pull requests, so a code fix on a `maint/*` branch reaches GitHub only when you push that branch and open a PR.
 
 ## Where reports go
 
-- `maintenance/reports/YYYY-MM-DD.md`: the daily report, committed by the agent (on branch `maint/YYYY-MM-DD` when it changed code, otherwise directly on `main`).
+- `maintenance/reports/YYYY-MM-DD.md`: the daily report, written by the agent and gitignored since 2026-10-14 (like the responder's `responder-*.md`), so it lives only on this PC in `F:\DualForge-maint`. Reports from before that date are tracked in git. Code fixes go on branch `maint/YYYY-MM-DD`.
 - `maintenance/reports/last-check.json`: the latest check run, overwritten each time, gitignored.
 
 ## Reading `last-check.json`
