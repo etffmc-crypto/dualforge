@@ -112,4 +112,40 @@ describe('Modal', () => {
     expect(inner).toHaveBeenCalledTimes(1);
     expect(outer).not.toHaveBeenCalled();
   });
+
+  it('makes the page behind inert while open and restores it on close', () => {
+    render(<Harness />);
+    const page = document.body.firstElementChild!;
+    expect(page.hasAttribute('inert')).toBe(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Open' }));
+    expect(page.hasAttribute('inert')).toBe(true);
+    expect(screen.getByRole('dialog').closest('[inert]')).toBeNull();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(page.hasAttribute('inert')).toBe(false);
+  });
+
+  it('keeps the page inert until the last of two dialogs closes', () => {
+    const { rerender } = render(
+      <>
+        <Modal open title="Outer" onClose={() => {}}>
+          <button type="button">a</button>
+        </Modal>
+        <Modal open title="Inner" onClose={() => {}}>
+          <button type="button">b</button>
+        </Modal>
+      </>,
+    );
+    const page = document.body.firstElementChild!;
+    expect(page.hasAttribute('inert')).toBe(true);
+    expect(screen.getByRole('button', { name: 'b' }).closest('[inert]')).toBeNull();
+    rerender(
+      <>
+        <Modal open title="Outer" onClose={() => {}}>
+          <button type="button">a</button>
+        </Modal>
+        <Modal open={false} title="Inner" onClose={() => {}} />
+      </>,
+    );
+    expect(page.hasAttribute('inert')).toBe(true);
+  });
 });

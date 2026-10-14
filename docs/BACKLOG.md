@@ -5,10 +5,10 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 ## From Plan 2 (2026-10-04)
 
 - Tasks 1-6 minor (deferred): buildOutputReport allocates per report (cache until feedback changes); triggers.test.ts repeated buildCurveLut; trigger-effect tests slice prefixes only; section.start<end not enforced in schema.
-- Deferred minors (re-review): vigem-sink pad object orphaned if p.connect() fails (add try/catch disconnect+null); redundant status event after failed connect.
-- Tasks 7-9 minor (deferred): points.slice(0,pointCount) truncation; no memo on 60 Hz path (DualSenseTop re-renders per tick); tabs lack roving tabindex/arrow nav/aria-controls; Toggle/Segmented/RangeSlider without label lack accessible name; test gaps (drag stop, keyboard nudge, document.fonts.check); hover/transition hard-coded colours.
-- Deferred minor: DraftNumber doesn't refresh draft text when parent points change mid-edit (stale until blur). Carry into Task 11 dispatch (preset switch must reset drafts).
-- Tasks 10-13 minor (deferred): RangeSlider pct unclamped (fill overflow when value outside range); stash-restore path untested; no focus trap in wizard; gamepad nav threshold on `out` may not fire under heavy curves; wizard step 3 lacks Back; lastError not surfaced on pages; per-frame setState in wizard.
+- [done] vigem-sink pad orphaned if p.connect() fails (try/catch disconnect + null, 64899b9); redundant status event after a failed connect (engine-loop onStatus only re-emits when the sink became ready).
+- Tasks 7-9 minor (deferred): points.slice(0,pointCount) truncation; no memo on 60 Hz path (DualSenseTop re-renders per tick); [done] tabs roving tabindex + arrow/Home/End nav (TabStrip, SubTabs; aria-controls still open); [done] Toggle/Segmented/RangeSlider accessible names (aria-label / ariaLabel); test gaps (drag stop, keyboard nudge, document.fonts.check); hover/transition hard-coded colours.
+- [done] DraftNumber now drops an open draft when the parent value changes mid-edit (preset switch).
+- Tasks 10-13 minor (deferred): [done] RangeSlider pct clamp (frac() already clamps 0..1); stash-restore path untested; [done] focus trap in wizard (Modal already traps Tab); gamepad nav threshold on `out` may not fire under heavy curves; [done] wizard step 3 Back; [done] lastError surfaced (the Footer ErrorChip shows it on every page); [done] per-frame setState in wizard (count derived from the samples ref).
 - Deferred minors (final review): phantom virtual pad at launch; [done Plan 4] E_VIGEM_TARGET folded into E_VIGEM_INIT; [done Plan 4: spec amended] trigger effect modes narrowed vs spec (Trigger/Weapon/Custom → Plan 3); vibration hint wording; [done Plan 4: spec amended] anti-deadzone-before-curve; StickLive rings ignore calibration; wizard step 2 lacks live dot; .ttf vs .woff2; gamepad nav not built yet; lastError sticky; regression-test gaps (calibration+invert pipeline, stop clears effects — now added, filter dt=1 — now added, disconnect during in-flight connect).
 - USER HANDS-ON CHECKS pending (user will run after merge): L2 stiffens with Resistance; calibration wizard → full-right X ≈ 1.0.
 
@@ -30,13 +30,13 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 ## From Plan 3B (2026-10-04)
 
 - Plan 4 hand-off: preload surface (flags.navReplay, profiles._, settings._, system.{openDataDir,processes}, engine.{runMacro,testRumble}); env DUALFORGE_DATA_DIR (logs ignore it — fix), DUALFORGE_NO_INJECT, DUALFORGE_NAV_REPLAY; e2e temp dirs never cleaned; nav e2e needs real window focus; Home auto-routes to Overview on first connected snapshot.
-- stopMacro command + stop play-test on editor close/blur (keys can inject into another app after alt-tab).
+- [done] stopMacro command + stop play-test on editor close/blur (keys can inject into another app after alt-tab).
 - Store races: edits during profile switch lost (sequence counter); rename vs in-flight save (flushPending before rename); overlapping optimistic settings updates.
 - system:openDataDir ignores shell.openPath error string; handler not in registerIpc (untested).
 - Header: Home + Input Test duplicated (tab strip and right icons) — settle when adding Health.
 - Header profile tabs vs active auto-switch semantics (manual activate during a game rule).
 - [done Plan 4] Spec: .dfprofile vs .dualforge.json; Vibrations trigger-effect strength missing from schema (moot for digital triggers).
-- a11y: ProfileTabs tablist contains pencil buttons/no arrow keys; Modal doesn't inert background; mcard-roll aria-hidden button.
+- a11y: [done] ProfileTabs roving tabindex + arrow/Home/End focus + F2 rename (the pencil button still sits inside the tablist wrapper); [done] Modal inerts the background; mcard-roll aria-hidden button.
 - Gyro calibration: no stillness check; success shown even if updateProfile returned false; hue slider at red for white; linear sensitivity slider (log later); Motion stage re-renders pad+curve at 60 Hz; calibration unmount test.
 - Settings: exe format refine in schema; [done Plan 4] >32 rules file quarantines whole settings (per-field salvage, autoSwitch resets to []); 'Services' session filter locale-dependent (use session number).
 - Macros: play test persists new macro before cancel; recorder timing ~16 ms (document).
@@ -44,8 +44,8 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 
 ## From Plan 4 (2026-10-04) — parked at final review
 
-- Native addon: export foregroundPid (removes 2 s blur race + exe-name fallback for the inject gate); re-sample 100-200 ms after blur.
-- HidHide: decline latch is in-memory only (prompts again next launch); verify admin requirement, CompatibleID filter and UAC flow on real install; Bluetooth instance paths not matched; quit drain 5 s untested in index.ts.
+- [done] Native addon: export foregroundPid (removes 2 s blur race + exe-name fallback for the inject gate); re-sample 100-200 ms after blur.
+- HidHide: [done: decline latch persisted via the `hidhide-declined` marker file] verify admin requirement, CompatibleID filter and UAC flow on real install; Bluetooth instance paths not matched; quit drain 5 s untested in index.ts.
 - Maintenance: Claude Code deny-rule matching for ~/AppData and //c/ forms unverified; wildcard looseness on 'git add apps/*'; unstaged report after a dirty run keeps the tree dirty for the next run; stale last-check.json when node missing.
 - Installer: signer exact-CN/thumbprint check; per-driver ASSET_PATH; drain 3xx bodies; unsigned (SmartScreen); app-update.yml presence in installer build unverified; node-hid prebuild bloat; root scripts unlinted.
 - Health: crash dumps never pruned (bundle UI should say dumps included); done-state releases nav hold before installer closes; failing probe logs every 5 min; access-denied counted as elevated.
@@ -74,5 +74,5 @@ Every feature whose point is a felt or visible effect must ship with a test that
 
 - Updater: with an `unknown` current version the fallback `version !== currentVersion` reports an update when electron-updater omits `isUpdateAvailable` (not reachable in the packaged build).
 - Health "Retry now" shows Done even if the CLI hangs again; the card keeps its title (wording only).
-- Health HidHide hang text hard-codes "2 s" / "30 minutes" instead of using HIDHIDE_PROBE_TIMEOUT_MS / HIDHIDE_BACKOFF_MS.
+- [done] Health HidHide hang text now derives from HIDHIDE_PROBE_TIMEOUT_MS / HIDHIDE_BACKOFF_MS.
 - A non-timeout, non-denied HidHideCLI list failure is still logged on every run (no memo).

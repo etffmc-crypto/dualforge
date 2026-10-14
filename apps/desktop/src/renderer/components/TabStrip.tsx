@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import { useStore, type Page } from '../store';
+import { onTabKeyDown } from './controls/tabKeys';
 import {
   ButtonsIcon,
   FlaskIcon,
@@ -28,11 +29,28 @@ export const TABS: { id: Page; label: string; Icon: ComponentType<{ size?: numbe
   { id: 'inputTest', label: 'Input Test', Icon: FlaskIcon },
 ];
 
+/** The page body is the one panel every section tab controls; Shell gives `<main>` this id. */
+export const PAGE_PANEL_ID = 'page-panel';
+
+export const tabId = (id: Page): string => `tab-${id}`;
+
 export function TabStrip() {
   const page = useStore((s) => s.page);
   const setPage = useStore((s) => s.setPage);
   return (
-    <nav className="tabstrip" role="tablist" aria-label="Sections">
+    <nav
+      className="tabstrip"
+      role="tablist"
+      aria-label="Sections"
+      onKeyDown={(e) =>
+        onTabKeyDown(
+          e,
+          TABS.length,
+          TABS.findIndex((t) => t.id === page),
+          (i) => setPage(TABS[i]!.id),
+        )
+      }
+    >
       <span className="pill" aria-hidden="true">
         L1
       </span>
@@ -40,9 +58,13 @@ export function TabStrip() {
         <button
           data-nav
           key={id}
+          id={tabId(id)}
           role="tab"
           aria-selected={page === id}
+          aria-controls={page === id ? PAGE_PANEL_ID : undefined}
+          tabIndex={page === id ? 0 : -1}
           className={`tab${page === id ? ' active' : ''}`}
+          title={label}
           onClick={() => setPage(id)}
         >
           <Icon size={24} />

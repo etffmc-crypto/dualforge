@@ -171,6 +171,7 @@ export function registerIpc(d: IpcDeps) {
     }
   });
   h('engine:runMacro', (id) => d.engine.send({ type: 'runMacro', id: MacroIdSchema.parse(id) }));
+  h('engine:stopMacro', (id) => d.engine.send({ type: 'stopMacro', id: MacroIdSchema.parse(id) }));
   h('engine:testRumble', (req) =>
     d.engine.send({ type: 'testRumble', ...TestRumbleSchema.parse(req) }),
   );

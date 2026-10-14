@@ -42,6 +42,8 @@ export interface HidHideDeps {
   cloakedThisSession?: () => boolean;
   /** A previous session's quit could not cloak off (the stuck marker exists). Default: the marker file in dataDir. */
   stillCloaked?: () => boolean;
+  /** Persists the decline latch across launches (default: in memory, so a restart prompts again). */
+  declineLatch?: { get(): boolean; set(declined: boolean): void };
   log: { info(o: object): void; warn(o: object): void; error(o: object): void };
 }
 
@@ -176,15 +178,20 @@ export function createHidHide(d: HidHideDeps) {
     return parseDualSenseInstance(out);
   }
 
-  /** Set when the user declined (or the elevated script failed) this session; automatic ops then never prompt again. */
-  let declined = false;
+  /** Set when the user declined (or the elevated script failed); automatic ops then never prompt again, across launches when `declineLatch` persists. */
+  let memDeclined = false;
+  const isDeclined = () => (d.declineLatch ? d.declineLatch.get() : memDeclined);
+  const setDeclined = (v: boolean) => {
+    memDeclined = v;
+    d.declineLatch?.set(v);
+  };
 
   /** Writes `content` to the data dir and runs it elevated (UAC prompt); any failure means it did not happen. */
   async function runElevated(content: string, auto: boolean): Promise<void> {
-    if (auto && declined)
+    if (auto && isDeclined())
       throw new HidHideError(
         'E_HIDHIDE_ELEVATION_DECLINED',
-        'administrator rights were declined earlier this session; not prompting again',
+        'administrator rights were declined earlier; not prompting again until you retry from Health',
       );
     if (!d.dataDir)
       throw new HidHideError('E_HIDHIDE_ELEVATION_DECLINED', 'no data folder for the setup script');
@@ -196,7 +203,7 @@ export function createHidHide(d: HidHideDeps) {
         timeoutMs: ELEVATION_TIMEOUT_MS,
       });
     } catch (e) {
-      declined = true;
+      setDeclined(true);
       throw new HidHideError(
         'E_HIDHIDE_ELEVATION_DECLINED',
         `elevated HidHide call did not complete: ${(e as Error).message}`,
@@ -224,7 +231,7 @@ export function createHidHide(d: HidHideDeps) {
     guarded(async () => {
       const cli = findCli();
       if (!cli) throw new HidHideError('E_HIDHIDE_NOT_INSTALLED', 'HidHide is not installed');
-      if (!auto) declined = false; // the user asked again: a new UAC prompt is fine
+      if (!auto && isDeclined()) setDeclined(false); // the user asked again: a new UAC prompt is fine
       const locate = async (hidden?: string[]): Promise<string | null> => {
         const present = await findDualSenseInstance();
         if (present) return present;

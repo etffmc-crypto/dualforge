@@ -22,6 +22,27 @@ interface Open {
 /** Open dialogs, innermost last: only the top one answers Escape (or B on the pad) and traps Tab. */
 const stack: Open[] = [];
 
+/** How many open dialogs have made each element inert, so it is restored only once the last one closes. */
+const inertBy = new WeakMap<Element, number>();
+
+/** Makes the rest of <body> inert (unfocusable, hidden from assistive tech) and returns the undo. Other dialogs' backdrops are left alone: the top one traps Tab itself. */
+function inertBackground(): () => void {
+  const hidden = [...document.body.children].filter(
+    (el) => !el.classList.contains('modal-backdrop'),
+  );
+  for (const el of hidden) {
+    inertBy.set(el, (inertBy.get(el) ?? 0) + 1);
+    el.setAttribute('inert', '');
+  }
+  return () => {
+    for (const el of hidden) {
+      const n = (inertBy.get(el) ?? 1) - 1;
+      inertBy.set(el, n);
+      if (n <= 0) el.removeAttribute('inert');
+    }
+  };
+}
+
 /** The innermost open dialog's panel, or null when none is open. */
 export function topModalPanel(): HTMLElement | null {
   return stack.at(-1)?.panel ?? null;
@@ -35,7 +56,7 @@ export function closeTopModal(): boolean {
   return true;
 }
 
-/** Shared dialog: focus moves in on open, Tab / Shift+Tab loop inside, Escape or a backdrop click closes, focus returns to the opener. */
+/** Shared dialog: focus moves in on open, Tab / Shift+Tab loop inside, the rest of the page goes inert, Escape or a backdrop click closes, focus returns to the opener. */
 export function Modal({
   open,
   title,
@@ -57,6 +78,7 @@ export function Modal({
     if (!open) return;
     const me: Open = { close: () => close.current(), panel: panel.current };
     stack.push(me);
+    const restoreBackground = inertBackground();
     const opener = document.activeElement as HTMLElement | null;
     const first = firstFocus.current?.current;
     if (first) first.focus({ focusVisible: true } as FocusOptions);
@@ -91,6 +113,7 @@ export function Modal({
     return () => {
       document.removeEventListener('keydown', onKey);
       stack.splice(stack.indexOf(me), 1);
+      restoreBackground();
       if (opener && document.contains(opener)) opener.focus();
     };
   }, [open]);

@@ -8,6 +8,7 @@ import { Toggle } from '../../src/renderer/components/controls/Toggle';
 import { SubTabs } from '../../src/renderer/components/controls/SubTabs';
 import { CurvePreview } from '../../src/renderer/components/controls/CurvePreview';
 import { CurveEditor } from '../../src/renderer/components/controls/CurveEditor';
+import { DraftNumber } from '../../src/renderer/components/controls/DraftNumber';
 import { StickLive } from '../../src/renderer/components/controls/StickLive';
 import { moveFocus } from '../../src/renderer/hooks/useGamepadNav';
 
@@ -231,6 +232,51 @@ describe('SubTabs', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Right' }));
     expect(onChange).toHaveBeenCalledWith('right');
   });
+
+  it('keeps only the active tab in the tab order and moves with arrows, Home and End', () => {
+    const onChange = vi.fn();
+    render(
+      <SubTabs
+        tabs={[
+          { value: 'a', label: 'A' },
+          { value: 'b', label: 'B' },
+          { value: 'c', label: 'C' },
+        ]}
+        value="b"
+        onChange={onChange}
+      />,
+    );
+    const tab = (n: string) => screen.getByRole('tab', { name: n });
+    expect(tab('A').tabIndex).toBe(-1);
+    expect(tab('B').tabIndex).toBe(0);
+    fireEvent.keyDown(tab('B'), { key: 'ArrowRight' });
+    expect(onChange).toHaveBeenLastCalledWith('c');
+    fireEvent.keyDown(tab('B'), { key: 'ArrowLeft' });
+    expect(onChange).toHaveBeenLastCalledWith('a');
+    fireEvent.keyDown(tab('B'), { key: 'Home' });
+    expect(onChange).toHaveBeenLastCalledWith('a');
+    fireEvent.keyDown(tab('B'), { key: 'End' });
+    expect(onChange).toHaveBeenLastCalledWith('c');
+    onChange.mockClear();
+    fireEvent.keyDown(tab('B'), { key: 'x' });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('wraps around at the ends', () => {
+    const onChange = vi.fn();
+    render(
+      <SubTabs
+        tabs={[
+          { value: 'a', label: 'A' },
+          { value: 'b', label: 'B' },
+        ]}
+        value="b"
+        onChange={onChange}
+      />,
+    );
+    fireEvent.keyDown(screen.getByRole('tab', { name: 'B' }), { key: 'ArrowRight' });
+    expect(onChange).toHaveBeenLastCalledWith('a');
+  });
 });
 
 describe('CurvePreview', () => {
@@ -355,6 +401,27 @@ describe('CurveEditor', () => {
     expect(screen.queryByTestId('ce-zero')).toBeNull();
     fireEvent.keyDown(screen.getByTestId('handle-0'), { key: 'ArrowDown' });
     expect((onChange.mock.calls.at(-1)![0] as [number, number][])[0]).toEqual([0, 0]);
+  });
+});
+
+describe('DraftNumber', () => {
+  const field = (value: number) => (
+    <DraftNumber value={value} label="Point X" min={0} max={100} onCommit={() => {}} />
+  );
+  it('drops an open draft when the committed value changes underneath it', () => {
+    const { rerender } = render(field(10));
+    const input = screen.getByLabelText('Point X') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '42' } });
+    expect(input.value).toBe('42');
+    rerender(field(77));
+    expect(input.value).toBe('77');
+  });
+  it('keeps the draft while the value is unchanged', () => {
+    const { rerender } = render(field(10));
+    const input = screen.getByLabelText('Point X') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '42' } });
+    rerender(field(10));
+    expect(input.value).toBe('42');
   });
 });
 

@@ -71,6 +71,15 @@ export function MacroEditor({ macro, isNew, onClose }: MacroEditorProps) {
     navHold.current = null;
   };
   useEffect(() => endNavHold, []);
+  // a play-test must not outlive the editor (closing it mid-run would otherwise keep injecting keys)
+  const played = useRef(false);
+  useEffect(
+    () => () => {
+      if (played.current) void window.dualforge.engine.stopMacro(draftId.current).catch(() => {});
+    },
+    [],
+  );
+  const draftId = useRef(macro.id);
   const playTest = () => {
     if (!save()) return;
     flushProfile(); // the engine must have this version before it runs it
@@ -80,6 +89,7 @@ export function MacroEditor({ macro, isNew, onClose }: MacroEditorProps) {
       release,
       timer: setTimeout(endNavHold, cycleMs(draft) + PLAY_NAV_GRACE_MS),
     };
+    played.current = true;
     window.dualforge.engine
       .runMacro(draft.id)
       .catch((err: unknown) =>

@@ -101,9 +101,21 @@ const markCloakStuck = (stuck: boolean) => {
     logger.warn({ code: 'E_HIDHIDE_CLOAK_STUCK', msg: (e as Error).message });
   }
 };
+const declinedMarker = join(dataDir, 'hidhide-declined');
 const hidhide = createHidHide({
   ownExe: process.execPath,
   dataDir,
+  declineLatch: {
+    get: () => existsSync(declinedMarker),
+    set: (declined) => {
+      try {
+        if (declined) writeFileSync(declinedMarker, new Date().toISOString());
+        else rmSync(declinedMarker, { force: true });
+      } catch (e) {
+        logger.warn({ code: 'E_HIDHIDE_ELEVATION_DECLINED', msg: (e as Error).message });
+      }
+    },
+  },
   log: logger,
   onCloakStuck: markCloakStuck,
   cloakedThisSession: () => hidHideQueue.cloakedThisSession(),

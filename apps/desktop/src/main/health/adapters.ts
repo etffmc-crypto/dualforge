@@ -2,7 +2,14 @@ import { execFile } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { PROFILE_IDS } from '@dualforge/shared';
-import type { AppUpdateStatus, HealthInput } from './checks.js';
+import {
+  HIDHIDE_BACKOFF_MS,
+  HIDHIDE_PROBE_TIMEOUT_MS,
+  type AppUpdateStatus,
+  type HealthInput,
+} from './checks.js';
+
+export { HIDHIDE_BACKOFF_MS, HIDHIDE_PROBE_TIMEOUT_MS };
 
 export const ADAPTER_TIMEOUT_MS = 5000;
 export const FOREIGN_MAX_AGE_MS = 60_000;
@@ -109,11 +116,6 @@ export function hidHideCliPath(
 ): string {
   return join(programFiles, 'Nefarius Software Solutions', 'HidHide', 'x64', 'HidHideCLI.exe');
 }
-
-/** HidHideCLI answers instantly when healthy; a hang is the failure being detected, so probes are short. */
-export const HIDHIDE_PROBE_TIMEOUT_MS = 2000;
-/** After a hang / access-denied the CLI is not probed again for this long (Retry now clears it). */
-export const HIDHIDE_BACKOFF_MS = 30 * 60_000;
 
 export type HidHideCliState = 'hang' | 'needs-admin';
 /** Remembers an unresponsive CLI across health runs so it is neither re-probed nor re-logged every 5 minutes. */

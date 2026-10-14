@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { runChecks, type HealthInput } from '../../src/main/health/checks.js';
+import {
+  HIDHIDE_BACKOFF_MS,
+  HIDHIDE_PROBE_TIMEOUT_MS,
+  runChecks,
+  type HealthInput,
+} from '../../src/main/health/checks.js';
 
 const GOOD: HealthInput = {
   vigem: { serviceState: 'running', busDevicePresent: true },
@@ -36,6 +41,20 @@ describe('runChecks', () => {
       'DualSense is hidden from games while DualForge is closed — open the HidHide Configuration Client to un-hide',
     );
     expect(runChecks(GOOD).some((x) => x.id === 'hidhideStuck')).toBe(false);
+  });
+
+  it('unresponsive HidHide CLI wording is derived from the probe timeout and backoff constants', () => {
+    const wording = (state: 'hang' | 'needs-admin') =>
+      byId(
+        mod((i) => {
+          i.hidhide = { ...i.hidhide, whitelisted: null, cliUnresponsive: state };
+        }),
+        'hidhide',
+      ).detail;
+    const minutes = `${HIDHIDE_BACKOFF_MS / 60_000} minutes`;
+    expect(wording('hang')).toContain(`within ${HIDHIDE_PROBE_TIMEOUT_MS / 1000} s`);
+    expect(wording('hang')).toContain(minutes);
+    expect(wording('needs-admin')).toContain(minutes);
   });
 
   it('HidHide copy says it is admin-gated and the first enable shows a UAC prompt', () => {

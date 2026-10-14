@@ -2,6 +2,7 @@ import { useEffect, type PropsWithChildren } from 'react';
 import type { HealthState } from '@dualforge/shared';
 import { Header } from './Header';
 import { Footer } from './Footer';
+import { PAGE_PANEL_ID, TABS, tabId } from './TabStrip';
 import { isPage, useStore } from '../store';
 import { applyTheme } from '../theme';
 import { useGamepadNav } from '../hooks/useGamepadNav';
@@ -53,6 +54,7 @@ export function useAppFeeds(firstFetchMs = FIRST_HEALTH_FETCH_MS): void {
 }
 
 export function Shell({ children }: PropsWithChildren) {
+  const page = useStore((s) => s.page);
   const subscribe = useStore((s) => s.subscribe);
   const loadProfile = useStore((s) => s.loadProfile);
   const loadSettings = useStore((s) => s.loadSettings);
@@ -71,7 +73,13 @@ export function Shell({ children }: PropsWithChildren) {
   return (
     <div className="app">
       <Header />
-      <main className="body">{children}</main>
+      <main
+        className="body"
+        id={PAGE_PANEL_ID}
+        aria-labelledby={TABS.some((t) => t.id === page) ? tabId(page) : undefined}
+      >
+        {children}
+      </main>
       <Footer />
     </div>
   );

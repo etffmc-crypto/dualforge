@@ -1,5 +1,10 @@
 import type { HealthResult } from '@dualforge/shared';
 
+/** HidHideCLI answers instantly when healthy; a hang is the failure being detected, so probes are short. */
+export const HIDHIDE_PROBE_TIMEOUT_MS = 2000;
+/** After a hang / access-denied the CLI is not probed again for this long (Retry now clears it). */
+export const HIDHIDE_BACKOFF_MS = 30 * 60_000;
+
 /** Where the opt-in update check stands (Health `app` card wording). */
 export interface AppUpdateStatus {
   state: 'disabled' | 'unchecked' | 'none' | 'available' | 'error';
@@ -116,8 +121,8 @@ export function runChecks(i: HealthInput): HealthResult[] {
       title: 'HidHide installed — state unknown (CLI unresponsive, likely needs administrator)',
       detail:
         h.cliUnresponsive === 'hang'
-          ? 'HidHideCLI did not answer within 2 s, so DualForge skips it for 30 minutes (E_HEALTH_TIMEOUT). It usually needs administrator rights.'
-          : 'HidHideCLI refused to run without administrator rights, so DualForge skips it for 30 minutes.',
+          ? `HidHideCLI did not answer within ${HIDHIDE_PROBE_TIMEOUT_MS / 1000} s, so DualForge skips it for ${HIDHIDE_BACKOFF_MS / 60_000} minutes (E_HEALTH_TIMEOUT). It usually needs administrator rights.`
+          : `HidHideCLI refused to run without administrator rights, so DualForge skips it for ${HIDHIDE_BACKOFF_MS / 60_000} minutes.`,
       repair: 'retryHidHide',
     });
   else if (h.whitelisted === null)

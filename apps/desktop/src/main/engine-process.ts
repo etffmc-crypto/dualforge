@@ -37,6 +37,9 @@ port.on('message', (m) => {
     case 'runMacro':
       loop.runMacro(c.id);
       break;
+    case 'stopMacro':
+      loop.stopPlayTest(c.id);
+      break;
     case 'testRumble':
       loop.testRumble(c.left, c.right, c.ms);
       break;

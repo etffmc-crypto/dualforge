@@ -45,7 +45,6 @@ export function CalibrationWizard({ side, onClose }: { side: Side; onClose(): vo
   const [center, setCenter] = useState<Pt | null>(null);
   const [radius, setRadius] = useState<number | null>(null);
   const [restFail, setRestFail] = useState<'off-center' | 'moving' | null>(null);
-  const [count, setCount] = useState(0);
   const [reach, setReach] = useState<number[]>(() => Array<number>(BINS).fill(0));
   const samples = useRef<Pt[]>([]);
   const started = useRef(performance.now());
@@ -56,7 +55,6 @@ export function CalibrationWizard({ side, onClose }: { side: Side; onClose(): vo
     const p = pick(snapshot, side);
     if (step === 0 && !center && !restFail) {
       samples.current.push(p);
-      setCount(samples.current.length);
       if (
         samples.current.length >= CENTER_FRAMES ||
         performance.now() - started.current >= CENTER_MS
@@ -67,7 +65,6 @@ export function CalibrationWizard({ side, onClose }: { side: Side; onClose(): vo
       }
     } else if (step === 1 && center) {
       samples.current.push(p);
-      setCount(samples.current.length);
       const dx = p.x - center.x,
         dy = p.y - center.y;
       const bin =
@@ -84,7 +81,6 @@ export function CalibrationWizard({ side, onClose }: { side: Side; onClose(): vo
     samples.current = [];
     started.current = performance.now();
     seen.current = snapshot;
-    setCount(0);
     setCenter(null);
     setRestFail(null);
   };
@@ -92,11 +88,22 @@ export function CalibrationWizard({ side, onClose }: { side: Side; onClose(): vo
     if (step === 0) {
       samples.current = [];
       seen.current = snapshot;
-      setCount(0);
       setStep(1);
     } else if (step === 1 && center) {
       setRadius(computeRadiusFromReach(reach));
       setStep(2);
+    }
+  };
+  const back = () => {
+    if (step === 2) {
+      // re-open the edge step with what was already traced; Next recomputes the radius
+      seen.current = snapshot;
+      setRadius(null);
+      setStep(1);
+    } else if (step === 1) {
+      restartCenter();
+      setReach(Array<number>(BINS).fill(0));
+      setStep(0);
     }
   };
   const apply = () => {
@@ -108,6 +115,9 @@ export function CalibrationWizard({ side, onClose }: { side: Side; onClose(): vo
     onClose();
   };
 
+  // Frames re-render this component through the snapshot subscription, so the count is read, not stored:
+  // a setState per frame would render the modal twice per frame.
+  const count = samples.current.length;
   const covered = reach.filter((r) => r > 0.5).length;
   const canNext =
     step === 0
@@ -205,6 +215,11 @@ export function CalibrationWizard({ side, onClose }: { side: Side; onClose(): vo
         <button data-nav type="button" className="panel-btn" onClick={onClose}>
           Cancel
         </button>
+        {step > 0 && (
+          <button data-nav type="button" className="panel-btn" onClick={back}>
+            Back
+          </button>
+        )}
         {step === 0 && (center || restFail) && (
           <button data-nav type="button" className="panel-btn" onClick={restartCenter}>
             Measure again

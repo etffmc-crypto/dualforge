@@ -79,6 +79,8 @@ const api = {
   engine: {
     /** Plays a macro of the running profile once on the live pipeline (key/mouse steps are not injected while DualForge is focused). */
     runMacro: (id: string): Promise<void> => ipcRenderer.invoke('engine:runMacro', id),
+    /** Ends a play-test started with runMacro (no-op when it is not running). */
+    stopMacro: (id: string): Promise<void> => ipcRenderer.invoke('engine:stopMacro', id),
     /** Plays both rumble motors at the given levels (0..1) for `ms` (50..2000); ignored when settings.hasRumble is off. */
     testRumble: (req: { left: number; right: number; ms: number }): Promise<void> =>
       ipcRenderer.invoke('engine:testRumble', req),
