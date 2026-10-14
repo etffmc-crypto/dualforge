@@ -4,7 +4,7 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 
 ## From Plan 2 (2026-10-04)
 
-- Tasks 1-6 minor (deferred): buildOutputReport allocates per report (cache until feedback changes); triggers.test.ts repeated buildCurveLut; trigger-effect tests slice prefixes only; section.start<end not enforced in schema.
+- Tasks 1-6 minor (deferred): buildOutputReport allocates per report (cache until feedback changes); triggers.test.ts repeated buildCurveLut; trigger-effect tests slice prefixes only; [done] section.start<end now enforced in the schema (TriggerEffectSchema refine).
 - [done] vigem-sink pad orphaned if p.connect() fails (try/catch disconnect + null, 64899b9); redundant status event after a failed connect (engine-loop onStatus only re-emits when the sink became ready).
 - Tasks 7-9 minor (deferred): points.slice(0,pointCount) truncation; no memo on 60 Hz path (DualSenseTop re-renders per tick); [done] tabs roving tabindex + arrow/Home/End nav (TabStrip, SubTabs; aria-controls still open); [done] Toggle/Segmented/RangeSlider accessible names (aria-label / ariaLabel); test gaps (drag stop, keyboard nudge, document.fonts.check); hover/transition hard-coded colours.
 - [done] DraftNumber now drops an open draft when the parent value changes mid-edit (preset switch).

@@ -43,7 +43,7 @@ export const StickFilterSchema = z
     message: 'filter curve x must be non-decreasing',
   });
 
-export const TriggerEffectSchema = z.discriminatedUnion('mode', [
+const TriggerEffectUnion = z.discriminatedUnion('mode', [
   z.object({ mode: z.literal('off') }),
   z.object({
     mode: z.literal('resistance'),
@@ -62,6 +62,12 @@ export const TriggerEffectSchema = z.discriminatedUnion('mode', [
     force: z.number().int().min(0).max(8),
   }),
 ]);
+export const TriggerEffectSchema = TriggerEffectUnion.refine(
+  (e) => e.mode !== 'section' || e.start < e.end,
+  {
+    message: 'trigger section start must be below end',
+  },
+);
 export type TriggerEffect = z.infer<typeof TriggerEffectSchema>;
 
 export const StickConfigSchema = z
