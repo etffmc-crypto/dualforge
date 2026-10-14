@@ -67,7 +67,7 @@ jobs:
         run: node scripts/release.mjs notes "$env:TAG" apps/desktop/release/release-notes.md
       - name: SHA256SUMS.txt
         run: node scripts/release.mjs sums apps/desktop/release apps/desktop/release/SHA256SUMS.txt
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-files
           if-no-files-found: error
