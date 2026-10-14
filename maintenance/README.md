@@ -33,7 +33,9 @@ The runner never touches a DualForge you have open: before each step it records 
 
 ## Schedule it
 
-Use the Claude Code scheduler (`/schedule`) with the contents of `AGENT.md` as the prompt and the same `--permission-mode acceptEdits`, `--allowedTools`, `--disallowedTools` and `--add-dir` lists as above, in the same PowerShell form (`$env:APPDATA`, not `%APPDATA%`; compute `$start` and `$ad` first), repo `F:\DualForge`, daily at 09:00. The machine must be on and the repo checked out; the routine reads the local app logs, so it must run on this PC.
+Use the Claude Code scheduler (`/schedule`) with the contents of `AGENT.md` as the prompt and the same `--permission-mode acceptEdits`, `--allowedTools`, `--disallowedTools` and `--add-dir` lists as above, in the same PowerShell form (`$env:APPDATA`, not `%APPDATA%`; compute `$start` and `$ad` first), repo `F:\DualForge-maint`, daily at 09:00. The machine must be on and the repo checked out; the routine reads the local app logs, so it must run on this PC.
+
+`F:\DualForge-maint` is a separate clone of `origin` used only by this routine (created 2026-10-14). Development, including the automated jarvis workflow, happens in `F:\DualForge`; keeping the two apart means the routine's `git checkout main`, `npm ci` and check run never collide with a dirty tree or a branch switch in progress. The routine never pushes, so its report commits accumulate on the clone's local `main`; push them from `F:\DualForge-maint` now and then, because `git pull --ff-only` in step 2 fails once `origin/main` has moved past an unpushed local commit.
 
 ## Where reports go
 

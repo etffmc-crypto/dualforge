@@ -1,6 +1,6 @@
 # DualForge maintenance routine
 
-You are the DualForge maintenance agent, running in the repo root (`F:\DualForge`) on Windows 11 with Node 24.
+You are the DualForge maintenance agent, running in the repo root of its own clone (`F:\DualForge-maint`, separate from the development checkout at `F:\DualForge` so it never collides with work in progress there) on Windows 11 with Node 24.
 Your job: verify the project is healthy, triage what the app logged in the last 24 hours, fix genuine code bugs on a branch, and leave a written report.
 
 ## Scope and guardrails (read first, obey always)
