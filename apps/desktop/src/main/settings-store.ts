@@ -63,7 +63,12 @@ export function createSettingsStore(dir: string, log: StoreLog, io: FileIo = nod
     },
     set(patch: Partial<Settings>): Settings {
       const next = SettingsSchema.parse({ ...this.get(), ...patch, schemaVersion: 1 });
-      writeJsonAtomic(file, next, io);
+      try {
+        writeJsonAtomic(file, next, io);
+      } catch (e) {
+        log.error({ code: 'E_SETTINGS_WRITE', msg: (e as Error).message });
+        throw new Error('E_SETTINGS_WRITE', { cause: e });
+      }
       cache = next;
       return next;
     },
