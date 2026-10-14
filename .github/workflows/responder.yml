@@ -47,7 +47,7 @@ jobs:
       # Linux runner: Windows-only native modules (vigemclient, sendinput) are not built; the test suite skips them.
       # --force: @dualforge/sendinput declares os win32 (EBADPLATFORM on Linux); nothing native is built here anyway.
       - run: npm ci --ignore-scripts --force
-      - uses: anthropics/claude-code-action@c3d45e8e941e1b2ad7b278c57482d9c5bf1f35b3 # v1.0.99
+      - uses: anthropics/claude-code-action@1d6de8cb0c237e7c15e9e1bdf973826ebae490cc # v1.0.248
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -83,7 +83,7 @@ jobs:
           cache: npm
       # --force: @dualforge/sendinput declares os win32 (EBADPLATFORM on Linux); nothing native is built here anyway.
       - run: npm ci --ignore-scripts --force
-      - uses: anthropics/claude-code-action@c3d45e8e941e1b2ad7b278c57482d9c5bf1f35b3 # v1.0.99
+      - uses: anthropics/claude-code-action@1d6de8cb0c237e7c15e9e1bdf973826ebae490cc # v1.0.248
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
