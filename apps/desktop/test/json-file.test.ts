@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { nodeIo, writeJsonAtomic, type FileIo } from '../src/main/json-file.js';
+import { nodeIo, quarantine, writeJsonAtomic, type FileIo } from '../src/main/json-file.js';
 
 let dir: string;
 beforeEach(() => {
@@ -46,5 +46,32 @@ describe('writeJsonAtomic rename retry', () => {
     expect(() => writeJsonAtomic(join(dir, 'x.json'), {}, io)).toThrow();
     expect(io.calls).toBe(1);
     expect(spy).toHaveBeenCalled();
+  });
+});
+
+describe('quarantine rename retry', () => {
+  const log = { error: vi.fn(), warn: vi.fn() };
+  beforeEach(() => {
+    log.error.mockClear();
+  });
+  it('retries a transient EBUSY and moves the file into the corrupt dir', () => {
+    const f = join(dir, 'settings.json');
+    writeFileSync(f, '{bad');
+    const io = flaky('EBUSY', 2);
+    quarantine(f, join(dir, 'corrupt'), log, 'E_TEST', 'bad json', io);
+    expect(io.calls).toBe(3);
+    expect(existsSync(f)).toBe(false);
+    expect(readdirSync(join(dir, 'corrupt'))).toHaveLength(1);
+    // only the "rejected" line, no "could not quarantine" line
+    expect(log.error).toHaveBeenCalledTimes(1);
+  });
+  it('logs and keeps the file when the rename keeps failing', () => {
+    const f = join(dir, 'settings.json');
+    writeFileSync(f, '{bad');
+    const io = flaky('EPERM', 99);
+    quarantine(f, join(dir, 'corrupt'), log, 'E_TEST', 'bad json', io);
+    expect(io.calls).toBe(4);
+    expect(existsSync(f)).toBe(true);
+    expect(log.error).toHaveBeenCalledTimes(2);
   });
 });

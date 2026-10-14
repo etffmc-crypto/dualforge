@@ -77,7 +77,7 @@ export function quarantine(
   try {
     mkdirSync(corruptDir, { recursive: true });
     const base = basename(file).replace(/\.json$/i, '');
-    io.renameSync(file, join(corruptDir, `${base}.${Date.now()}.json`));
+    renameWithRetry(io, file, join(corruptDir, `${base}.${Date.now()}.json`));
   } catch (e) {
     log.error({ code, msg: `could not quarantine ${basename(file)}: ${(e as Error).message}` });
   }
