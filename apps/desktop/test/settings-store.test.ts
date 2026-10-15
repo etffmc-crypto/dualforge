@@ -90,6 +90,27 @@ describe('settings store', () => {
     expect(createSettingsStore(dir, log).get()).toMatchObject({ theme: 'light', hasRumble: true });
     expect(log.error).not.toHaveBeenCalled();
   });
+  it('salvages autoSwitch per rule: one bad rule or an over-cap list keeps the valid rules', () => {
+    const good = { exe: 'game.exe', profileId: 'p2' };
+    writeFileSync(
+      join(dir, 'settings.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        autoSwitch: [good, { exe: 'a.exe', profileId: '../x' }, { exe: '', profileId: 'p1' }, 7],
+      }),
+    );
+    expect(createSettingsStore(dir, log).get().autoSwitch).toEqual([good]);
+    expect(readdirSync(join(dir, 'corrupt'))).toHaveLength(1);
+
+    const many = Array.from({ length: 40 }, (_, i) => ({ exe: `g${i}.exe`, profileId: 'p1' }));
+    writeFileSync(
+      join(dir, 'settings.json'),
+      JSON.stringify({ schemaVersion: 1, autoSwitch: many }),
+    );
+    const rules = createSettingsStore(dir, log).get().autoSwitch;
+    expect(rules).toHaveLength(32);
+    expect(rules[0]!.exe).toBe('g0.exe');
+  });
   it('still quarantines non-object JSON with E_SETTINGS_SCHEMA', () => {
     writeFileSync(join(dir, 'settings.json'), '[1,2]');
     expect(createSettingsStore(dir, log).get()).toEqual(defaultSettings());

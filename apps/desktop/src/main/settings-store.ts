@@ -1,5 +1,11 @@
 import { join } from 'node:path';
-import { defaultSettings, SettingsSchema, type Settings } from '@dualforge/shared';
+import {
+  AutoSwitchRuleSchema,
+  defaultSettings,
+  MAX_AUTO_SWITCH_RULES,
+  SettingsSchema,
+  type Settings,
+} from '@dualforge/shared';
 import {
   nodeIo,
   quarantine,
@@ -23,6 +29,19 @@ export function createSettingsStore(dir: string, log: StoreLog, io: FileIo = nod
     const merged: Record<string, unknown> = { ...defaultSettings() };
     for (const key of Object.keys(shape)) {
       if (!Object.hasOwn(raw, key)) continue;
+      if (key === 'autoSwitch') {
+        // One bad rule must not cost the user every other game rule: keep the valid ones, up to the cap.
+        const rules = (raw as Record<string, unknown>)[key];
+        if (Array.isArray(rules)) {
+          merged[key] = rules
+            .flatMap((r) => {
+              const p = AutoSwitchRuleSchema.safeParse(r);
+              return p.success ? [p.data] : [];
+            })
+            .slice(0, MAX_AUTO_SWITCH_RULES);
+        }
+        continue;
+      }
       const f = shape[key]!.safeParse((raw as Record<string, unknown>)[key]);
       if (f.success) merged[key] = f.data;
     }
