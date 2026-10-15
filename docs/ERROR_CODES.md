@@ -180,7 +180,7 @@ The renderer could not load settings. Fix: restart.
 
 ### E_SETTINGS_WRITE
 
-A failed HidHide enable tried to save `hidHide: false` so the switch tells the truth, but writing `settings.json` threw (see `msg`: disk full, file locked, read-only folder). The renderer re-reads the settings. Fix: check that `%APPDATA%\DualForge` is writable, then toggle again.
+Writing `settings.json` failed (see `msg`: disk full, file locked, read-only folder), so the change was not saved and the in-memory settings keep their previous value. Any settings change can raise it, for example a toggle in Settings, and so can the revert after a failed HidHide enable (which tries to save `hidHide: false` so the switch tells the truth). The renderer re-reads the settings. Fix: check that `%APPDATA%\DualForge` is writable, then retry.
 
 ## UI actions
 
@@ -312,7 +312,7 @@ A `HidHideCLI.exe` call failed (`msg` names the command). Cause: the driver serv
 
 ### E_HIDHIDE_ELEVATION_DECLINED
 
-HidHide refused the unelevated CLI call (access denied), so DualForge wrote `hidhide-setup.cmd` (the `--app-reg`, `--dev-hide`, `--cloak-on` calls) to `%APPDATA%\DualForge` and ran it with a UAC prompt, but the prompt was declined or the script failed. A refused disable does the same with a single `--cloak-off` line. The setting keeps its previous value. After a decline, startup and automatic re-applies do not prompt again in that session (they return this code); a click on the switch or the Health repair prompts again. Fix: toggle again and accept the UAC prompt.
+HidHide refused the unelevated CLI call (access denied), so DualForge wrote `hidhide-setup.cmd` (the `--app-reg`, `--dev-hide`, `--cloak-on` calls) to `%APPDATA%\DualForge` and ran it with a UAC prompt, but the prompt was declined or the script failed. A refused disable does the same with a single `--cloak-off` line. The setting keeps its previous value. A decline is remembered across launches (the `hidhide-declined` marker file in `%APPDATA%\DualForge`), so startup and automatic re-applies return this code instead of prompting again. To be asked again, switch Settings > "Hide the DualSense from games" on, or use the Health repair; a user-initiated enable clears the marker and prompts again. Fix: toggle again and accept the UAC prompt.
 
 ### E_HIDHIDE_CLOAK_STUCK
 
