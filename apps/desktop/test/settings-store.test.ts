@@ -95,4 +95,17 @@ describe('settings store', () => {
     expect(createSettingsStore(dir, log).get()).toEqual(defaultSettings());
     expect((log.error.mock.calls[0]![0] as { code: string }).code).toBe('E_SETTINGS_SCHEMA');
   });
+  it('throws a coded E_SETTINGS_WRITE and keeps the old value when the write fails', () => {
+    const io = {
+      writeFileSync: () => {
+        throw new Error('disk full');
+      },
+      renameSync: () => undefined,
+      unlinkSync: () => undefined,
+    };
+    const s = createSettingsStore(dir, log, io);
+    expect(() => s.set({ theme: 'light' })).toThrow('E_SETTINGS_WRITE');
+    expect(s.get().theme).toBe('dark');
+    expect(log.error).toHaveBeenCalledWith({ code: 'E_SETTINGS_WRITE', msg: 'disk full' });
+  });
 });
