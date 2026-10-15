@@ -25,6 +25,16 @@ function flaky(code: string, failures: number): FileIo & { calls: number } {
   return io;
 }
 
+describe('nodeIo.writeFileSync', () => {
+  it('writes the full content and leaves no open handle blocking removal', () => {
+    const f = join(dir, 'sync.json');
+    nodeIo.writeFileSync(f, '{"a":1}');
+    expect(readFileSync(f, 'utf8')).toBe('{"a":1}');
+    nodeIo.unlinkSync(f);
+    expect(existsSync(f)).toBe(false);
+  });
+});
+
 describe('writeJsonAtomic rename retry', () => {
   it('retries a transient EPERM/EBUSY rename and succeeds', () => {
     for (const code of ['EPERM', 'EBUSY']) {

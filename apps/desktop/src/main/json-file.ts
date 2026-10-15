@@ -1,6 +1,9 @@
 import {
+  closeSync,
   existsSync,
+  fsyncSync,
   mkdirSync,
+  openSync,
   readFileSync,
   renameSync,
   unlinkSync,
@@ -14,7 +17,16 @@ export interface FileIo {
   unlinkSync(path: string): void;
 }
 export const nodeIo: FileIo = {
-  writeFileSync: (p, d) => writeFileSync(p, d, 'utf8'),
+  /** Flushes to disk before returning so the following rename cannot publish a file whose data is still only in cache. */
+  writeFileSync: (p, d) => {
+    const fd = openSync(p, 'w');
+    try {
+      writeFileSync(fd, d, 'utf8');
+      fsyncSync(fd);
+    } finally {
+      closeSync(fd);
+    }
+  },
   renameSync,
   unlinkSync,
 };
