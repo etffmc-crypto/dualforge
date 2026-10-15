@@ -49,7 +49,7 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 - Maintenance: Claude Code deny-rule matching for ~/AppData and //c/ forms unverified; wildcard looseness on 'git add apps/*'; unstaged report after a dirty run keeps the tree dirty for the next run; stale last-check.json when node missing.
 - Installer: signer exact-CN/thumbprint check; per-driver ASSET_PATH; drain 3xx bodies; unsigned (SmartScreen); app-update.yml presence in installer build unverified; node-hid prebuild bloat; root scripts unlinted.
 - Health: crash dumps never pruned (bundle UI should say dumps included); done-state releases nav hold before installer closes; failing probe logs every 5 min; access-denied counted as elevated.
-- Persistence: rename retry rethrows uncoded; quarantine rename no retry; per-rule autoSwitch salvage.
+- Persistence: rename retry rethrows uncoded; [done] quarantine rename now retries EPERM/EBUSY; per-rule autoSwitch salvage.
 - Updates toggle hidden until a real publish owner is configured.
 
 ## From Turbo mode review (2026-10-05)
