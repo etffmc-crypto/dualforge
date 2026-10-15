@@ -366,6 +366,10 @@ A download URL was refused: the first URL is not a Nefarius release asset on git
 
 The installer's SHA-256 changed between the signature check and the launch. The file is deleted and never launched. Fix: retry; scan the PC if it repeats.
 
+### E_DRIVER_HASH
+
+The downloaded installer's SHA-256 does not match the hash DualForge pins for that driver (ViGEmBus 1.22.0). The file is deleted and never launched. Fix: retry; if it repeats, the release asset was replaced, so install ViGEmBus 1.22.0 manually from the Nefarius release page and report it.
+
 ### E_STARTUP_LOGIN_ITEM
 
 Writing the start-with-Windows login item failed (see `msg`). The setting is saved but may not take effect. Fix: toggle it again.
