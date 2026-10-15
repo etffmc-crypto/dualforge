@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   createDriverInstaller,
+  DRIVER_PINS,
   DRIVER_REPOS,
   MAX_DOWNLOAD_BYTES,
   parseSignature,
@@ -416,6 +417,47 @@ describe('driver installer', () => {
       expect(await rig({ fetchImpl: f }).inst.install('hidhide')).toMatchObject({
         code: 'E_DRIVER_NO_ASSET',
       });
+    });
+  });
+
+  describe('pins', () => {
+    const mkInst = (pins: Parameters<typeof createDriverInstaller>[0]['pins']) => {
+      const r = rig();
+      const inst = createDriverInstaller({
+        fetch: r.fetchImpl,
+        exec: r.exec,
+        openPath: r.openPath,
+        dir,
+        emit: () => {},
+        log: r.log,
+        pins,
+      });
+      return { inst, r };
+    };
+    it('ships a tag pin for ViGEmBus only', () => {
+      expect(DRIVER_PINS.vigem?.tag).toBe('v1.22.0');
+      expect(DRIVER_PINS.hidhide).toBeUndefined();
+    });
+    it('looks the pinned tag up instead of latest', async () => {
+      const { inst, r } = mkInst({ hidhide: { tag: 'v1.5.0', sha256: null } });
+      await inst.install('hidhide');
+      expect(r.calls[0]).toBe(
+        `https://api.github.com/repos/${DRIVER_REPOS.hidhide}/releases/tags/v1.5.0`,
+      );
+    });
+    it('accepts a matching SHA-256 pin', async () => {
+      const sha256 = createHash('sha256').update(BYTES).digest('hex');
+      const { inst } = mkInst({ hidhide: { tag: 'v1', sha256 } });
+      expect(await inst.install('hidhide')).toMatchObject({ state: 'done' });
+    });
+    it('a mismatching pin is E_DRIVER_HASH, nothing launches and the file is deleted', async () => {
+      const { inst, r } = mkInst({ hidhide: { tag: 'v1', sha256: 'ab'.repeat(32) } });
+      expect(await inst.install('hidhide')).toMatchObject({
+        state: 'failed',
+        code: 'E_DRIVER_HASH',
+      });
+      expect(r.openPath).not.toHaveBeenCalled();
+      expect(readdirSync(dir)).toEqual([]);
     });
   });
 

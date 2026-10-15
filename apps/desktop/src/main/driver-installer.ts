@@ -15,6 +15,17 @@ export const DRIVER_REPOS: Record<DriverId, string> = {
   vigem: 'nefarius/ViGEmBus',
   hidhide: 'nefarius/HidHide',
 };
+/**
+ * Drivers pinned to one release tag. `sha256` (lower-case hex) is checked on top of the signature; a
+ * null hash means only the tag is pinned. ViGEmBus is archived (final build 1.22.0), HidHide stays on latest.
+ */
+export interface DriverPin {
+  tag: string;
+  sha256: string | null;
+}
+export const DRIVER_PINS: Partial<Record<DriverId, DriverPin>> = {
+  vigem: { tag: 'v1.22.0', sha256: null },
+};
 export const SIGNER = 'Nefarius Software Solutions';
 export const MAX_DOWNLOAD_BYTES = 50 * 1024 * 1024;
 export const SIGNATURE_TIMEOUT_MS = 30_000;
@@ -105,6 +116,8 @@ export interface InstallerDeps {
   emit: (s: DriverStatus) => void;
   log: { info(o: object): void; warn(o: object): void; error(o: object): void };
   now?: () => number;
+  /** Overrides DRIVER_PINS (tests). */
+  pins?: Partial<Record<DriverId, DriverPin>>;
 }
 
 class InstallError extends Error {
@@ -124,6 +137,7 @@ export function createDriverInstaller(d: InstallerDeps) {
     vigem: { driver: 'vigem', state: 'idle' },
     hidhide: { driver: 'hidhide', state: 'idle' },
   };
+  const pins = d.pins ?? DRIVER_PINS;
   const busy = new Set<DriverId>();
   const set = (s: DriverStatus): DriverStatus => {
     status[s.driver] = s;
@@ -131,11 +145,12 @@ export function createDriverInstaller(d: InstallerDeps) {
     return s;
   };
 
-  /** First `.exe` asset of the repository's latest release. */
-  async function fetchLatestRelease(repo: string): Promise<ReleaseAsset> {
+  /** First `.exe` asset of the repository's latest release, or of the pinned tag's release. */
+  async function fetchLatestRelease(repo: string, tag?: string): Promise<ReleaseAsset> {
     let res: Response;
+    const which = tag ? `tags/${encodeURIComponent(tag)}` : 'latest';
     try {
-      res = await d.fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
+      res = await d.fetch(`https://api.github.com/repos/${repo}/releases/${which}`, {
         headers: { 'User-Agent': 'DualForge', Accept: 'application/vnd.github+json' },
       });
     } catch (e) {
@@ -167,7 +182,10 @@ export function createDriverInstaller(d: InstallerDeps) {
         typeof a.size === 'number' && Number.isSafeInteger(a.size) && a.size > 0 ? a.size : null;
       return { name: a.name, url: a.browser_download_url, size };
     }
-    throw new InstallError('E_DRIVER_NO_ASSET', `no .exe asset in the latest ${repo} release`);
+    throw new InstallError(
+      'E_DRIVER_NO_ASSET',
+      `no .exe asset in the ${tag ?? 'latest'} ${repo} release`,
+    );
   }
 
   /** Streams to `dest`, capped at 50 MB; progress is a whole percent (when the size is known). */
@@ -281,7 +299,7 @@ export function createDriverInstaller(d: InstallerDeps) {
     let hash: string | undefined;
     try {
       set({ driver, state: 'downloading', pct: 0 });
-      const asset = await fetchLatestRelease(DRIVER_REPOS[driver]);
+      const asset = await fetchLatestRelease(DRIVER_REPOS[driver], pins[driver]?.tag);
       const assetUrl = asset.url;
       url = assetUrl;
       mkdirSync(d.dir, { recursive: true });
@@ -294,6 +312,9 @@ export function createDriverInstaller(d: InstallerDeps) {
       set({ driver, state: 'verifying', url });
       hash = await sha256(file);
       d.log.info({ code: 'DRIVER_DOWNLOADED', driver, url, sha256: hash, file });
+      const pinned = pins[driver]?.sha256;
+      if (pinned && hash !== pinned.toLowerCase())
+        throw new InstallError('E_DRIVER_HASH', 'installer does not match the pinned SHA-256');
       const verdict = await verifySignature(file);
       if (!verdict.ok)
         throw new InstallError(verdict.code, `Authenticode status ${verdict.status}`);
@@ -327,7 +348,7 @@ export function createDriverInstaller(d: InstallerDeps) {
   /** What the consent card shows before anything is downloaded: the latest installer's name, URL and size. */
   async function release(driver: DriverId): Promise<ReleaseAsset> {
     try {
-      return await fetchLatestRelease(DRIVER_REPOS[driver]);
+      return await fetchLatestRelease(DRIVER_REPOS[driver], pins[driver]?.tag);
     } catch (e) {
       const code = e instanceof InstallError ? e.code : 'E_DRIVER_FETCH';
       d.log.warn({ code, msg: (e as Error).message, driver });
