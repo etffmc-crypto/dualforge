@@ -60,6 +60,10 @@ Could not connect to the ViGEmBus driver; retried at most once per 30 s. Cause: 
 
 Connected to ViGEmBus but could not plug in the virtual Xbox 360 pad. Reported separately from `E_VIGEM_INIT` (driver missing) and retried at most once per 30 s. Cause: bus driver in a bad state or another client monopolising ports. Fix: reinstall ViGEmBus; reboot.
 
+### E_VIGEM_UPDATE
+
+Releasing the virtual Xbox 360 pad (sending it a neutral frame after a disconnect or fault) threw, so the pad may be stuck on its last frame until it is unplugged. Reported at most once per 30 s. Cause: the ViGEmBus driver went away or crashed while the pad was plugged in. Fix: restart DualForge; reinstall ViGEmBus from the Health page if it repeats.
+
 ## Engine process
 
 ### E_PIPELINE
