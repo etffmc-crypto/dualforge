@@ -116,7 +116,7 @@ export function PlanCard() {
             {held && <p className="pro-paused">{C.paused}</p>}
           </>
         )}
-        {view.source === 'key' && view.lastCheck && (
+        {pro && view.source === 'key' && view.lastCheck && (
           <p className="psec-hint">
             {fillCopy(C.lastCheck, { date: dateTimeText(view.lastCheck) })}
           </p>
@@ -151,7 +151,7 @@ export function PlanCard() {
             spellCheck={false}
             maxLength={4096}
             value={key}
-            placeholder={view.keyHint ? `…${view.keyHint}` : ''}
+            placeholder={view.source === 'key' && view.keyHint ? `…${view.keyHint}` : ''}
             aria-describedby="plan-key-hint"
             onChange={(e) => setKey(e.currentTarget.value)}
             onKeyDown={(e) => {

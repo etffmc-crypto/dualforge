@@ -61,11 +61,13 @@ export function registerIpc(d: IpcDeps) {
   let engineProfileId: string = d.settings.get().activeProfile;
   let engineSource: 'manual' | 'auto' = 'manual';
 
+  /** Logs at warn level (error when the logger has none), keeping the logger bound: pino methods need their `this`. */
+  const warn = (o: object): void => (d.log.warn ? d.log.warn(o) : d.log.error(o));
   const pro = () => !d.license || isPro(d.license.entitlements());
   /** Refuses a Pro action on Free with E_LICENSE_PRO (the message names the feature for the footer). */
   function requirePro(feature: ProFeature): void {
     if (pro()) return;
-    (d.log.warn ?? d.log.error)({ code: 'E_LICENSE_PRO', feature });
+    warn({ code: 'E_LICENSE_PRO', feature });
     throw new Error(`E_LICENSE_PRO: ${PRO_FEATURES[feature]}`);
   }
   /** Slots 3 and 4 are Pro: writing to them or switching to them is refused on Free (their files stay as they are). */
@@ -183,7 +185,7 @@ export function registerIpc(d: IpcDeps) {
   h('settings:set', (patch) => {
     // the license block is main's alone: whatever the renderer sends for it is dropped, the saved one stays
     if (patch && typeof patch === 'object' && Object.hasOwn(patch, 'license')) {
-      (d.log.warn ?? d.log.error)({ code: 'LICENSE_PATCH_IGNORED' });
+      warn({ code: 'LICENSE_PATCH_IGNORED' });
       const rest = { ...(patch as Record<string, unknown>) };
       delete rest.license;
       patch = rest;
@@ -235,7 +237,7 @@ export function registerIpc(d: IpcDeps) {
     }
     if (parsed.data.profileId !== engineProfileId) {
       // a profile switch raced the combo: expected now and then, not a fault
-      (d.log.warn ?? d.log.error)({
+      warn({
         code: 'E_PROFILE_EDIT',
         msg: 'profileEdit for a profile not running',
       });
