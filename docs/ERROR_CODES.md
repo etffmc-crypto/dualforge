@@ -60,6 +60,10 @@ Could not connect to the ViGEmBus driver; retried at most once per 30 s. Cause: 
 
 Connected to ViGEmBus but could not plug in the virtual Xbox 360 pad. Reported separately from `E_VIGEM_INIT` (driver missing) and retried at most once per 30 s. Cause: bus driver in a bad state or another client monopolising ports. Fix: reinstall ViGEmBus; reboot.
 
+### E_VIGEM_UPDATE
+
+Releasing the virtual Xbox 360 pad (sending it a neutral frame after a disconnect or fault) threw, so the pad may be stuck on its last frame until it is unplugged. Reported at most once per 30 s. Cause: the ViGEmBus driver went away or crashed while the pad was plugged in. Fix: restart DualForge; reinstall ViGEmBus from the Health page if it repeats.
+
 ## Engine process
 
 ### E_PIPELINE
@@ -180,7 +184,7 @@ The renderer could not load settings. Fix: restart.
 
 ### E_SETTINGS_WRITE
 
-A failed HidHide enable tried to save `hidHide: false` so the switch tells the truth, but writing `settings.json` threw (see `msg`: disk full, file locked, read-only folder). The renderer re-reads the settings. Fix: check that `%APPDATA%\DualForge` is writable, then toggle again.
+Writing `settings.json` failed (see `msg`: disk full, file locked, read-only folder), so the change was not saved and the in-memory settings keep their previous value. Any settings change can raise it, for example a toggle in Settings, and so can the revert after a failed HidHide enable (which tries to save `hidHide: false` so the switch tells the truth). The renderer re-reads the settings. Fix: check that `%APPDATA%\DualForge` is writable, then retry.
 
 ## UI actions
 
@@ -312,7 +316,7 @@ A `HidHideCLI.exe` call failed (`msg` names the command). Cause: the driver serv
 
 ### E_HIDHIDE_ELEVATION_DECLINED
 
-HidHide refused the unelevated CLI call (access denied), so DualForge wrote `hidhide-setup.cmd` (the `--app-reg`, `--dev-hide`, `--cloak-on` calls) to `%APPDATA%\DualForge` and ran it with a UAC prompt, but the prompt was declined or the script failed. A refused disable does the same with a single `--cloak-off` line. The setting keeps its previous value. After a decline, startup and automatic re-applies do not prompt again in that session (they return this code); a click on the switch or the Health repair prompts again. Fix: toggle again and accept the UAC prompt.
+HidHide refused the unelevated CLI call (access denied), so DualForge wrote `hidhide-setup.cmd` (the `--app-reg`, `--dev-hide`, `--cloak-on` calls) to `%APPDATA%\DualForge` and ran it with a UAC prompt, but the prompt was declined or the script failed. A refused disable does the same with a single `--cloak-off` line. The setting keeps its previous value. A decline is remembered across launches (the `hidhide-declined` marker file in `%APPDATA%\DualForge`), so startup and automatic re-applies return this code instead of prompting again. To be asked again, switch Settings > "Hide the DualSense from games" on, or use the Health repair; a user-initiated enable clears the marker and prompts again. Fix: toggle again and accept the UAC prompt.
 
 ### E_HIDHIDE_CLOAK_STUCK
 
@@ -365,6 +369,10 @@ A download URL was refused: the first URL is not a Nefarius release asset on git
 ### E_DRIVER_TAMPERED
 
 The installer's SHA-256 changed between the signature check and the launch. The file is deleted and never launched. Fix: retry; scan the PC if it repeats.
+
+### E_DRIVER_HASH
+
+The downloaded installer's SHA-256 does not match the hash DualForge pins for that driver (ViGEmBus 1.22.0). The file is deleted and never launched. Fix: retry; if it repeats, the release asset was replaced, so install ViGEmBus 1.22.0 manually from the Nefarius release page and report it.
 
 ### E_STARTUP_LOGIN_ITEM
 

@@ -4,25 +4,25 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 
 ## From Plan 2 (2026-10-04)
 
-- Tasks 1-6 minor (deferred): buildOutputReport allocates per report (cache until feedback changes); triggers.test.ts repeated buildCurveLut; trigger-effect tests slice prefixes only; section.start<end not enforced in schema.
+- Tasks 1-6 minor (deferred): buildOutputReport allocates per report (cache until feedback changes); triggers.test.ts repeated buildCurveLut; trigger-effect tests slice prefixes only; [done] section.start<end now enforced in the schema (TriggerEffectSchema refine).
 - [done] vigem-sink pad orphaned if p.connect() fails (try/catch disconnect + null, 64899b9); redundant status event after a failed connect (engine-loop onStatus only re-emits when the sink became ready).
 - Tasks 7-9 minor (deferred): points.slice(0,pointCount) truncation; no memo on 60 Hz path (DualSenseTop re-renders per tick); [done] tabs roving tabindex + arrow/Home/End nav (TabStrip, SubTabs; aria-controls still open); [done] Toggle/Segmented/RangeSlider accessible names (aria-label / ariaLabel); test gaps (drag stop, keyboard nudge, document.fonts.check); hover/transition hard-coded colours.
 - [done] DraftNumber now drops an open draft when the parent value changes mid-edit (preset switch).
-- Tasks 10-13 minor (deferred): [done] RangeSlider pct clamp (frac() already clamps 0..1); stash-restore path untested; [done] focus trap in wizard (Modal already traps Tab); gamepad nav threshold on `out` may not fire under heavy curves; [done] wizard step 3 Back; [done] lastError surfaced (the Footer ErrorChip shows it on every page); [done] per-frame setState in wizard (count derived from the samples ref).
+- Tasks 10-13 minor (deferred): [done] RangeSlider pct clamp (frac() already clamps 0..1); [done] stash-restore path (CurveSection.test.tsx); [done] focus trap in wizard (Modal already traps Tab); [done] gamepad nav threshold (stale: useGamepadNav reads raw L2/R2 and buttons via pressedMask, never the curved `out`); [done] wizard step 3 Back; [done] lastError surfaced (the Footer ErrorChip shows it on every page); [done] per-frame setState in wizard (count derived from the samples ref).
 - Deferred minors (final review): phantom virtual pad at launch; [done Plan 4] E_VIGEM_TARGET folded into E_VIGEM_INIT; [done Plan 4: spec amended] trigger effect modes narrowed vs spec (Trigger/Weapon/Custom → Plan 3); vibration hint wording; [done Plan 4: spec amended] anti-deadzone-before-curve; StickLive rings ignore calibration; wizard step 2 lacks live dot; .ttf vs .woff2; gamepad nav not built yet; lastError sticky; regression-test gaps (calibration+invert pipeline, stop clears effects — now added, filter dt=1 — now added, disconnect during in-flight connect).
 - USER HANDS-ON CHECKS pending (user will run after merge): L2 stiffens with Resistance; calibration wizard → full-right X ≈ 1.0.
 
 ## From Plan 1 (2026-10-03/04)
 
-- vitest workspace deprecation (done in Plan 2); tests not typechecked (done); parser button-bit coverage all-at-once; buildOutputReport doesn't mask micLed/brightness at runtime; prettier not enforced in check; dense formatting > printWidth; MouseEvent export shadows DOM name; hidlog hex length (done); E_VIGEM_TARGET folded into E_VIGEM_INIT [done Plan 4]; sink.update unwrapped; looped replay unpaced/t backwards; second-instance (done); replay mode not restored after engine restart; profile:set error not logged; a11y gaps; smoke test satisfiable by real pad; renderer bundle 772 kB; setProfile state reset (done in Plan 2); stage order (done in Plan 2); 2 s grace (done in Plan 2).
+- vitest workspace deprecation (done in Plan 2); tests not typechecked (done); parser button-bit coverage all-at-once; buildOutputReport doesn't mask micLed/brightness at runtime; prettier not enforced in check; dense formatting > printWidth; MouseEvent export shadows DOM name; hidlog hex length (done); E_VIGEM_TARGET folded into E_VIGEM_INIT [done Plan 4]; sink.update unwrapped (done: report path was already guarded, neutralize() now guarded, E_VIGEM_UPDATE); looped replay unpaced/t backwards; second-instance (done); replay mode not restored after engine restart (done: engine-host re-sends the active replay on respawn); profile:set error not logged (stale: saveProfile logs E_PROFILE_SCHEMA); a11y gaps; smoke test satisfiable by real pad; renderer bundle 772 kB; setProfile state reset (done in Plan 2); stage order (done in Plan 2); 2 s grace (done in Plan 2).
 
 ## From Plan 3A (2026-10-04)
 
 - [done Plan 4] Hot path at 8 kHz: ~30 allocations/report (anti-deadzone objects, lightbar compute per report, buildOutputReport per report) → gate maybeWriteOutput on dirty flag/keepalive; anti<=0 fast path. (Remaining: stick shaping/LUT still allocate result objects.)
 - Gyro: [done Plan 4] coalesce mouse SendInput to ~1 kHz; [done Plan 4] clamp dt (~20 ms) after stalls; [done Plan 4] reset toggle on profile swap; activation button also fires its own mapping (3B decides).
 - [done Plan 4] Macros: catch-up after long stall (resync untilMs); zero-cycle loop comment wrong.
-- Persistence: [done Plan 4] settings quarantines whole file for one bad field (salvage per field); writeJsonAtomic no fsync (open) / [done Plan 4] rename retry (EPERM/EBUSY); [done Plan 4] flush on session-end; set() throws uncoded errors (open).
-- Security/input: [done Plan 4; exact once the addon exports `foregroundPid`, else falls back to exe name] focus gating is window-level (native dialogs blur) → gate on foreground pid ≠ own pid; autoSwitch exe length/count unbounded; watcher current not reset when rules change.
+- Persistence: [done Plan 4] settings quarantines whole file for one bad field (salvage per field); [done] writeJsonAtomic fsyncs the temp file before rename / [done Plan 4] rename retry (EPERM/EBUSY); [done Plan 4] flush on session-end; [done] set() throws coded E_SETTINGS_WRITE.
+- Security/input: [done Plan 4; exact once the addon exports `foregroundPid`, else falls back to exe name] focus gating is window-level (native dialogs blur) → gate on foreground pid ≠ own pid; [done: exe length/count are bounded in SettingsSchema; the watcher follows rule edits made mid-game, covered by a test] autoSwitch exe length/count unbounded; watcher current not reset when rules change.
 - Native addon (Plan 4): UIPI (elevated games) silently drops SendInput → Health warning via TokenElevation; VK_SNAPSHOT/VK_PAUSE via VK path; pointer acceleration note; bin/<abi> dir never populated; asarUnpack **/*.node; install script needs MSVC; psapi.lib unnecessary.
 - [done Plan 4] Spec amendments needed: defaults (digital/no rumble) vs 'stock DualSense'; anti-deadzone after curve; share code = deflateRaw+base64url; export ext .dualforge.json; settings.json location.
 - Misc: battery lightbar red until first report; e2e temp dirs not removed; settings-store.set uses this.get; E_INJECT_LOAD logged twice; legacy profile:get/set fixed in F6; renderer must use profiles.current()+onActive (3B).
@@ -38,7 +38,7 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 - [done Plan 4] Spec: .dfprofile vs .dualforge.json; Vibrations trigger-effect strength missing from schema (moot for digital triggers).
 - a11y: [done] ProfileTabs roving tabindex + arrow/Home/End focus + F2 rename (the pencil button still sits inside the tablist wrapper); [done] Modal inerts the background; mcard-roll aria-hidden button.
 - Gyro calibration: no stillness check; success shown even if updateProfile returned false; hue slider at red for white; linear sensitivity slider (log later); Motion stage re-renders pad+curve at 60 Hz; calibration unmount test.
-- Settings: exe format refine in schema; [done Plan 4] >32 rules file quarantines whole settings (per-field salvage, autoSwitch resets to []); 'Services' session filter locale-dependent (use session number).
+- Settings: [done] exe format refine in schema (bare name ending .exe); [done Plan 4] >32 rules file quarantines whole settings (per-field salvage, autoSwitch resets to []); 'Services' session filter locale-dependent (use session number).
 - Macros: play test persists new macro before cancel; recorder timing ~16 ms (document).
 - Stale doc comments mentioning LT/RT in SettingsLayout.tsx and Sticks.tsx; main load() returns sparse mappings (renderer densifies).
 
@@ -49,7 +49,7 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 - Maintenance: Claude Code deny-rule matching for ~/AppData and //c/ forms unverified; wildcard looseness on 'git add apps/*'; unstaged report after a dirty run keeps the tree dirty for the next run; stale last-check.json when node missing.
 - Installer: signer exact-CN/thumbprint check; per-driver ASSET_PATH; drain 3xx bodies; unsigned (SmartScreen); app-update.yml presence in installer build unverified; node-hid prebuild bloat; root scripts unlinted.
 - Health: crash dumps never pruned (bundle UI should say dumps included); done-state releases nav hold before installer closes; failing probe logs every 5 min; access-denied counted as elevated.
-- Persistence: rename retry rethrows uncoded; quarantine rename no retry; per-rule autoSwitch salvage.
+- Persistence: rename retry rethrows uncoded; [done] quarantine rename now retries EPERM/EBUSY; [done] per-rule autoSwitch salvage (bad rules dropped individually, list capped at 32).
 - Updates toggle hidden until a real publish owner is configured.
 
 ## From Turbo mode review (2026-10-05)

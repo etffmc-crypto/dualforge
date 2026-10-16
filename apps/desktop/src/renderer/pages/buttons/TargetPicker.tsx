@@ -1,5 +1,6 @@
 import type { Macro, Target } from '@dualforge/shared';
-import { SubTabs } from '../../components/controls/SubTabs';
+import { useId } from 'react';
+import { SubTabs, subPanelId, subTabId } from '../../components/controls/SubTabs';
 import { KeyGrid } from './KeyGrid';
 import { CONTROLLER_TARGETS, MOUSE_LABELS, targetKey, targetText } from './targets';
 
@@ -92,20 +93,22 @@ export function TargetPicker({
   macros,
   onCreateMacro,
 }: TargetPickerProps) {
+  const uid = useId();
   const sel = new Set(selected.map(targetKey));
   const tabs = macros ? TABS : TABS.filter((t) => t.value !== 'macro');
   const keys = new Set(selected.flatMap((t) => (t.type === 'key' ? [t.code] : [])));
   const common = { sel, full, onPick };
   return (
     <div className="picker">
-      <SubTabs tabs={tabs} value={tab} onChange={onTab} pills={['L1', 'R1']} />
+      <SubTabs tabs={tabs} value={tab} onChange={onTab} pills={['L1', 'R1']} idPrefix={uid} />
       <p className="picker-head">
         {HEADINGS[tab]} <span className="picker-badge">{subject}</span>
       </p>
       <div
         className="picker-body"
+        id={subPanelId(uid)}
         role="tabpanel"
-        aria-label={tabs.find((t) => t.value === tab)?.label}
+        aria-labelledby={subTabId(uid, tab)}
       >
         {tab === 'controller' && (
           <div className="opt-grid">

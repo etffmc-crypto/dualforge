@@ -115,6 +115,21 @@ describe('game watcher', () => {
     expect(switched).toEqual(['p2', 'p3', 'p1']);
     w.stop();
   });
+  it('follows rule edits made while the game stays in front (retarget, then remove)', () => {
+    const { w, switched, settings } = rig(['cod.exe']);
+    w.start();
+    vi.advanceTimersByTime(2000);
+    expect(switched).toEqual(['p2']);
+    settings.autoSwitch = [{ exe: 'cod.exe', profileId: 'p3' }];
+    vi.advanceTimersByTime(2000);
+    expect(switched).toEqual(['p2', 'p3']);
+    settings.autoSwitch = [];
+    vi.advanceTimersByTime(2000);
+    expect(switched).toEqual(['p2', 'p3', 'p1']);
+    vi.advanceTimersByTime(2000);
+    expect(switched).toEqual(['p2', 'p3', 'p1']);
+    w.stop();
+  });
   it('is a no-op when the injector is unavailable', () => {
     const { w, switched } = rig(['cod.exe'], {}, false);
     w.start();

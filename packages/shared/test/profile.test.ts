@@ -89,6 +89,16 @@ describe('profile schema', () => {
       expect(ProfileSchema.safeParse(p).success).toBe(true);
     }
   });
+  it('rejects a trigger section whose start is not below its end', () => {
+    const p = defaultProfile('p', 'p');
+    for (const [start, end] of [
+      [6, 2],
+      [4, 4],
+    ] as const) {
+      p.triggers.left.effect = { mode: 'section', start, end, force: 8 };
+      expect(ProfileSchema.safeParse(p).success).toBe(false);
+    }
+  });
   it('rejects non-monotone advanced filter curve x', () => {
     const p = defaultProfile('p', 'p');
     p.sticks.left.filter.curve = [
