@@ -1,5 +1,5 @@
-// One-off: apply the researched Warzone aim profile to slot p1, preserving mappings/macros/lights.
-// Usage: npx tsx scripts/apply-warzone-profile.mjs
+// One-off: apply the Transparent example profile (docs/profiles/transparent.md) to slot p1, preserving mappings/macros/lights.
+// Usage: npx tsx scripts/apply-transparent-profile.mjs
 import { readFileSync, writeFileSync, copyFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ProfileSchema } from '../packages/shared/src/profile.ts';
@@ -11,11 +11,11 @@ copyFileSync(file, file.replace(/\.json$/, `.backup-${Date.now()}.json`));
 const stick = (prev) => ({
   ...prev,
   calibration: prev.calibration, // keep the user's calibration
-  deadzone: { center: 0.03, anti: 0, outer: 0.02 }, // TMR sticks: just enough to kill drift; let Warzone own the rest
+  deadzone: { center: 0.03, anti: 0, outer: 0.02 }, // TMR sticks: just enough to kill drift; let the game own the rest
   circular: true, // Circle trajectory: consistent magnitude on diagonals
   invertX: false,
   invertY: false,
-  curve: { kind: 'preset', preset: 'linear' }, // Warzone applies its own (Dynamic) curve — don't stack
+  curve: { kind: 'preset', preset: 'linear' }, // the game applies its own curve — don't stack
   filter: {
     enabled: false,
     mode: 'basic',
@@ -40,7 +40,7 @@ const trigger = (prev) => ({
 
 const next = {
   ...original,
-  name: 'Warzone Aim',
+  name: 'Transparent',
   sticks: { left: stick(original.sticks.left), right: stick(original.sticks.right) },
   triggers: { left: trigger(original.triggers.left), right: trigger(original.triggers.right) },
   gyro: { ...original.gyro, output: 'off', activate: 'always', activateButton: null },

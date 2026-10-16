@@ -303,6 +303,14 @@ describe('Settings page', () => {
     expect(openDataDir).toHaveBeenCalledTimes(1);
   });
 
+  it('About shows the disclosure', () => {
+    render(<Settings />);
+    const note = screen.getByRole('note', { name: 'Disclosure' });
+    expect(note.textContent).toBe(
+      "DualForge creates a virtual controller. Some games and anti-cheat systems don't allow input-remapping software. Using DualForge in those games is at your own risk, so check each game's rules.",
+    );
+  });
+
   it('renders nothing until settings load', () => {
     useStore.setState({ settings: null });
     const { container } = render(<Settings />);
