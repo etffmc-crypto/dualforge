@@ -1,5 +1,66 @@
 # Changelog
 
+## 0.3.7
+
+### Keyboard and screen-reader navigation
+
+- **The section tabs and the sub-tabs now work with the arrow keys.** Left and Right move to the previous or next tab and open that page; Home and End jump to the first or last. Only the selected tab is in the Tab order now, so one press of Tab gets you past the whole strip instead of stopping on every tab.
+- **Profile slot tabs: arrows move, Enter opens, F2 renames.** The arrow keys only move the focus between the four slots (switching a slot reloads the profile, so that still needs Enter or Space). With a slot focused, **F2** starts the rename, the same as right-click. The slot tooltip now says "right-click or F2 to rename".
+- **Screen readers now link each section tab to the page it shows.** The page body is named after the selected section tab.
+- **While a dialog is open, the page behind it is switched off for the keyboard and for screen readers.** Tab can no longer wander out of a dialog into the window behind it. When the last dialog closes everything comes back and focus returns to where you were.
+- **The Controller, Keyboard, Mouse and Macro tabs in the button-mapping dialog are now linked to their panel for screen readers.**
+
+### Calibration wizard
+
+- **New Back button on steps 2 and 3.** Step 3 goes back to tracing the edge with what you already traced; step 2 goes back to measuring the center again. Before, a slip meant Cancel and starting over.
+- **The wizard does less work while it measures.** It no longer redraws the dialog twice for every controller update. The measured result is unchanged.
+
+### Macros
+
+- **A macro play-test now stops when you close the macro editor or when DualForge loses focus (for example Alt+Tab).** Before, a play-test that was still running could keep sending its keys into the program you had just switched to. Only a play-test you started from the editor is stopped; a macro your pad triggered is left alone.
+
+### HidHide
+
+- **If you decline the Windows administrator (UAC) prompt for HidHide, DualForge now remembers that after a restart.** It used to ask again at every launch. Automatic setup (at startup, or when settings are re-applied) no longer asks again after a decline; the message says "administrator rights were declined earlier; not prompting again until you retry from Health".
+- **To be asked again,** switch on **Settings > Hide the DualSense from games** yourself, or use the repair button on the Health page, and accept the Windows prompt. That clears the remembered decline.
+
+### ViGEmBus installer
+
+- **Install ViGEmBus on the Health page now asks for release v1.22.0 instead of "latest".** Today that is also ViGEmBus's newest release, so what gets installed does not change. HidHide still uses its latest release.
+
+### Window layout
+
+- **Fixed: near the minimum window width (1000 px) the tab strip ran under the Profiles, Health and Settings buttons and swallowed their clicks.** Below 1200 px the L1/R1 hints are now hidden and the tabs show their icons only; hover a tab for its name (screen readers still read it).
+
+### Smaller fixes
+
+- **Number boxes (curve editor points and macro step times) no longer keep stale text.** If the value changed under you while you were typing (for example by switching preset), the box now shows the new value instead of committing your old half-typed number over it.
+- **DualForge now recognises its own windows by process ID instead of by program name** when it checks whether a game or DualForge is in front. In normal use you will not notice a difference.
+- **If DualForge's background engine restarts while a recorded input replay is playing, the replay now resumes.** Before, a restart switched the virtual pad back to the live controller.
+
+### Updating
+
+- From 0.3.5 or newer, use **Settings > Updates**: turn on **Check for updates**, click **Download**, then **Install & restart**. If you are still on 0.3.3 or 0.3.4, install this version from the download page once, as for 0.3.5.
+- Profiles, share codes and settings from 0.3.6 load unchanged.
+
+### Your settings and profiles survive more
+
+- **One bad per-game rule no longer costs you the whole list.** If `settings.json` had a single invalid auto-switch rule, DualForge dropped every rule and showed an empty list. It now keeps each valid rule (up to 32) and drops only the broken one. The original file is moved to the `corrupt` folder and `E_SETTINGS_SALVAGED` is still logged. What to do: open the per-game list once after updating and re-add any rule that is missing.
+- **A failed settings save now carries a code.** If Windows cannot write `settings.json` (disk full, file locked, read-only folder), the change is not saved, the previous value stays, and the error is `E_SETTINGS_WRITE` with the cause in the log. Before, this was an uncoded error. What to do: make sure `%APPDATA%\DualForge` is writable, then change the setting again. The code already existed (see docs/ERROR_CODES.md); it now covers every settings save, not only the HidHide switch.
+- **Settings and profile files are flushed to disk before they replace the old copy.** A crash or power cut right after saving is less likely to leave a damaged or empty file behind.
+- **A damaged file can be set aside even when Windows has it locked for a moment.** Moving a bad file to the `corrupt` folder is now retried (3 more tries, 50 ms apart) when Windows answers "busy" or "permission denied", which an antivirus scan or the search indexer can cause. Before, one such answer left the bad file where it was.
+- **A "Section" trigger effect whose start is not below its end is now rejected.** Hand-edited or damaged profiles and share codes with such a section no longer load.
+- **A per-game rule's program name must be a bare file name ending in `.exe`** (for example `RocketLeague.exe`): no folder path, drive letter or wildcard. A rule in `settings.json` that breaks this is dropped on load like any other bad rule (see the first bullet in this group); the other rules stay. Rules added in the app already use bare names, so nothing changes for them.
+
+### Virtual pad
+
+- **Fixed: if the virtual pad could not be reset after a disconnect or fault, the reset step itself failed.** DualForge now finishes the reset, logs `E_VIGEM_UPDATE` (at most once every 30 seconds) and carries on. The usual cause is the ViGEmBus driver going away or crashing while a pad was plugged in; the virtual pad may stay on its last frame until it is unplugged or you restart DualForge, and if it keeps happening, reinstall ViGEmBus from the Health page.
+
+### About and disclosure
+
+- **Settings has a new About section** with the DualForge version and this disclosure: DualForge creates a virtual controller. Some games and anti-cheat systems don't allow input-remapping software. Using DualForge in those games is at your own risk, so check each game's rules.
+- **The negative-smoothing notice on the Sticks page no longer names games.** It says that some games and anti-cheat systems treat stick jitter as an exploit and may ban for it, and to check each game's rules. The setting itself is unchanged.
+
 ## 0.3.6
 
 ### HidHide: enabling works when the pad is already hidden

@@ -96,17 +96,16 @@ export function SmoothingSection({ side, cfg, edit }: StickSectionProps) {
               />
               <p className="psec-hint">
                 37 Hz avoids lining up with 60/120 fps polling; raise it if the wobble is visible on
-                screen, lower it if aim assist doesn&rsquo;t engage.
+                screen, lower it if the game doesn&rsquo;t respond to it.
               </p>
               <div className="smooth-risk" role="note" aria-labelledby={`smooth-risk-${side}`}>
                 <p className="smooth-risk-title" id={`smooth-risk-${side}`}>
                   Negative smoothing
                 </p>
                 <p className="psec-hint">
-                  Negative smoothing adds a small oscillation to your aim input while the stick is
-                  moving (the HyperStrike &lsquo;RC filter&rsquo; jitter technique) to keep aim
-                  assist engaged. Apex Legends treats it as a bannable exploit; Call of Duty has not
-                  published a policy. Use at your own risk.
+                  Negative smoothing adds a small oscillation to the stick output while the stick is
+                  moving. Some games and anti-cheat systems treat this as an exploit and may ban for
+                  it. Use at your own risk, and check each game&rsquo;s rules.
                 </p>
                 <p className="psec-hint">
                   Keep a center deadzone of at least 2–3 % so the stick reads exactly zero at rest;

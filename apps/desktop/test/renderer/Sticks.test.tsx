@@ -112,10 +112,11 @@ describe('Sticks page', () => {
     expect(screen.getByText('-40 (jitter)')).toBeTruthy();
     const note = screen.getByRole('note', { name: 'Negative smoothing' });
     expect(note.textContent).toContain(
-      'Negative smoothing adds a small oscillation to your aim input while the stick is moving',
+      'Negative smoothing adds a small oscillation to the stick output while the stick is moving',
     );
-    expect(note.textContent).toContain('jitter technique');
-    expect(note.textContent).toContain('Apex Legends treats it as a bannable exploit');
+    expect(note.textContent).not.toMatch(/Apex|Call of Duty|aim assist/);
+    expect(note.textContent).toContain('may ban for it');
+    expect(note.textContent).toContain('check each game');
     expect(note.textContent).toContain('Keep a center deadzone of at least 2–3 %');
     expect(note.textContent).not.toContain('39×');
 
