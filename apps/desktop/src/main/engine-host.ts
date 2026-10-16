@@ -9,11 +9,12 @@ export function createEngineHost(opts: { onEvent: (e: EngineEvent) => void; log:
   let child: UtilityProcess | null = null;
   let restarts: number[] = [];
   let stopping = false;
-  // Replayed to a respawned engine so it resumes with the current profile, settings and focus state.
+  // Replayed to a respawned engine so it resumes with the current profile, settings, focus state and input source.
   const last: {
     setProfile?: EngineCommand;
     setSettings?: EngineCommand;
     uiFocused?: EngineCommand;
+    replay?: EngineCommand;
   } = {};
   let restartTimer: NodeJS.Timeout | null = null;
   let killTimer: NodeJS.Timeout | null = null;
@@ -25,7 +26,7 @@ export function createEngineHost(opts: { onEvent: (e: EngineEvent) => void; log:
 
   function respawn() {
     spawn();
-    for (const c of [last.setSettings, last.uiFocused, last.setProfile])
+    for (const c of [last.setSettings, last.uiFocused, last.setProfile, last.replay])
       if (c) child?.postMessage(c);
   }
 
@@ -96,6 +97,9 @@ export function createEngineHost(opts: { onEvent: (e: EngineEvent) => void; log:
     send(cmd: EngineCommand) {
       if (cmd.type === 'setProfile' || cmd.type === 'setSettings' || cmd.type === 'uiFocused')
         last[cmd.type] = cmd;
+      // A fresh engine starts on the device; only an active replay needs restoring.
+      else if (cmd.type === 'replay') last.replay = cmd;
+      else if (cmd.type === 'useDevice') delete last.replay;
       child?.postMessage(cmd);
     },
     /** Health snapshot: is a child running, and how many unplanned exits in the last hour. */

@@ -168,4 +168,18 @@ describe('engine host', () => {
     const sent = children[1]!.postMessage.mock.calls.map((c) => c[0]);
     expect(sent).toEqual([settings, focus, profile]);
   });
+
+  it('resumes an active replay after a respawn, but not once the device is back', () => {
+    const { host } = setup();
+    host.start();
+    const replay = { type: 'replay', path: 'C:\\logs\\a.hidlog' } as const;
+    host.send(replay);
+    children[0]!.emit('exit', 1);
+    vi.advanceTimersByTime(500);
+    expect(children[1]!.postMessage).toHaveBeenCalledWith(replay);
+    host.send({ type: 'useDevice' });
+    children[1]!.emit('exit', 1);
+    vi.advanceTimersByTime(1000);
+    expect(children[2]!.postMessage).not.toHaveBeenCalled();
+  });
 });
