@@ -36,7 +36,7 @@
 
 - **Number boxes (curve editor points and macro step times) no longer keep stale text.** If the value changed under you while you were typing (for example by switching preset), the box now shows the new value instead of committing your old half-typed number over it.
 - **DualForge now recognises its own windows by process ID instead of by program name** when it checks whether a game or DualForge is in front. In normal use you will not notice a difference.
-- **If DualForge's background engine restarts while a recorded input replay is playing, the replay now resumes.** Before, a restart switched the virtual pad back to the live controller.
+- **If DualForge's background engine restarts while a recorded input replay is playing, the replay now starts again from the beginning instead of stopping.**
 
 ### Updating
 
@@ -58,7 +58,7 @@
 
 ### About and disclosure
 
-- **Settings has a new About section** with the DualForge version and this disclosure: DualForge creates a virtual controller. Some games and anti-cheat systems don't allow input-remapping software. Using DualForge in those games is at your own risk, so check each game's rules.
+- **Settings has a new About section** with this disclosure: DualForge creates a virtual controller. Some games and anti-cheat systems don't allow input-remapping software. Using DualForge in those games is at your own risk, so check each game's rules.
 - **The negative-smoothing notice on the Sticks page no longer names games.** It says that some games and anti-cheat systems treat stick jitter as an exploit and may ban for it, and to check each game's rules. The setting itself is unchanged.
 
 ## 0.3.6

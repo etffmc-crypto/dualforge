@@ -61,7 +61,7 @@ export function SmoothingSection({ side, cfg, edit }: StickSectionProps) {
           ) : (
             <>
               <p className="psec-hint">
-                Stick speed (in) → smoothing strength (out). Smooth slow aim, keep fast flicks
+                Stick speed (in) → smoothing strength (out). Smooth slow movements, keep fast flicks
                 sharp. Points below the dashed zero line add jitter instead.
               </p>
               <CurveEditor
