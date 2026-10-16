@@ -73,14 +73,16 @@ export class LemonSqueezyProvider implements LicenseProvider {
         body: new URLSearchParams(form).toString(),
         signal: ctl.signal,
       });
-      if (res.status >= 500) return null;
-      let body: LsBody = {};
+      // rate limits and server errors say nothing about the key: keep the cached state (offline grace)
+      if (res.status >= 500 || res.status === 429) return null;
+      let body: LsBody;
       try {
         body = ((await res.json()) as LsBody) ?? {};
       } catch {
-        if (!res.ok) body = {};
-        else return null; // a 2xx we cannot read: treat as not reached
+        return null; // not the License API talking (a proxy, firewall or captive portal page)
       }
+      // a refusal from the License API always says why; an error status without one is someone else's answer
+      if (!res.ok && typeof body.error !== 'string' && !body.license_key) return null;
       return { status: res.status, body };
     } catch {
       return null;

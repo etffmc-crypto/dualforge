@@ -100,7 +100,7 @@ describe('license service: activation', () => {
       source: 'key',
       status: 'active',
       variant: 'monthly',
-      expiresAt: '2026-11-16T00:00:00Z',
+      expiresAt: '2026-11-16T00:00:00.000Z', // normalised to ISO 8601
       keyHint: 'THLY',
       lastCheck: new Date(START).toISOString(),
       message: '',

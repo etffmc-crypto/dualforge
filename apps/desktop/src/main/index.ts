@@ -89,6 +89,7 @@ const licenseMode = resolveLicenseMode(
     ? __LICENSE_CONFIG__
     : configFromEnv({}),
   process.env,
+  !app.isPackaged, // a shipped build never honours the test-only fake provider
 );
 const licenseCheckout = licenseMode.kind === 'dormant' ? '' : licenseMode.config.checkoutUrl;
 const licensePortal = licenseMode.kind === 'dormant' ? '' : licenseMode.config.portalUrl;

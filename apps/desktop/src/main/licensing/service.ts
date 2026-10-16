@@ -51,6 +51,11 @@ interface Derived {
   pastGraceDays: number | null;
 }
 
+/** A provider date as ISO 8601, '' when absent or unreadable (the saved block caps it at 64 characters). */
+const isoOf = (v: string | null | undefined): string => {
+  const ms = v ? Date.parse(v) : NaN;
+  return Number.isFinite(ms) ? new Date(ms).toISOString() : '';
+};
 const variantOf = (v: string | undefined): LicenseVariant =>
   (LICENSE_VARIANTS as readonly string[]).includes(v ?? '') ? (v as LicenseVariant) : '';
 
@@ -175,7 +180,7 @@ export function createLicenseService(d: LicenseServiceDeps) {
         status: 'active',
         instanceId: a.instanceId ?? s.instanceId,
         variant: variantOf(a.variant) || s.variant,
-        expiresAt: a.expiresAt ?? '',
+        expiresAt: isoOf(a.expiresAt),
         lastCheck: iso(),
       });
       return;
@@ -194,8 +199,12 @@ export function createLicenseService(d: LicenseServiceDeps) {
     const s = d.settingsStore.getLicense();
     if (key === s.key && s.instanceId) {
       // the same key on the same PC: validate the instance we already hold instead of using up another activation
-      applyCheck(await d.provider!.validate(key, s.instanceId));
-      return;
+      const v = await d.provider!.validate(key, s.instanceId);
+      // the instance is gone on the store (deleted in the dashboard): fall through and activate afresh
+      if (!(v.reached && !v.ok && v.status !== 'expired' && v.status !== 'disabled')) {
+        applyCheck(v);
+        return;
+      }
     }
     const a = await d.provider!.activate(key, host());
     if (!a.reached) {
@@ -221,9 +230,17 @@ export function createLicenseService(d: LicenseServiceDeps) {
       instanceId: a.instanceId ?? '',
       status: 'active',
       variant: variantOf(a.variant),
-      expiresAt: a.expiresAt ?? '',
+      expiresAt: isoOf(a.expiresAt),
       lastCheck: iso(),
     });
+    // a different key replaced the saved one: free the old key's seat on the store (best effort)
+    if (s.key && s.key !== key && s.instanceId) {
+      try {
+        await d.provider!.deactivate(s.key, s.instanceId);
+      } catch {
+        /* unreachable: the seat stays used until removed from the store */
+      }
+    }
     d.log.info({
       code: 'LICENSE_ACTIVATED',
       source: 'key',
@@ -308,8 +325,12 @@ export function createLicenseService(d: LicenseServiceDeps) {
     start(): void {
       if (!active() || timer !== null) return;
       const t = d.timers ?? { setInterval, clearInterval };
-      void this.maybeCheck();
-      timer = t.setInterval(() => void this.maybeCheck(), WAKE_EVERY_MS);
+      const wake = () =>
+        void this.maybeCheck().catch((e: unknown) =>
+          d.log.warn({ code: 'E_LICENSE_CHECK', msg: (e as Error).message }),
+        );
+      wake();
+      timer = t.setInterval(wake, WAKE_EVERY_MS);
     },
     stop(): void {
       if (timer === null) return;

@@ -24,7 +24,8 @@ A lapse never deletes anything. Profiles keep every Pro setting on disk; the eng
 A build only enforces anything when it has a provider:
 
 - **Lemon Squeezy**: a store id and at least one product id baked in at build time (below), or
-- **the fake provider** in tests: `DUALFORGE_LICENSE_PROVIDER=fake` together with `DUALFORGE_DATA_DIR` (the e2e marker).
+- **the fake provider** in tests: `DUALFORGE_LICENSE_PROVIDER=fake` together with `DUALFORGE_DATA_DIR` (the e2e marker),
+  only in an unpackaged run (`!app.isPackaged`); a shipped build ignores both.
 
 Without one (0.3.7 and every build before the Lemon Squeezy product exists) nothing changes: no Plan card, no Pro
 tags, no refusals, no network call. `license:get` answers `enforced: false`.
@@ -84,7 +85,12 @@ All decisions are in the main process (`apps/desktop/src/main/licensing/`); the 
   the variant name decides, case-insensitive: contains "Founder" = founder-lifetime, else "Lifetime" = lifetime, else
   "Yearly" = yearly, else "Monthly" = monthly.
 - Pasting the same key again on the same PC validates the instance it already holds, so a reactivation never uses a
-  second seat.
+  second seat; if the store no longer knows that instance, it activates afresh. Pasting a different key frees the old
+  key's seat (best effort).
+- A 429, a 5xx, a timeout, or an error page that is not a License API answer (proxy, captive portal) counts as
+  unreachable: the PC keeps its state and the 14-day grace applies.
+- Remove license deactivates the instance when the store is reachable. Offline it still clears this PC, but the seat
+  stays used on the store until removed from the Lemon Squeezy dashboard.
 - `FakeLicenseProvider` (`fake.ts`, tests only) reads `<dataDir>/fake-license-server.json` on every call:
   `{ "keys": { "FAKE-MONTHLY": { "status": "active", "variant": "monthly", "expiresAt": "2026-11-16T00:00:00Z", "limit": 2 } }, "down": false }`
   (`status` active | expired | disabled, `wrongProduct: true` answers as another product, unknown key = bad key,

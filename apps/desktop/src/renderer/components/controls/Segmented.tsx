@@ -34,6 +34,10 @@ export function Segmented<T extends string>({
     onChange(options[n]!.value);
     ref.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[n]?.focus();
   };
+  // the tab stop is the checked option, or the first enabled one when the checked option is disabled (a Pro option on Free)
+  const stop =
+    options.find((o) => o.value === value && !o.disabled)?.value ??
+    options.find((o) => !o.disabled)?.value;
   return (
     <div className="seg" role="radiogroup" aria-label={label} ref={ref}>
       {options.map((o, i) => {
@@ -45,7 +49,7 @@ export function Segmented<T extends string>({
             type="button"
             role="radio"
             aria-checked={checked}
-            tabIndex={checked ? 0 : -1}
+            tabIndex={o.value === stop ? 0 : -1}
             className={`seg-btn${checked ? ' active' : ''}`}
             disabled={o.disabled}
             onClick={() => onChange(o.value)}

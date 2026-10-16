@@ -228,6 +228,34 @@ describe('Pro gates in the renderer', () => {
     expect(mouse.disabled).toBe(true);
     expect(mouse.textContent).toBe('MousePro');
   });
+  it('a saved gyro-to-mouse on Free keeps the Output group reachable by keyboard', () => {
+    const gyro = { ...withPro().gyro, output: 'mouse' as const };
+    render(<OutputRows gyro={gyro} edit={() => undefined} />);
+    const group = within(screen.getByRole('radiogroup', { name: 'Output' }));
+    expect(group.getByRole('radio', { name: 'Right stick' }).tabIndex).toBe(0);
+    expect(group.getByRole('radio', { name: /Mouse/ }).tabIndex).toBe(-1);
+  });
+  it('the Duplicate dialog offers only slots 1 and 2 on Free', async () => {
+    const { DuplicateDialog } = await import('../../src/renderer/pages/profiles/SlotDialogs');
+    const slots = (['p1', 'p2', 'p3', 'p4'] as const).map((id, i) => ({
+      id,
+      n: i + 1,
+      name: `Profile ${i + 1}`,
+    }));
+    render(
+      <DuplicateDialog
+        slot={slots[0]!}
+        slots={slots}
+        onClose={() => undefined}
+        onConfirm={async () => undefined}
+      />,
+    );
+    const group = within(screen.getByRole('radiogroup', { name: 'Copy into' }));
+    expect(group.getByRole('radio', { name: /Profile 3/ }).matches(':disabled')).toBe(true);
+    expect(group.getByRole('radio', { name: 'Profile 2' }).getAttribute('aria-checked')).toBe(
+      'true',
+    );
+  });
   it('profiles: slots 3 and 4 tagged and locked, share export off, auto-switch greyed', async () => {
     useStore.setState({ page: 'profiles' });
     render(<Profiles />);

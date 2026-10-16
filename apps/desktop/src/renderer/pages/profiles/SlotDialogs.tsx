@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Modal } from '../../components/Modal';
 import { Segmented } from '../../components/controls/Segmented';
+import { isFreeSlot } from '@dualforge/shared';
+import { useProLocked } from '../../components/Pro';
 import { slotOptions, type Slot } from './slots';
 
 interface DialogProps {
@@ -17,7 +19,8 @@ export function DuplicateDialog({
   onConfirm,
 }: DialogProps & { onConfirm(to: Slot['id']): Promise<void> }) {
   const others = slots.filter((s) => s.id !== slot.id);
-  const [to, setTo] = useState(others[0]!.id);
+  const locked = useProLocked(); // on Free only slots 1 and 2 can be written
+  const [to, setTo] = useState((others.find((s) => !locked || isFreeSlot(s.id)) ?? others[0]!).id);
   const [busy, setBusy] = useState(false);
   const target = others.find((s) => s.id === to)!;
   const run = async () => {
@@ -34,7 +37,7 @@ export function DuplicateDialog({
       <div className="pf-dialog-pick">
         <Segmented
           label="Copy into"
-          options={slotOptions(others)}
+          options={slotOptions(others, locked)}
           value={to}
           onChange={(v) => setTo(v)}
         />

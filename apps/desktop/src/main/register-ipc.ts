@@ -195,7 +195,8 @@ export function registerIpc(d: IpcDeps) {
       d.log.error({ code: 'E_SETTINGS_SCHEMA', msg: 'settings:set rejected' });
       throw new Error('E_SETTINGS_SCHEMA');
     }
-    if (parsed.data.activeProfile !== undefined) IdSchema.parse(parsed.data.activeProfile);
+    if (parsed.data.activeProfile !== undefined)
+      requireSlot(IdSchema.parse(parsed.data.activeProfile));
     const prev = d.settings.get();
     const next = d.settings.set(parsed.data as Partial<Settings>);
     d.engine.send({ type: 'setSettings', settings: next });

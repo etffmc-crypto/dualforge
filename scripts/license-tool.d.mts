@@ -11,6 +11,7 @@ export interface FounderPayload {
   expiresAt: string | null;
   note: string;
 }
+export function validPayload(p: unknown): boolean;
 export function builtInPublicKey(source?: string): string;
 export function publicKeyOf(privatePem: string): string;
 export function keygen(path?: string): string;

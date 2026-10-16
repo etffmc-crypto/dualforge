@@ -53,12 +53,17 @@ export const safeCheckoutUrl = (u: string): string => {
 };
 
 /**
- * Which provider runs. The fake provider is honoured only for test runs (DUALFORGE_LICENSE_PROVIDER=fake AND
- * DUALFORGE_DATA_DIR, the existing e2e marker); then DUALFORGE_LS_CHECKOUT_URL and DUALFORGE_FOUNDER_PUBLIC_KEY may
+ * Which provider runs. The fake provider is honoured only for unpackaged test runs (DUALFORGE_LICENSE_PROVIDER=fake AND
+ * DUALFORGE_DATA_DIR, the existing e2e marker, and `allowFake`, which main sets to !app.isPackaged); then DUALFORGE_LS_CHECKOUT_URL and DUALFORGE_FOUNDER_PUBLIC_KEY may
  * come from the environment too. Otherwise the baked config decides.
  */
-export function resolveLicenseMode(baked: LicenseBuildConfig, env: Env): LicenseMode {
-  if (env.DUALFORGE_LICENSE_PROVIDER === 'fake' && env.DUALFORGE_DATA_DIR) {
+export function resolveLicenseMode(
+  baked: LicenseBuildConfig,
+  env: Env,
+  /** False in a packaged (shipped) build: the fake provider and the test founder key are never honoured there. */
+  allowFake = true,
+): LicenseMode {
+  if (allowFake && env.DUALFORGE_LICENSE_PROVIDER === 'fake' && env.DUALFORGE_DATA_DIR) {
     const fromEnv = configFromEnv(env);
     return {
       kind: 'fake',

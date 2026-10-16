@@ -59,6 +59,21 @@ export function signKey(payload, privatePem) {
   return `${PREFIX}${b64url(bytes)}.${b64url(sig)}`;
 }
 
+const str = (v, min, max) => typeof v === 'string' && v.length >= min && v.length <= max;
+/** The app's FounderPayloadSchema (apps/desktop/src/main/licensing/founder.ts), kept in step by license-tool.test.ts. */
+export function validPayload(p) {
+  return (
+    !!p &&
+    p.v === 1 &&
+    str(p.id, 1, 100) &&
+    (p.kind === 'founder' || p.kind === 'review') &&
+    str(p.name, 1, 100) &&
+    str(p.issuedAt, 0, 64) &&
+    (p.expiresAt === null || str(p.expiresAt, 0, 64)) &&
+    (p.note === undefined || str(p.note, 0, 500))
+  );
+}
+
 /** Checks a key line against `publicKeyB64`; returns { ok, payload?, error? } (same rules as the app's verifier). */
 export function verifyKey(text, publicKeyB64, now = Date.now()) {
   const t = String(text).trim();
@@ -85,12 +100,7 @@ export function verifyKey(text, publicKeyB64, now = Date.now()) {
   } catch {
     return { ok: false, error: 'payload' };
   }
-  if (
-    payload?.v !== 1 ||
-    !['founder', 'review'].includes(payload.kind) ||
-    typeof payload.name !== 'string'
-  )
-    return { ok: false, error: 'payload' };
+  if (!validPayload(payload)) return { ok: false, error: 'payload' };
   if (payload.expiresAt !== null && !(Date.parse(payload.expiresAt) > now))
     return { ok: false, error: 'expired', payload };
   return { ok: true, payload };
@@ -107,6 +117,8 @@ export function issue({
   now = new Date(),
 }) {
   if (!name || !String(name).trim()) throw new Error('--name is required');
+  if (String(name).trim().length > 100) throw new Error('--name: at most 100 characters');
+  if (String(note).length > 500) throw new Error('--note: at most 500 characters');
   if (kind !== 'founder' && kind !== 'review') throw new Error('--kind must be founder or review');
   let expiresAt = null;
   if (expires) {
