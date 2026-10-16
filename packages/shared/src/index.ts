@@ -6,3 +6,4 @@ export * from './ipc.js';
 export * from './settings.js';
 export * from './vk.js';
 export * from './health.js';
+export * from './license.js';

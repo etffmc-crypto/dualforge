@@ -396,6 +396,26 @@ The health or system part of the bundle could not be produced; the bundle is sti
 
 An unexpected failure while exporting the bundle (renderer-facing wrapper; the cause is in the log). Fix: retry.
 
+## Pro licensing
+
+See `docs/licensing.md`. None of these appear in a dormant build (no provider configured).
+
+### E_LICENSE_PRO
+
+A Pro action was refused in main because this PC is on DualForge Free (the message names the feature, e.g. `E_LICENSE_PRO: Profile slots 3 and 4`): saving, renaming, resetting or importing into slots 3 and 4, switching to them, copying a share code, or play-testing a macro. Nothing on disk changes. Fix: activate Pro in Settings > Plan, or use slots 1 and 2.
+
+### E_LICENSE_CHECK
+
+Warning, at most once a day: the license server (Lemon Squeezy) could not be reached for an activation or the daily check. Pro stays on for 14 days after the last good check, then the PC drops to Free until a check succeeds. Fix: get online and press Check now in Settings > Plan.
+
+### E_LICENSE_LOAD
+
+The renderer could not read the license state from main at start. The Plan card stays hidden and no gate shows (main still enforces). Fix: restart DualForge.
+
+### E_LICENSE_IPC
+
+A Plan card action (Activate, Check now, Remove license) failed in main. Fix: try again; if it repeats, export a diagnostics bundle from Health.
+
 ## Process-level
 
 ### E_UNCAUGHT
@@ -495,3 +515,23 @@ Info/warning: startup removal of `app*.log` files older than 14 days (`deleted` 
 ### ENGINE_STDERR
 
 Warning: the engine process wrote to stderr (`msg`).
+
+### LICENSE_ACTIVATED
+
+Info: Pro was activated (`source` key or founder; `variant` and `keyHint`, the key's last 4 characters, or the founder key's `kind` and `id`). The full key is never logged.
+
+### LICENSE_REMOVED
+
+Info: Remove license cleared the key from this PC (`keyHint`); the store instance was deactivated when reachable.
+
+### LICENSE_LAPSED
+
+Info: a check found the saved key `expired`, `disabled` or `invalid` (`status`, `keyHint`); the PC is on Free and every profile is kept.
+
+### LICENSE_FOUNDER_REFUSED
+
+Info: a pasted `DFKEY1.` key did not verify (`reason`: prefix, format, signature, payload or expired).
+
+### LICENSE_PATCH_IGNORED
+
+Warning: a `settings:set` from the renderer carried a `license` field; it was dropped and the saved license block kept.
