@@ -14,6 +14,23 @@ describe('settings', () => {
   it('rejects bad theme', () => {
     expect(SettingsSchema.safeParse({ schemaVersion: 1, theme: 'x' }).success).toBe(false);
   });
+  it('requires auto-switch exe names to be bare file names ending in .exe', () => {
+    const ok = (exe: string) =>
+      SettingsSchema.safeParse({ schemaVersion: 1, autoSwitch: [{ exe, profileId: 'p2' }] })
+        .success;
+    expect(ok('Game.EXE')).toBe(true);
+    for (const bad of [
+      'game',
+      'game.exe.txt',
+      '.exe',
+      'C:\\g\\game.exe',
+      'dir/game.exe',
+      'a*.exe',
+    ]) {
+      expect(ok(bad), bad).toBe(false);
+    }
+  });
+
   it('caps auto-switch rules at 32 and exe names at 64 characters', () => {
     const rule = (exe: string) => ({ exe, profileId: 'p2' });
     const ok = (autoSwitch: unknown) =>

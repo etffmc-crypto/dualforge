@@ -38,7 +38,7 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 - [done Plan 4] Spec: .dfprofile vs .dualforge.json; Vibrations trigger-effect strength missing from schema (moot for digital triggers).
 - a11y: [done] ProfileTabs roving tabindex + arrow/Home/End focus + F2 rename (the pencil button still sits inside the tablist wrapper); [done] Modal inerts the background; mcard-roll aria-hidden button.
 - Gyro calibration: no stillness check; success shown even if updateProfile returned false; hue slider at red for white; linear sensitivity slider (log later); Motion stage re-renders pad+curve at 60 Hz; calibration unmount test.
-- Settings: exe format refine in schema; [done Plan 4] >32 rules file quarantines whole settings (per-field salvage, autoSwitch resets to []); 'Services' session filter locale-dependent (use session number).
+- Settings: [done] exe format refine in schema (bare name ending .exe); [done Plan 4] >32 rules file quarantines whole settings (per-field salvage, autoSwitch resets to []); 'Services' session filter locale-dependent (use session number).
 - Macros: play test persists new macro before cancel; recorder timing ~16 ms (document).
 - Stale doc comments mentioning LT/RT in SettingsLayout.tsx and Sticks.tsx; main load() returns sparse mappings (renderer densifies).
 

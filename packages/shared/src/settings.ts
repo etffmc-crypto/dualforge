@@ -17,7 +17,13 @@ export type TurboSettings = z.infer<typeof TurboSettingsSchema>;
 
 /** One per-game rule: while `exe` (case-insensitive basename) is in front, the engine runs `profileId`. */
 export const AutoSwitchRuleSchema = z.object({
-  exe: z.string().min(1).max(MAX_EXE_LENGTH),
+  exe: z
+    .string()
+    .min(1)
+    .max(MAX_EXE_LENGTH)
+    .refine((v) => /\.exe$/i.test(v) && v.length > 4 && !/[\\/:*?"<>|]/.test(v), {
+      message: 'exe must be a bare program file name ending in .exe',
+    }),
   profileId: ProfileIdSchema,
 });
 

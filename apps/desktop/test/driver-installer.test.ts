@@ -430,7 +430,7 @@ describe('driver installer', () => {
         dir,
         emit: () => {},
         log: r.log,
-        pins,
+        ...(pins ? { pins } : {}),
       });
       return { inst, r };
     };
