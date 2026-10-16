@@ -187,7 +187,10 @@ describe('Plan card', () => {
     render(<Settings />);
     fireEvent.click(screen.getByRole('button', { name: LICENSE_COPY.check }));
     await waitFor(() => expect(screen.getByText(LICENSE_COPY.lapsedExpired)).toBeTruthy());
-    fireEvent.click(screen.getByRole('button', { name: LICENSE_COPY.remove }));
+    // the answer renders a tick before the buttons re-enable (busy clears in finally): wait for that, as a user would
+    const remove = screen.getByRole('button', { name: LICENSE_COPY.remove }) as HTMLButtonElement;
+    await waitFor(() => expect(remove.disabled).toBe(false));
+    fireEvent.click(remove);
     await waitFor(() => expect(licenseApi.remove).toHaveBeenCalled());
   });
 });
