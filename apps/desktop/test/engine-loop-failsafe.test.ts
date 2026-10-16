@@ -27,7 +27,7 @@ function usbReport(cross: boolean): Uint8Array {
 }
 
 describe('engine loop fail-safe', () => {
-  async function rig() {
+  async function rig(opts: { sinkThrows?: () => boolean } = {}) {
     const calls: string[] = [];
     const frames: XInputState[] = [];
     const events: { type: string; code?: string }[] = [];
@@ -39,7 +39,10 @@ describe('engine loop fail-safe', () => {
     const sink: PadSink = {
       ready: true,
       async connect() {},
-      update: (x) => frames.push(structuredClone(x)),
+      update: (x) => {
+        if (opts.sinkThrows?.()) throw new Error('pad gone');
+        frames.push(structuredClone(x));
+      },
       onRumble() {},
       disconnect() {},
     };
@@ -93,6 +96,18 @@ describe('engine loop fail-safe', () => {
     loop.releaseAll();
     expect(calls).toEqual(['key VK_SPACE down', 'key VK_SPACE up']);
     expect(frames.at(-1)!.buttons.A).toBe(false);
+    await loop.stop();
+    vi.useRealTimers();
+  });
+  it('releaseAll() still releases input and reports when the virtual pad update throws', async () => {
+    vi.useFakeTimers();
+    let broken = false;
+    const { calls, events, loop, report } = await rig({ sinkThrows: () => broken });
+    report(usbReport(true));
+    broken = true;
+    expect(() => loop.releaseAll()).not.toThrow();
+    expect(calls).toEqual(['key VK_SPACE down', 'key VK_SPACE up']);
+    expect(events.some((e) => e.type === 'error' && e.code === 'E_VIGEM_UPDATE')).toBe(true);
     await loop.stop();
     vi.useRealTimers();
   });

@@ -258,7 +258,12 @@ export function createEngineLoop(d: LoopDeps) {
   }
   function neutralize() {
     releaseInjected();
-    if (d.sink.ready) d.sink.update(emptyXInput());
+    try {
+      if (d.sink.ready) d.sink.update(emptyXInput());
+    } catch (e) {
+      // A dead virtual pad must not stop the rest of the reset (or the grace timer that follows it).
+      onError('E_VIGEM_UPDATE', (e as Error).message);
+    }
     state = createPipelineState();
     lastRaw = null;
     lastOut = null;
