@@ -11,6 +11,7 @@ import {
 import { RangeSlider } from '../../components/controls/RangeSlider';
 import { Segmented } from '../../components/controls/Segmented';
 import { Toggle } from '../../components/controls/Toggle';
+import { ProLine, useProLocked } from '../../components/Pro';
 import { turboText } from './targets';
 import '../../styles/turbo.css';
 
@@ -48,7 +49,8 @@ export interface TurboControlsProps {
 /** Turbo mode + speed for one mapping; shared by the Turbo page and the mapping modal so both always agree. */
 export function TurboControls({ mapping, edit, withContinuous = false }: TurboControlsProps) {
   const t = mapping.turbo;
-  const applies = turboApplies(mapping);
+  const locked = useProLocked();
+  const applies = turboApplies(mapping) && !locked;
   // "Custom" stays picked (slider shown) even when the slider lands on a preset value
   const [custom, setCustom] = useState(() => presetOf(t.hz) === 'custom');
   const speed: Speed = custom ? 'custom' : presetOf(t.hz);
@@ -70,6 +72,7 @@ export function TurboControls({ mapping, edit, withContinuous = false }: TurboCo
         <span>Turbo</span>
         <span className="turbo-value">{turboText(t)}</span>
       </div>
+      {locked && <ProLine feature="turbo" />}
       {/* turbo never re-triggers a macro, so a macro-only button has nothing for it to repeat */}
       <fieldset className="turbo-fields" disabled={!applies}>
         <Segmented
@@ -79,7 +82,9 @@ export function TurboControls({ mapping, edit, withContinuous = false }: TurboCo
           onChange={(mode) => set({ mode })}
         />
         <p className="turbo-hint">
-          {applies ? MODE_HINT[t.mode] : 'Macros run on their own timing, so turbo does not apply.'}
+          {applies || locked
+            ? MODE_HINT[t.mode]
+            : 'Macros run on their own timing, so turbo does not apply.'}
         </p>
         <div className="turbo-speed">
           <Segmented label="Turbo speed" options={SPEEDS} value={speed} onChange={pickSpeed} />

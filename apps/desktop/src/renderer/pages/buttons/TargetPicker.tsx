@@ -1,5 +1,5 @@
 import type { Macro, Target } from '@dualforge/shared';
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 import { SubTabs, subPanelId, subTabId } from '../../components/controls/SubTabs';
 import { KeyGrid } from './KeyGrid';
 import { CONTROLLER_TARGETS, MOUSE_LABELS, targetKey, targetText } from './targets';
@@ -31,6 +31,8 @@ export interface TargetPickerProps {
   macros?: readonly Macro[] | undefined;
   /** shown on the empty Macro tab */
   onCreateMacro?: (() => void) | undefined;
+  /** Tabs whose picker is replaced by this content (Pro gates on Free). */
+  locked?: Partial<Record<PickerTab, ReactNode>> | undefined;
 }
 
 function Option({
@@ -92,12 +94,14 @@ export function TargetPicker({
   subject,
   macros,
   onCreateMacro,
+  locked,
 }: TargetPickerProps) {
   const uid = useId();
   const sel = new Set(selected.map(targetKey));
   const tabs = macros ? TABS : TABS.filter((t) => t.value !== 'macro');
   const keys = new Set(selected.flatMap((t) => (t.type === 'key' ? [t.code] : [])));
   const common = { sel, full, onPick };
+  const lockedBody = locked?.[tab];
   return (
     <div className="picker">
       <SubTabs tabs={tabs} value={tab} onChange={onTab} pills={['L1', 'R1']} idPrefix={uid} />
@@ -110,7 +114,8 @@ export function TargetPicker({
         role="tabpanel"
         aria-labelledby={subTabId(uid, tab)}
       >
-        {tab === 'controller' && (
+        {lockedBody}
+        {!lockedBody && tab === 'controller' && (
           <div className="opt-grid">
             {CONTROLLER_TARGETS.map((t) => (
               <Option
@@ -124,8 +129,10 @@ export function TargetPicker({
             <Option t={{ type: 'none' }} label="No output" className="opt-none" {...common} />
           </div>
         )}
-        {tab === 'keyboard' && <KeyGrid selected={keys} full={full} onPick={onPick} />}
-        {tab === 'mouse' && (
+        {!lockedBody && tab === 'keyboard' && (
+          <KeyGrid selected={keys} full={full} onPick={onPick} />
+        )}
+        {!lockedBody && tab === 'mouse' && (
           <div className="opt-grid mouse-grid">
             {(['left', 'middle', 'right'] as const).map((b) => {
               const t: Target = { type: 'mouse', button: b };
@@ -150,7 +157,8 @@ export function TargetPicker({
             })}
           </div>
         )}
-        {tab === 'macro' &&
+        {!lockedBody &&
+          tab === 'macro' &&
           macros &&
           (macros.length === 0 ? (
             <div className="picker-empty">

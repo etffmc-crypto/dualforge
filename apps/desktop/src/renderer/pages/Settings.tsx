@@ -5,6 +5,7 @@ import { Toggle } from '../components/controls/Toggle';
 import { PanelSection } from '../components/SettingsLayout';
 import { FolderIcon } from '../components/icons';
 import { useStore } from '../store';
+import { PlanCard } from './settings/PlanCard';
 import { TurboPrefs } from './settings/TurboPrefs';
 
 type Flag =
@@ -236,6 +237,7 @@ export function Settings() {
             )}
           </PanelSection>
         )}
+        <PlanCard />
         <PanelSection title="Data">
           <p className="psec-hint">Profiles, settings and logs are stored in one folder.</p>
           <button data-nav type="button" className="panel-btn with-icon" onClick={openDataDir}>

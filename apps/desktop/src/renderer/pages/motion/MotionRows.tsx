@@ -3,6 +3,7 @@ import { BUTTON_LABELS, DS_BUTTONS, type DsButton, type GyroConfig } from '@dual
 import { Modal } from '../../components/Modal';
 import { Segmented } from '../../components/controls/Segmented';
 import { DS_LABEL } from '../overview/format';
+import { ProTag, useProLocked } from '../../components/Pro';
 
 export type GyroEdit = (fn: (g: GyroConfig) => void) => void;
 type Output = Exclude<GyroConfig['output'], 'off'>;
@@ -58,12 +59,16 @@ export function OutputRows({ gyro, edit }: { gyro: GyroConfig; edit: GyroEdit })
   const [picking, setPicking] = useState(false);
   const needsButton = gyro.activate !== 'always';
   const btn = gyro.activateButton;
+  const locked = useProLocked();
+  const outputs = locked
+    ? OUTPUTS.map((o) => (o.value === 'mouse' ? { ...o, disabled: true, tag: <ProTag /> } : o))
+    : OUTPUTS;
   return (
     <>
       <Row label="Output">
         <Segmented
           label="Output"
-          options={OUTPUTS}
+          options={outputs}
           value={gyro.output === 'mouse' ? 'mouse' : 'rightStick'}
           onChange={(o) =>
             edit((g) => {

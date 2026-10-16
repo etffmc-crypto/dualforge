@@ -1,7 +1,8 @@
-import { useRef, type KeyboardEvent } from 'react';
+import { useRef, type KeyboardEvent, type ReactNode } from 'react';
 
 export interface SegmentedProps<T extends string> {
-  options: { value: T; label: string }[];
+  /** `disabled` options cannot be picked (arrow keys skip them); `tag` is drawn after the label (e.g. the Pro tag). */
+  options: { value: T; label: string; disabled?: boolean; tag?: ReactNode }[];
   value: T;
   onChange(v: T): void;
   label?: string;
@@ -24,7 +25,12 @@ export function Segmented<T extends string>({
           : 0;
     if (!d) return;
     e.preventDefault();
-    const n = (i + d + options.length) % options.length;
+    let n = i;
+    for (let k = 0; k < options.length; k++) {
+      n = (n + d + options.length) % options.length;
+      if (!options[n]!.disabled) break;
+    }
+    if (n === i || options[n]!.disabled) return;
     onChange(options[n]!.value);
     ref.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[n]?.focus();
   };
@@ -41,10 +47,12 @@ export function Segmented<T extends string>({
             aria-checked={checked}
             tabIndex={checked ? 0 : -1}
             className={`seg-btn${checked ? ' active' : ''}`}
+            disabled={o.disabled}
             onClick={() => onChange(o.value)}
             onKeyDown={(e) => onKey(e, i)}
           >
             {o.label}
+            {o.tag}
           </button>
         );
       })}

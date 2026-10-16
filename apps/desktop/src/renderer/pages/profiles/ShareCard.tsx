@@ -3,6 +3,7 @@ import { Segmented } from '../../components/controls/Segmented';
 import { SectionLabel } from '../../components/controls/SectionLabel';
 import { CopyIcon } from '../../components/icons';
 import { useStore } from '../../store';
+import { ProLine, useProLocked } from '../../components/Pro';
 import { errorCode, flushEdits, slotOptions, useActiveId, type Slot } from './slots';
 
 const MAX_CODE = 64 * 1024;
@@ -19,10 +20,15 @@ export function ShareCard({ slots }: { slots: Slot[] }) {
   const [target, setTarget] = useState<Slot['id']>(() => slots.find((s) => s.id !== activeId)!.id);
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const locked = useProLocked(); // share-code export is Pro; import stays free (into slots 1 and 2)
 
   // the code is built in main from the saved profile, so send any pending edit first; refetch whenever the running profile changes
   useEffect(() => {
     if (!activeId) return;
+    if (locked) {
+      setCode('');
+      return;
+    }
     let live = true;
     flushEdits();
     window.dualforge.profiles
@@ -36,7 +42,7 @@ export function ShareCard({ slots }: { slots: Slot[] }) {
     return () => {
       live = false;
     };
-  }, [activeId, profile]);
+  }, [activeId, profile, locked]);
   useEffect(() => {
     if (!copied) return;
     const t = setTimeout(() => setCopied(false), 1600);
@@ -83,6 +89,7 @@ export function ShareCard({ slots }: { slots: Slot[] }) {
       <div className="psec">
         <SectionLabel>Code for {active.name}</SectionLabel>
         <div className="psec-body">
+          {locked && <ProLine feature="shareExport" />}
           <textarea
             data-nav
             className="pf-code"
@@ -101,7 +108,7 @@ export function ShareCard({ slots }: { slots: Slot[] }) {
               data-nav
               type="button"
               className="panel-btn with-icon"
-              disabled={!code}
+              disabled={!code || locked}
               onClick={copy}
             >
               <CopyIcon size={15} />
@@ -132,7 +139,7 @@ export function ShareCard({ slots }: { slots: Slot[] }) {
           </span>
           <Segmented
             label="Import into"
-            options={slotOptions(slots)}
+            options={slotOptions(slots, locked)}
             value={target}
             onChange={(v) => {
               setTarget(v);
