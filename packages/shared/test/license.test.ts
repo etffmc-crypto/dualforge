@@ -166,6 +166,7 @@ describe('slots, features and copy', () => {
       expiresAt: '',
       lastCheck: '',
       founderKey: '',
+      seenAt: '',
     });
   });
 });
