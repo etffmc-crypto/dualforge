@@ -14,6 +14,7 @@ import {
 } from '../../src/main/licensing/machine-id.js';
 import { createLicenseService, instanceTag } from '../../src/main/licensing/service.js';
 import { createSettingsStore } from '../../src/main/settings-store.js';
+import { LICENSE_COPY } from '@dualforge/shared';
 import { signKey } from '../../../../scripts/license-tool.mjs';
 
 const DAY = 86_400_000;
@@ -77,31 +78,31 @@ const fileLicense = () =>
   ).license;
 
 describe('machine fingerprint', () => {
-  it('reads MachineGuid from reg output and hashes it, never returning the GUID', () => {
+  it('reads MachineGuid from reg output and hashes it, never returning the GUID', async () => {
     const out =
       '\r\nHKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Cryptography\r\n    MachineGuid    REG_SZ    1A2B3C4D-0000-1111-2222-333344445555\r\n';
     expect(parseMachineGuid(out)).toBe('1a2b3c4d-0000-1111-2222-333344445555');
-    const fp = machineFingerprint(() => out);
+    const fp = await machineFingerprint(async () => out);
     expect(fp).toMatch(/^[0-9a-f]{16}$/);
     expect(fp).not.toContain('1a2b3c4d');
-    expect(machineFingerprint(() => out)).toBe(fp); // stable
+    expect(await machineFingerprint(async () => out)).toBe(fp); // stable
   });
-  it('falls back to the host name when reg fails, and computes once per run', () => {
-    const a = machineFingerprint(
-      () => {
-        throw new Error('no reg');
-      },
-      () => 'PC-ONE',
-    );
-    const b = machineFingerprint(
-      () => '',
-      () => 'PC-TWO',
-    );
-    expect(a).toMatch(/^[0-9a-f]{16}$/);
-    expect(a).not.toBe(b);
-    const compute = vi.fn(() => 'x');
+  it('is empty (no check) when reg fails, never a guess', async () => {
+    expect(
+      await machineFingerprint(async () => {
+        throw new Error('timed out');
+      }),
+    ).toBe('');
+    expect(await machineFingerprint(async () => '')).toBe('');
+  });
+  it('is read once in the background: empty until known, then fixed', async () => {
+    let resolve!: (v: string) => void;
+    const compute = vi.fn(() => new Promise<string>((r) => (resolve = r)));
     const fp = cachedFingerprint(compute);
-    fp();
+    expect(fp()).toBe('');
+    resolve('abcd');
+    await Promise.resolve();
+    expect(fp()).toBe('abcd');
     fp();
     expect(compute).toHaveBeenCalledTimes(1);
   });
@@ -142,6 +143,48 @@ describe('a license block copied to another PC', () => {
     expect((await svc.maybeCheck()).tier).toBe('pro');
     expect(activate).not.toHaveBeenCalled();
   });
+  it('an instance named before tags existed (no tag) stays ours and uses no seat', async () => {
+    const { svc, provider } = rig();
+    await svc.activate('FAKE-SEAT-0001');
+    vi.spyOn(provider, 'validate').mockResolvedValueOnce({
+      reached: true,
+      ok: true,
+      status: 'active',
+      instanceId: fileLicense().instanceId ?? '',
+      instanceName: 'GAMING-PC',
+      variant: 'yearly',
+    });
+    const activate = vi.spyOn(provider, 'activate');
+    now += 2 * DAY;
+    expect((await svc.maybeCheck()).tier).toBe('pro');
+    expect(activate).not.toHaveBeenCalled();
+  });
+  it('an unknown fingerprint turns the check off', async () => {
+    const provider = new FakeLicenseProvider(dir);
+    await rig({ provider }).svc.activate('FAKE-SEAT-0001');
+    const activate = vi.spyOn(provider, 'activate');
+    now += 2 * DAY;
+    expect((await rig({ provider, fp: '' }).svc.maybeCheck()).tier).toBe('pro');
+    expect(activate).not.toHaveBeenCalled();
+  });
+  it('a refused re-activation of the saved key keeps why (expired)', async () => {
+    const provider = new FakeLicenseProvider(dir);
+    await rig({ provider }).svc.activate('FAKE-SEAT-0001');
+    const other = rig({ provider, fp: 'bbbb444455556666' });
+    vi.spyOn(provider, 'activate').mockResolvedValueOnce({
+      reached: true,
+      ok: false,
+      status: 'expired',
+      error: 'expired',
+    });
+    now += 2 * DAY;
+    await other.svc.maybeCheck();
+    expect(fileLicense()).toMatchObject({ instanceId: '', status: 'expired' });
+    // after a restart the transient message is gone; the saved status still explains it
+    expect(rig({ provider, fp: 'bbbb444455556666' }).svc.view().message).toBe(
+      LICENSE_COPY.lapsedExpired,
+    );
+  });
   it('a provider that reports no instance name is not checked', async () => {
     const provider = new FakeLicenseProvider(dir);
     await rig({ provider }).svc.activate('FAKE-SEAT-0001');
@@ -181,12 +224,33 @@ describe('founder keys: revocation and the clock', () => {
     now = START - 300 * DAY;
     expect(rig().svc.entitlements().tier).toBe('pro');
   });
-  it('removing the key keeps the clock high-water mark', async () => {
+  it('Remove clears the clock mark, the way back from a clock that once ran ahead', async () => {
+    const line = founderKey({ kind: 'review', expiresAt: '2026-11-01T00:00:00Z' });
     const { svc } = rig();
-    await svc.activate(founderKey({ kind: 'review', expiresAt: '2026-11-01T00:00:00Z' }));
-    const seen = fileLicense().seenAt;
+    now = START + 365 * DAY; // the clock ran a year ahead once
+    await svc.activate(founderKey()); // a lifetime key, so the time gets noted
+    await svc.maybeCheck();
+    now = START + 2 * DAY;
+    expect((await svc.activate(line)).message).toBe(LICENSE_COPY.badKey);
     await svc.remove();
-    expect(fileLicense().seenAt).toBe(seen);
+    expect((fileLicense() as Record<string, string> | undefined)?.seenAt ?? '').toBe('');
+    expect((await svc.activate(line)).tier).toBe('pro');
+  });
+  it('a key issued by a PC whose clock runs a little fast still activates', async () => {
+    const line = founderKey({
+      kind: 'review',
+      issuedAt: new Date(START + 3 * 3_600_000).toISOString(),
+      expiresAt: '2026-11-01T00:00:00Z',
+    });
+    expect((await rig().svc.activate(line)).tier).toBe('pro');
+  });
+  it('a review key past its end date says it ended, not that it is bad', async () => {
+    const { svc } = rig();
+    await svc.activate(founderKey({ kind: 'review', expiresAt: '2026-10-20T00:00:00Z' }));
+    now = Date.parse('2026-10-21T00:00:00Z');
+    const v = rig().svc.view();
+    expect(v.tier).toBe('free');
+    expect(v.message).toBe(LICENSE_COPY.founderEnded);
   });
 });
 
@@ -201,6 +265,7 @@ describe('Lemon Squeezy: whose error is it', () => {
     expect((await answer(502, '{"error":"Bad gateway"}')).reached).toBe(false);
   });
   it('License API reasons are the store answering', async () => {
+    expect((await answer(422, '{"error":"The given data was invalid."}')).reached).toBe(true);
     expect((await answer(404, '{"valid":false,"error":"instance_id not found."}')).reached).toBe(
       true,
     );

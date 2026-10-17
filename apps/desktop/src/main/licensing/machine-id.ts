@@ -1,10 +1,13 @@
-import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import os from 'node:os';
 
-type Exec = (file: string, args: string[]) => string;
+type Exec = (file: string, args: string[]) => Promise<string>;
 const defaultExec: Exec = (file, args) =>
-  execFileSync(file, args, { encoding: 'utf8', timeout: 3000, windowsHide: true });
+  new Promise((resolve, reject) =>
+    execFile(file, args, { encoding: 'utf8', timeout: 5000, windowsHide: true }, (err, out) =>
+      err ? reject(err) : resolve(out),
+    ),
+  );
 
 /** The MachineGuid value from `reg query` output, or '' when it is not there. */
 export function parseMachineGuid(out: string): string {
@@ -13,26 +16,35 @@ export function parseMachineGuid(out: string): string {
 
 /**
  * A short, stable fingerprint of this PC for the license instance name: a hash of Windows' MachineGuid
- * (HKLM\SOFTWARE\Microsoft\Cryptography), falling back to the host name. Only the hash leaves the PC, never the GUID.
+ * (HKLM\SOFTWARE\Microsoft\Cryptography). Only the hash leaves the PC, never the GUID. '' when it cannot be read,
+ * which turns the instance check off rather than guessing (a guess that changes would cost the user a seat).
  */
-export function machineFingerprint(
-  exec: Exec = defaultExec,
-  hostname: () => string = () => os.hostname(),
-): string {
-  let source = '';
+export async function machineFingerprint(exec: Exec = defaultExec): Promise<string> {
+  let guid = '';
   try {
-    source = parseMachineGuid(
-      exec('reg', ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid']),
+    guid = parseMachineGuid(
+      await exec('reg', ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid']),
     );
   } catch {
-    source = '';
+    guid = '';
   }
-  if (!source) source = `host:${hostname().toLowerCase()}`;
-  return createHash('sha256').update(`DualForge machine v1\n${source}`).digest('hex').slice(0, 16);
+  if (!guid) return '';
+  return createHash('sha256').update(`DualForge machine v1\n${guid}`).digest('hex').slice(0, 16);
 }
 
-/** Computed once per run (the reg query costs a few milliseconds). */
-export function cachedFingerprint(compute: () => string = machineFingerprint): () => string {
-  let fp: string | null = null;
-  return () => (fp ??= compute());
+/**
+ * Starts reading the fingerprint in the background (never blocking the main process) and returns a getter: '' until
+ * it is known, then the same value for the rest of the run.
+ */
+export function cachedFingerprint(
+  compute: () => Promise<string> = machineFingerprint,
+): () => string {
+  let fp = '';
+  void compute().then(
+    (v) => {
+      fp = v;
+    },
+    () => undefined,
+  );
+  return () => fp;
 }

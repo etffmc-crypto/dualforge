@@ -155,6 +155,9 @@ export const LICENSE_COPY = {
   removeHint: 'Removes the key from this PC so you can use it on another one. Your profiles stay.',
   lapsedExpired:
     'Your Pro subscription has ended, so this PC is back on Free. Your profiles and Pro settings are kept; they work again when Pro is back.',
+  /** Not in DF-023: a founder or review key that reached its end date. */
+  founderEnded:
+    'This key has reached its end date, so this PC is back on Free. Your profiles and Pro settings are kept.',
   lapsedDisabled: 'This key was turned off, so this PC is back on Free. Your profiles are kept.',
   offlineGrace: "Couldn't reach the license server. Pro stays on for {n} more days.",
   offlinePast:

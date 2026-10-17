@@ -19,6 +19,8 @@ export const CHECK_EVERY_MS = DAY_MS;
 export const WAKE_EVERY_MS = 3_600_000;
 /** Clock jitter tolerated before an expiring founder key counts the clock as set back. */
 const CLOCK_SLACK_MS = 5 * 60_000;
+/** The issuer's clock is not this PC's: a key counts as issued in the future only beyond a day. */
+const ISSUE_SLACK_MS = 86_400_000;
 /** The clock high-water mark is written at most this often. */
 const SEEN_EVERY_MS = 3_600_000;
 const MIN_KEY = 8;
@@ -91,7 +93,10 @@ export function createLicenseService(d: LicenseServiceDeps) {
   /** An expiring founder or review key while the clock is behind what this PC has already seen (or its issue date). */
   function clockSetBack(p: FounderPayload, s: LicenseState): boolean {
     if (p.expiresAt === null) return false;
-    return now() + CLOCK_SLACK_MS < Math.max(ms(s.seenAt), ms(s.lastCheck), ms(p.issuedAt));
+    return (
+      now() + CLOCK_SLACK_MS < Math.max(ms(s.seenAt), ms(s.lastCheck)) ||
+      now() + ISSUE_SLACK_MS < ms(p.issuedAt)
+    );
   }
 
   function derive(s: LicenseState): Derived {
@@ -141,7 +146,10 @@ export function createLicenseService(d: LicenseServiceDeps) {
       else if (s.key && s.status === 'expired') msg = LICENSE_COPY.lapsedExpired;
       else if (s.key && s.status === 'disabled') msg = LICENSE_COPY.lapsedDisabled;
       else if (s.key && s.status === 'invalid') msg = LICENSE_COPY.badKey;
-      else if (s.founderKey && r.source !== 'founder') msg = LICENSE_COPY.badKey; // revoked, expired, clock set back
+      else if (s.founderKey && r.source !== 'founder') {
+        const f = d.founderVerifier.verify(s.founderKey, now());
+        msg = !f.ok && f.error === 'expired' ? LICENSE_COPY.founderEnded : LICENSE_COPY.badKey; // revoked, clock set back
+      }
     }
     return {
       enforced: d.enforced,
@@ -195,14 +203,16 @@ export function createLicenseService(d: LicenseServiceDeps) {
 
   const fp = () => d.fingerprint?.() ?? '';
   const instanceName = () => (fp() ? `${host()} ${instanceTag(fp())}` : host());
-  /** A good answer for an instance that was not activated on this PC (its name lacks this PC's tag). A provider that
-   * reports no instance name is not checked. */
+  /**
+   * A good answer for an instance activated on another PC: its name carries a different PC's tag. A name with no tag
+   * (an activation from before tags, or a provider that reports no name) and an unknown fingerprint are not checked.
+   */
   const foreignInstance = (a: ProviderAnswer): boolean =>
     a.reached &&
     a.ok &&
     !!fp() &&
-    a.instanceName !== undefined &&
-    !a.instanceName.endsWith(instanceTag(fp()));
+    /\[df:[0-9a-f]+\]$/.test(a.instanceName ?? '') &&
+    !a.instanceName!.endsWith(instanceTag(fp()));
 
   /** Records a provider answer for the saved key (check, or re-activation of the same key). */
   function applyCheck(a: ProviderAnswer): void {
@@ -252,7 +262,18 @@ export function createLicenseService(d: LicenseServiceDeps) {
             : a.status === 'disabled'
               ? LICENSE_COPY.lapsedDisabled
               : LICENSE_COPY.badKey;
-      if (key === s.key) save({ ...s, instanceId: '', status: '' }); // our old instance is not ours any more
+      // our old instance is not ours any more; keep why (expired, disabled, invalid) so the card can say it
+      if (key === s.key)
+        save({
+          ...s,
+          instanceId: '',
+          status:
+            a.status === 'expired' || a.status === 'disabled'
+              ? a.status
+              : a.error === 'limit'
+                ? ''
+                : 'invalid',
+        });
       return;
     }
     message = '';
@@ -365,7 +386,7 @@ export function createLicenseService(d: LicenseServiceDeps) {
           }
         }
         message = '';
-        save({ ...emptyLicenseState(), seenAt: s.seenAt }); // the clock high-water mark outlives the key
+        save(emptyLicenseState()); // the clock mark goes too: Remove is the way back from a clock that once ran ahead
         if (s.key || s.founderKey)
           d.log.info({ code: 'LICENSE_REMOVED', keyHint: s.key ? s.key.slice(-4) : '' });
         return refresh();

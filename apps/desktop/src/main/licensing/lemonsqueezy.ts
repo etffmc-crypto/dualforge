@@ -84,8 +84,15 @@ export class LemonSqueezyProvider implements LicenseProvider {
         return null; // not the License API talking (a proxy, firewall or captive portal page)
       }
       // an error status is the License API's answer only when it carries a key or a known License API reason;
-      // anything else (a proxy 403 {"error":"Forbidden"}, a gateway) is someone else's answer: not reached
-      if (!res.ok && !body.license_key && !body.meta && !LS_ERROR.test(body.error ?? ''))
+      // anything else (a proxy 403 {"error":"Forbidden"}, a gateway) is someone else's answer: not reached.
+      // 422 is the API's validation answer (a malformed key), which proxies do not send.
+      if (
+        !res.ok &&
+        res.status !== 422 &&
+        !body.license_key &&
+        !body.meta &&
+        !LS_ERROR.test(body.error ?? '')
+      )
         return null;
       return { status: res.status, body };
     } catch {
