@@ -530,7 +530,11 @@ Info: a check found the saved key `expired`, `disabled` or `invalid` (`status`, 
 
 ### LICENSE_FOUNDER_REFUSED
 
-Info: a pasted `DFKEY1.` key did not verify (`reason`: prefix, format, signature, payload or expired).
+Info: a pasted `DFKEY1.` key did not verify (`reason`: prefix, format, signature, payload, expired, revoked, or clock when an expiring key meets a clock set back).
+
+### LICENSE_INSTANCE_MISMATCH
+
+Info: the saved key's store instance carries another PC's tag (a settings file copied between PCs), so this PC activates afresh and the seat limit applies (`keyHint`).
 
 ### LICENSE_PATCH_IGNORED
 

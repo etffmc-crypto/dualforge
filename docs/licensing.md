@@ -59,7 +59,8 @@ All decisions are in the main process (`apps/desktop/src/main/licensing/`); the 
   "variant": "",      // '' | monthly | yearly | lifetime | founder-lifetime
   "expiresAt": "",    // what the store reported ('' for lifetime)
   "lastCheck": "",    // last GOOD answer from the store, ISO 8601
-  "founderKey": ""    // a DFKEY1 founder or review key
+  "founderKey": "",   // a DFKEY1 founder or review key
+  "seenAt": ""        // the latest time this PC has seen (hourly at most, only while a license is saved)
 }
 ```
 
@@ -68,6 +69,10 @@ All decisions are in the main process (`apps/desktop/src/main/licensing/`); the 
 - At every start and hourly wake the tier is re-derived: Pro only for a founder key that verifies, or a key whose
   status is `active` with a good check in the last 14 days. A hand edit (a `tier` field, `active` without a check, a
   check dated in the future, an unsigned founder key) grants nothing. In a public repo this is a deterrent, not DRM.
+- Copied to another PC: the store instance name ends with this PC's tag, `[df:<16 hex>]`, a SHA-256 of Windows'
+  MachineGuid (`machine-id.ts`, read in the background; only the hash leaves the PC). A validate answer carrying a
+  different PC's tag means this PC activates afresh, so the key's seat limit applies. An untagged name (an activation
+  from before tags) or an unreadable MachineGuid turns the check off rather than costing a seat.
 - The diagnostics bundle includes `settings.json` with the key cut to its last 4 characters and a founder key shown
   only as `present`.
 
@@ -76,7 +81,8 @@ All decisions are in the main process (`apps/desktop/src/main/licensing/`); the 
 `provider.ts` is the interface; swapping to Polar (DF-030c) means writing one class.
 
 - `LemonSqueezyProvider` (`lemonsqueezy.ts`) uses the License API, which needs no API key:
-  `POST https://api.lemonsqueezy.com/v1/licenses/activate` (`license_key`, `instance_name` = the PC name), `/validate`
+  `POST https://api.lemonsqueezy.com/v1/licenses/activate` (`license_key`, `instance_name` = the PC name plus its
+  `[df:…]` tag), `/validate`
   (`license_key`, `instance_id`), `/deactivate`. Form-encoded, `Accept: application/json`, 10 s timeout, base URL
   fixed. An answer whose `meta.store_id` is not ours, or whose `meta.product_id` is not in the product list, is
   refused (`wrong-product`). The activation-limit error is `limit`. Network errors, timeouts and 5xx are "not
@@ -87,8 +93,9 @@ All decisions are in the main process (`apps/desktop/src/main/licensing/`); the 
 - Pasting the same key again on the same PC validates the instance it already holds, so a reactivation never uses a
   second seat; if the store no longer knows that instance, it activates afresh. Pasting a different key frees the old
   key's seat (best effort).
-- A 429, a 5xx, a timeout, or an error page that is not a License API answer (proxy, captive portal) counts as
-  unreachable: the PC keeps its state and the 14-day grace applies.
+- A 429, a 5xx, a timeout, or an error answer that is not the License API's (a proxy or captive portal page, a
+  generic `{"error":"Forbidden"}`) counts as unreachable. An error status is the store's answer only with a key,
+  `meta`, a 422, or a License API reason (license key, instance id, activation limit). Unreachable means: the PC keeps its state and the 14-day grace applies.
 - Remove license deactivates the instance when the store is reachable. Offline it still clears this PC, but the seat
   stays used on the store until removed from the Lemon Squeezy dashboard.
 - `FakeLicenseProvider` (`fake.ts`, tests only) reads `<dataDir>/fake-license-server.json` on every call:
@@ -154,8 +161,13 @@ One line pasted into the same key box: `DFKEY1.<base64url payload>.<base64url Ed
 - Payload: `{ v: 1, id, kind: 'founder' | 'review', name, issuedAt, expiresAt: null | ISO, note }`.
 - Signature over `"DualForge founder key v1\n"` plus the payload bytes (domain separation), verified offline with
   `node:crypto` against `FOUNDER_PUBLIC_KEY` (`apps/desktop/src/main/licensing/founder-key.ts`, base64 SPKI DER).
-- Works offline forever (or until `expiresAt`). Not bound to a person; the list is small and CEO-approved. No
-  revocation list yet (later ticket). Remove license clears it.
+- Works offline forever (or until `expiresAt`). Not bound to a person; the list is small and CEO-approved. Remove
+  license clears it.
+- Revocation: add the key's payload `id` to `REVOKED_FOUNDER_IDS` in `founder-key.ts` and ship an update; it is
+  checked on paste and on every start and wake.
+- An expiring (review) key is refused while the clock is more than 5 minutes behind `seenAt` or the last store check,
+  or more than a day behind `issuedAt`. Lifetime founder keys ignore the clock. Remove clears `seenAt`, the way back
+  after a clock that once ran ahead. A key past its end date shows "This key has reached its end date".
 
 ### The tool (Ethan's side)
 
@@ -164,9 +176,9 @@ The private key is `F:\DualForge\secrets\founder-ed25519.pem`, created once on 2
 
 ```sh
 node scripts/license-tool.mjs keygen      # refuses to overwrite an existing key; prints only the public key
-node scripts/license-tool.mjs issue --name "Ryda" --kind founder --out ryda.dfkey
+node scripts/license-tool.mjs issue --name "Founder Name" --kind founder --out founder.dfkey
 node scripts/license-tool.mjs issue --name "Reviewer" --kind review --expires 2026-12-31 --note "press" --out r.dfkey
-node scripts/license-tool.mjs verify ryda.dfkey
+node scripts/license-tool.mjs verify founder.dfkey
 ```
 
 `issue` refuses a private key that does not match the public key built into the app, refuses to overwrite `--out`,
@@ -174,8 +186,8 @@ and verifies what it wrote. Send the one line in the `.dfkey` file; the recipien
 
 ## Log codes
 
-`LICENSE_ACTIVATED`, `LICENSE_REMOVED`, `LICENSE_LAPSED`, `LICENSE_FOUNDER_REFUSED`, `LICENSE_PATCH_IGNORED` (info or
-warn) and `E_LICENSE_PRO`, `E_LICENSE_CHECK` (warn, at most once a day), `E_LICENSE_LOAD`, `E_LICENSE_IPC`; see
+`LICENSE_ACTIVATED`, `LICENSE_REMOVED`, `LICENSE_LAPSED`, `LICENSE_FOUNDER_REFUSED`, `LICENSE_INSTANCE_MISMATCH`,
+`LICENSE_PATCH_IGNORED` (info or warn) and `E_LICENSE_PRO`, `E_LICENSE_CHECK` (warn, at most once a day), `E_LICENSE_LOAD`, `E_LICENSE_IPC`; see
 `docs/ERROR_CODES.md`. Only the last 4 characters of a key are ever logged.
 
 ## Tests
