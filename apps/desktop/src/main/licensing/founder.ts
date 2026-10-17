@@ -1,6 +1,6 @@
 import { createPublicKey, verify, type KeyObject } from 'node:crypto';
 import { z } from 'zod';
-import { FOUNDER_PUBLIC_KEY } from './founder-key.js';
+import { FOUNDER_PUBLIC_KEY, REVOKED_FOUNDER_IDS } from './founder-key.js';
 
 export const FOUNDER_PREFIX = 'DFKEY1.';
 /** Domain separation: the signature covers this line plus the payload bytes, so no other signed blob can pass. */
@@ -19,14 +19,17 @@ export type FounderPayload = z.infer<typeof FounderPayloadSchema>;
 
 export type FounderResult =
   | { ok: true; payload: FounderPayload }
-  | { ok: false; error: 'prefix' | 'format' | 'signature' | 'payload' | 'expired' };
+  | { ok: false; error: 'prefix' | 'format' | 'signature' | 'payload' | 'expired' | 'revoked' };
 
 export interface FounderVerifier {
   verify(text: string, now: number): FounderResult;
 }
 
 /** Offline verifier for `DFKEY1.<payload>.<signature>` lines against one Ed25519 public key (base64 SPKI DER). */
-export function createFounderVerifier(publicKeyB64: string = FOUNDER_PUBLIC_KEY): FounderVerifier {
+export function createFounderVerifier(
+  publicKeyB64: string = FOUNDER_PUBLIC_KEY,
+  revoked: readonly string[] = REVOKED_FOUNDER_IDS,
+): FounderVerifier {
   let key: KeyObject | null = null;
   try {
     key = createPublicKey({
@@ -60,6 +63,7 @@ export function createFounderVerifier(publicKeyB64: string = FOUNDER_PUBLIC_KEY)
       }
       const p = FounderPayloadSchema.safeParse(raw);
       if (!p.success) return { ok: false, error: 'payload' };
+      if (revoked.includes(p.data.id)) return { ok: false, error: 'revoked' };
       if (p.data.expiresAt !== null && !(Date.parse(p.data.expiresAt) > now))
         return { ok: false, error: 'expired' };
       return { ok: true, payload: p.data };

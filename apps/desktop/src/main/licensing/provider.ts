@@ -17,6 +17,8 @@ export interface ProviderAnswer {
   /** active | inactive | expired | disabled | invalid */
   status: string;
   instanceId?: string;
+  /** The instance name the store holds (validate and activate); this PC's fingerprint tag must be in it. */
+  instanceName?: string;
   /** null = lifetime. */
   expiresAt?: string | null;
   /** monthly | yearly | lifetime | founder-lifetime, or '' when the variant is not recognised. */

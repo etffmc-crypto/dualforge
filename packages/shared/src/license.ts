@@ -102,6 +102,8 @@ export const LicenseStateSchema = z.object({
   expiresAt: z.string().max(64).default(''),
   lastCheck: z.string().max(64).default(''),
   founderKey: z.string().max(4096).default(''),
+  /** The latest time this PC has seen (ISO): an expiring founder key is refused while the clock is behind it. */
+  seenAt: z.string().max(64).default(''),
 });
 export type LicenseState = z.infer<typeof LicenseStateSchema>;
 export const emptyLicenseState = (): LicenseState => LicenseStateSchema.parse({});

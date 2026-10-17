@@ -53,6 +53,7 @@ import { FakeLicenseProvider } from './licensing/fake.js';
 import { createEngineGate } from './licensing/gate.js';
 import { registerLicenseIpc } from './licensing/ipc.js';
 import { LemonSqueezyProvider } from './licensing/lemonsqueezy.js';
+import { cachedFingerprint } from './licensing/machine-id.js';
 import { createLicenseService } from './licensing/service.js';
 
 let win: BrowserWindow | null = null;
@@ -108,6 +109,7 @@ const license = createLicenseService({
   enforced: licenseMode.kind !== 'dormant',
   checkoutUrl: licenseCheckout,
   portalUrl: licensePortal,
+  fingerprint: cachedFingerprint(),
   onChange: (view, tierChanged) => {
     if (tierChanged) {
       gate.refresh(); // the engine runs the saved profile again, gated for the new tier

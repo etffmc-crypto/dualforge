@@ -182,6 +182,7 @@ describe('settings:set and the license block', () => {
       expiresAt: '',
       lastCheck: '2026-10-16T00:00:00Z',
       founderKey: '',
+      seenAt: '',
     });
     const next = call('settings:set', {
       theme: 'light',

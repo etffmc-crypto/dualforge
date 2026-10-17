@@ -26,6 +26,7 @@ const FakeServerSchema = z.object({
 export class FakeLicenseProvider implements LicenseProvider {
   readonly name = 'fake';
   private readonly instances = new Map<string, Set<string>>();
+  private readonly names = new Map<string, string>();
   constructor(private readonly dataDir: string) {}
 
   private server(): z.infer<typeof FakeServerSchema> {
@@ -51,23 +52,26 @@ export class FakeLicenseProvider implements LicenseProvider {
   }
 
   private good(k: z.infer<typeof FakeKeySchema>, instanceId: string): ProviderAnswer {
+    const instanceName = this.names.get(instanceId);
     return {
       reached: true,
       ok: true,
       status: 'active',
       instanceId,
+      ...(instanceName === undefined ? {} : { instanceName }),
       expiresAt: k.expiresAt,
       variant: k.variant,
     };
   }
 
-  async activate(key: string): Promise<ProviderAnswer> {
+  async activate(key: string, instanceName = ''): Promise<ProviderAnswer> {
     const k = this.judge(key);
     if ('reached' in k) return k;
     const set = this.instances.get(key) ?? new Set<string>();
     if (set.size >= k.limit) return { reached: true, ok: false, status: 'active', error: 'limit' };
     const id = randomUUID();
     set.add(id);
+    this.names.set(id, instanceName);
     this.instances.set(key, set);
     return this.good(k, id);
   }

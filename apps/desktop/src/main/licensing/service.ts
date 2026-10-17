@@ -9,7 +9,7 @@ import {
   type LicenseVariant,
   type LicenseView,
 } from '@dualforge/shared';
-import { FOUNDER_PREFIX, type FounderVerifier } from './founder.js';
+import { FOUNDER_PREFIX, type FounderPayload, type FounderVerifier } from './founder.js';
 import type { LicenseProvider, ProviderAnswer } from './provider.js';
 
 export const OFFLINE_GRACE_DAYS = 14;
@@ -17,8 +17,10 @@ const DAY_MS = 86_400_000;
 /** The daily check: the service wakes hourly and validates once the last good check is 24 h old. */
 export const CHECK_EVERY_MS = DAY_MS;
 export const WAKE_EVERY_MS = 3_600_000;
-/** A lastCheck further in the future than this (clock skew aside) is a hand edit and counts as no check. */
-const FUTURE_SLACK_MS = 5 * 60_000;
+/** Clock jitter tolerated before an expiring founder key counts the clock as set back. */
+const CLOCK_SLACK_MS = 5 * 60_000;
+/** The clock high-water mark is written at most this often. */
+const SEEN_EVERY_MS = 3_600_000;
 const MIN_KEY = 8;
 const MAX_KEY = 200;
 
@@ -33,6 +35,12 @@ export interface LicenseServiceDeps {
   checkoutUrl?: string;
   portalUrl?: string;
   hostname?: () => string;
+  /**
+   * This PC's fingerprint (machine-id.ts). It goes into the store's instance name at activation, and a validate answer
+   * whose instance name does not carry it (a settings file copied from another PC) means this PC activates afresh, so
+   * the key's seat limit applies. Absent = not checked.
+   */
+  fingerprint?: () => string;
   /** Every change (renderer `license:changed`); `tierChanged` when the engine must get re-gated profiles. */
   onChange?: (view: LicenseView, tierChanged: boolean) => void;
   timers?: {
@@ -58,11 +66,18 @@ const isoOf = (v: string | null | undefined): string => {
 };
 const variantOf = (v: string | undefined): LicenseVariant =>
   (LICENSE_VARIANTS as readonly string[]).includes(v ?? '') ? (v as LicenseVariant) : '';
+const ms = (iso: string): number => {
+  const t = Date.parse(iso);
+  return Number.isFinite(t) ? t : 0;
+};
+
+/** The tag that binds a store instance to this PC: `[df:<fingerprint>]` at the end of the instance name. */
+export const instanceTag = (fingerprint: string): string => `[df:${fingerprint}]`;
 
 /**
  * The one place that decides Free or Pro (main process). State is the settings.json `license` block, which only this
  * service writes; the tier is re-derived from it on every start and wake, so a hand edit grants nothing beyond what the
- * cached provider answer (or a valid founder key) says.
+ * cached provider answer (or a valid founder key) says, and a block copied from another PC re-activates there.
  */
 export function createLicenseService(d: LicenseServiceDeps) {
   const now = () => (d.clock ?? Date).now();
@@ -72,6 +87,12 @@ export function createLicenseService(d: LicenseServiceDeps) {
   let lastCheckWarnDay = -1;
   let chain: Promise<unknown> = Promise.resolve();
   let timer: unknown = null;
+
+  /** An expiring founder or review key while the clock is behind what this PC has already seen (or its issue date). */
+  function clockSetBack(p: FounderPayload, s: LicenseState): boolean {
+    if (p.expiresAt === null) return false;
+    return now() + CLOCK_SLACK_MS < Math.max(ms(s.seenAt), ms(s.lastCheck), ms(p.issuedAt));
+  }
 
   function derive(s: LicenseState): Derived {
     const none: Derived = {
@@ -84,7 +105,7 @@ export function createLicenseService(d: LicenseServiceDeps) {
     if (!d.enforced) return none;
     if (s.founderKey) {
       const r = d.founderVerifier.verify(s.founderKey, now());
-      if (r.ok)
+      if (r.ok && !clockSetBack(r.payload, s))
         return {
           ...none,
           tier: 'pro',
@@ -97,7 +118,8 @@ export function createLicenseService(d: LicenseServiceDeps) {
     const keyed: Derived = { ...none, source: 'key' };
     if (s.status !== 'active') return keyed;
     const at = Date.parse(s.lastCheck);
-    if (!Number.isFinite(at) || at > now() + FUTURE_SLACK_MS) return keyed;
+    // a lastCheck in the future (clock slack aside) is a hand edit or a clock set back: no check until the next validate
+    if (!Number.isFinite(at) || at > now() + CLOCK_SLACK_MS) return keyed;
     const age = Math.max(0, now() - at);
     if (age <= OFFLINE_GRACE_DAYS * DAY_MS) return { ...keyed, tier: 'pro' };
     return { ...keyed, pastGraceDays: Math.floor(age / DAY_MS) };
@@ -107,6 +129,7 @@ export function createLicenseService(d: LicenseServiceDeps) {
     tier: derive(d.settingsStore.getLicense()).tier,
     enforced: d.enforced,
   };
+  const entitlements = (): Entitlements => current;
 
   function view(): LicenseView {
     const s = d.settingsStore.getLicense();
@@ -118,6 +141,7 @@ export function createLicenseService(d: LicenseServiceDeps) {
       else if (s.key && s.status === 'expired') msg = LICENSE_COPY.lapsedExpired;
       else if (s.key && s.status === 'disabled') msg = LICENSE_COPY.lapsedDisabled;
       else if (s.key && s.status === 'invalid') msg = LICENSE_COPY.badKey;
+      else if (s.founderKey && r.source !== 'founder') msg = LICENSE_COPY.badKey; // revoked, expired, clock set back
     }
     return {
       enforced: d.enforced,
@@ -137,6 +161,15 @@ export function createLicenseService(d: LicenseServiceDeps) {
     };
   }
 
+  const save = (s: LicenseState) => d.settingsStore.setLicense(s);
+
+  /** Moves the clock high-water mark forward (hourly at most, only while a license is saved). */
+  function noteTime(): void {
+    const s = d.settingsStore.getLicense();
+    if (!(s.key || s.founderKey) || now() < ms(s.seenAt) + SEEN_EVERY_MS) return;
+    save({ ...s, seenAt: iso() });
+  }
+
   /** Re-derives the tier; tells the app what changed. */
   function refresh(): LicenseView {
     const v = view();
@@ -147,7 +180,6 @@ export function createLicenseService(d: LicenseServiceDeps) {
     return v;
   }
 
-  const save = (s: LicenseState) => d.settingsStore.setLicense(s);
   const serial = <T>(fn: () => Promise<T>): Promise<T> => {
     const p = chain.then(fn, fn);
     chain = p.catch(() => undefined);
@@ -161,6 +193,17 @@ export function createLicenseService(d: LicenseServiceDeps) {
     d.log.warn({ code: 'E_LICENSE_CHECK', msg: 'license server unreachable' });
   }
 
+  const fp = () => d.fingerprint?.() ?? '';
+  const instanceName = () => (fp() ? `${host()} ${instanceTag(fp())}` : host());
+  /** A good answer for an instance that was not activated on this PC (its name lacks this PC's tag). A provider that
+   * reports no instance name is not checked. */
+  const foreignInstance = (a: ProviderAnswer): boolean =>
+    a.reached &&
+    a.ok &&
+    !!fp() &&
+    a.instanceName !== undefined &&
+    !a.instanceName.endsWith(instanceTag(fp()));
+
   /** Records a provider answer for the saved key (check, or re-activation of the same key). */
   function applyCheck(a: ProviderAnswer): void {
     const s = d.settingsStore.getLicense();
@@ -168,7 +211,8 @@ export function createLicenseService(d: LicenseServiceDeps) {
       warnUnreachable();
       const r = derive(s);
       if (r.tier === 'pro' && r.source === 'key') {
-        const left = OFFLINE_GRACE_DAYS - (now() - Date.parse(s.lastCheck)) / DAY_MS;
+        const at = Math.min(Date.parse(s.lastCheck), now());
+        const left = OFFLINE_GRACE_DAYS - (now() - at) / DAY_MS;
         message = fillCopy(LICENSE_COPY.offlineGrace, { n: Math.max(1, Math.ceil(left)) });
       } else message = '';
       return;
@@ -191,22 +235,9 @@ export function createLicenseService(d: LicenseServiceDeps) {
     save({ ...s, status });
   }
 
-  async function activateStoreKey(key: string): Promise<void> {
-    if (key.length < MIN_KEY || key.length > MAX_KEY) {
-      message = LICENSE_COPY.badKey;
-      return;
-    }
-    const s = d.settingsStore.getLicense();
-    if (key === s.key && s.instanceId) {
-      // the same key on the same PC: validate the instance we already hold instead of using up another activation
-      const v = await d.provider!.validate(key, s.instanceId);
-      // the instance is gone on the store (deleted in the dashboard): fall through and activate afresh
-      if (!(v.reached && !v.ok && v.status !== 'expired' && v.status !== 'disabled')) {
-        applyCheck(v);
-        return;
-      }
-    }
-    const a = await d.provider!.activate(key, host());
+  /** Activates `key` as a new instance of this PC. A refused key never replaces the saved state. */
+  async function activateFresh(key: string, s: LicenseState): Promise<void> {
+    const a = await d.provider!.activate(key, instanceName());
     if (!a.reached) {
       warnUnreachable();
       message = LICENSE_COPY.offlineActivate;
@@ -221,7 +252,8 @@ export function createLicenseService(d: LicenseServiceDeps) {
             : a.status === 'disabled'
               ? LICENSE_COPY.lapsedDisabled
               : LICENSE_COPY.badKey;
-      return; // a refused new key never replaces the saved state
+      if (key === s.key) save({ ...s, instanceId: '', status: '' }); // our old instance is not ours any more
+      return;
     }
     message = '';
     save({
@@ -249,15 +281,44 @@ export function createLicenseService(d: LicenseServiceDeps) {
     });
   }
 
+  /** Validates the saved instance; one that is gone, or was activated on another PC, is replaced by a fresh one. */
+  async function validateOrReactivate(key: string, s: LicenseState): Promise<void> {
+    const v = await d.provider!.validate(key, s.instanceId);
+    if (foreignInstance(v)) {
+      d.log.info({ code: 'LICENSE_INSTANCE_MISMATCH', keyHint: key.slice(-4) });
+      await activateFresh(key, s);
+      return;
+    }
+    // the instance is gone on the store (deleted in the dashboard): activate afresh
+    if (v.reached && !v.ok && v.status !== 'expired' && v.status !== 'disabled') {
+      await activateFresh(key, s);
+      return;
+    }
+    applyCheck(v);
+  }
+
+  async function activateStoreKey(key: string): Promise<void> {
+    if (key.length < MIN_KEY || key.length > MAX_KEY) {
+      message = LICENSE_COPY.badKey;
+      return;
+    }
+    const s = d.settingsStore.getLicense();
+    // the same key on the same PC: validate the instance we already hold instead of using up another activation
+    if (key === s.key && s.instanceId) await validateOrReactivate(key, s);
+    else await activateFresh(key, s);
+  }
+
   function activateFounder(text: string): void {
     const r = d.founderVerifier.verify(text, now());
-    if (!r.ok) {
+    const s = d.settingsStore.getLicense();
+    const reason = !r.ok ? r.error : clockSetBack(r.payload, s) ? 'clock' : '';
+    if (!r.ok || reason) {
       message = LICENSE_COPY.badKey;
-      d.log.info({ code: 'LICENSE_FOUNDER_REFUSED', reason: r.error });
+      d.log.info({ code: 'LICENSE_FOUNDER_REFUSED', reason });
       return;
     }
     message = '';
-    save({ ...d.settingsStore.getLicense(), founderKey: text });
+    save({ ...s, founderKey: text, seenAt: iso() > s.seenAt ? iso() : s.seenAt });
     d.log.info({
       code: 'LICENSE_ACTIVATED',
       source: 'founder',
@@ -269,18 +330,15 @@ export function createLicenseService(d: LicenseServiceDeps) {
   async function check(): Promise<void> {
     const s = d.settingsStore.getLicense();
     if (!s.key) return;
-    if (!s.instanceId) {
-      await activateStoreKey(s.key);
-      return;
-    }
-    applyCheck(await d.provider!.validate(s.key, s.instanceId));
+    if (!s.instanceId) await activateFresh(s.key, s);
+    else await validateOrReactivate(s.key, s);
   }
 
   const active = () => d.enforced && d.provider !== null;
 
   return {
     view,
-    entitlements: (): Entitlements => current,
+    entitlements,
     activate: (text: unknown): Promise<LicenseView> =>
       serial(async () => {
         if (!active() || typeof text !== 'string') return view();
@@ -307,7 +365,7 @@ export function createLicenseService(d: LicenseServiceDeps) {
           }
         }
         message = '';
-        save(emptyLicenseState());
+        save({ ...emptyLicenseState(), seenAt: s.seenAt }); // the clock high-water mark outlives the key
         if (s.key || s.founderKey)
           d.log.info({ code: 'LICENSE_REMOVED', keyHint: s.key ? s.key.slice(-4) : '' });
         return refresh();
@@ -320,6 +378,7 @@ export function createLicenseService(d: LicenseServiceDeps) {
         const at = Date.parse(s.lastCheck);
         if (s.key && (!Number.isFinite(at) || now() - at >= CHECK_EVERY_MS || at > now()))
           await check();
+        noteTime();
         return refresh();
       }),
     start(): void {

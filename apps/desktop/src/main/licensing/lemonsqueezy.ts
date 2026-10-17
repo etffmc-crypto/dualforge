@@ -3,6 +3,8 @@ import { UNREACHABLE, type LicenseProvider, type ProviderAnswer } from './provid
 
 export const LS_BASE_URL = 'https://api.lemonsqueezy.com';
 export const LS_TIMEOUT_MS = 10_000;
+/** Reasons the License API gives ("license_key not found.", "instance_id not found.", "…reached the activation limit.", "…is expired"). */
+export const LS_ERROR = /license[_ ]key|instance[_ ]id|activation limit/i;
 
 type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -13,7 +15,7 @@ interface LsBody {
   deactivated?: boolean;
   error?: string | null;
   license_key?: { status?: string; expires_at?: string | null } | null;
-  instance?: { id?: string } | null;
+  instance?: { id?: string; name?: string } | null;
   meta?: {
     store_id?: number | string;
     product_id?: number | string;
@@ -81,8 +83,10 @@ export class LemonSqueezyProvider implements LicenseProvider {
       } catch {
         return null; // not the License API talking (a proxy, firewall or captive portal page)
       }
-      // a refusal from the License API always says why; an error status without one is someone else's answer
-      if (!res.ok && typeof body.error !== 'string' && !body.license_key) return null;
+      // an error status is the License API's answer only when it carries a key or a known License API reason;
+      // anything else (a proxy 403 {"error":"Forbidden"}, a gateway) is someone else's answer: not reached
+      if (!res.ok && !body.license_key && !body.meta && !LS_ERROR.test(body.error ?? ''))
+        return null;
       return { status: res.status, body };
     } catch {
       return null;
@@ -120,6 +124,7 @@ export class LemonSqueezyProvider implements LicenseProvider {
       ok: true,
       status: 'active',
       ...(b.instance?.id ? { instanceId: String(b.instance.id) } : {}),
+      ...(typeof b.instance?.name === 'string' ? { instanceName: b.instance.name } : {}),
       expiresAt: b.license_key?.expires_at ?? null,
       variant: mapVariant(b.meta, this.config.variants) ?? '',
     };
