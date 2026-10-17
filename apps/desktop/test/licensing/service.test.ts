@@ -27,7 +27,7 @@ const founderKey = (over: object = {}) =>
       v: 1,
       id: 'f-1',
       kind: 'founder',
-      name: 'Ryda',
+      name: 'Test Founder',
       issuedAt: '2026-10-16T00:00:00Z',
       expiresAt: null,
       note: '',
@@ -308,7 +308,7 @@ describe('license service: founder keys', () => {
     expect(v).toMatchObject({
       tier: 'pro',
       source: 'founder',
-      founderName: 'Ryda',
+      founderName: 'Test Founder',
       variant: 'founder-lifetime',
       expiresAt: '',
     });

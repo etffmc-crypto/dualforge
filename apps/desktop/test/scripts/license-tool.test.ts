@@ -35,12 +35,12 @@ describe('license-tool', () => {
     const p = join(dir, 'k.pem');
     const pub = keygen(p);
     const { line, payload } = issue({
-      name: 'Ryda',
+      name: 'Test Founder',
       kind: 'founder',
       keyPath: p,
       publicKeyB64: pub,
     });
-    expect(payload).toMatchObject({ v: 1, kind: 'founder', name: 'Ryda', expiresAt: null });
+    expect(payload).toMatchObject({ v: 1, kind: 'founder', name: 'Test Founder', expiresAt: null });
     expect(createFounderVerifier(pub).verify(line, Date.now()).ok).toBe(true);
     expect(verifyKey(line, pub).ok).toBe(true);
     const otherPub = keygen(join(dir, 'other.pem'));
@@ -76,7 +76,7 @@ describe('license-tool', () => {
         [
           'issue',
           '--name',
-          'Ryda',
+          'Test Founder',
           '--kind',
           'founder',
           '--out',

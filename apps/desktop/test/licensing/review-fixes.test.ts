@@ -179,7 +179,7 @@ describe('review fixes', () => {
       v: 1,
       id: 'k',
       kind: 'founder',
-      name: 'Ryda',
+      name: 'Test Founder',
       issuedAt: '2026-10-16T00:00:00Z',
       expiresAt: null,
       note: '',

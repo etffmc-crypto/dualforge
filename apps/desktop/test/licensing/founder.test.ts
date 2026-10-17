@@ -18,7 +18,7 @@ const payload = (over: object = {}) => ({
   v: 1,
   id: 'k-1',
   kind: 'founder',
-  name: 'Ryda',
+  name: 'Test Founder',
   issuedAt: '2026-10-16T00:00:00Z',
   expiresAt: null,
   note: '',
@@ -31,7 +31,7 @@ describe('founder verifier', () => {
 
   it('accepts a key signed by the matching private key', () => {
     const r = verifier.verify(signKey(payload(), kp.pem), NOW);
-    expect(r).toMatchObject({ ok: true, payload: { name: 'Ryda', kind: 'founder' } });
+    expect(r).toMatchObject({ ok: true, payload: { name: 'Test Founder', kind: 'founder' } });
   });
   it('accepts a review key with a future end date, and trims whitespace', () => {
     const line = signKey(payload({ kind: 'review', expiresAt: '2026-12-01T00:00:00Z' }), kp.pem);
@@ -41,7 +41,7 @@ describe('founder verifier', () => {
     const line = signKey(payload(), kp.pem);
     const [body, sig] = line.slice(FOUNDER_PREFIX.length).split('.');
     const forged = Buffer.from(
-      Buffer.from(body!, 'base64url').toString().replace('Ryda', 'Mallory'),
+      Buffer.from(body!, 'base64url').toString().replace('Test Founder', 'Mallory'),
     ).toString('base64url');
     expect(verifier.verify(`${FOUNDER_PREFIX}${forged}.${sig}`, NOW)).toEqual({
       ok: false,

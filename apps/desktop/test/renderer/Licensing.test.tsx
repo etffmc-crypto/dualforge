@@ -163,7 +163,7 @@ describe('Plan card', () => {
         tier: 'pro',
         source: 'founder',
         variant: 'founder-lifetime',
-        founderName: 'Ryda',
+        founderName: 'Test Founder',
         hasLicense: true,
       }),
     });
