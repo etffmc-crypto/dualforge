@@ -15,6 +15,7 @@ export interface Feedback {
 }
 
 const OFF: TriggerEffect = { mode: 'off' };
+const level = (v: number) => (v >= 2 ? 2 : v >= 1 ? 1 : 0); // NaN falls through to 0
 const u8 = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
 
 export function buildOutputReport(fb: Feedback): Uint8Array {
@@ -27,10 +28,10 @@ export function buildOutputReport(fb: Feedback): Uint8Array {
   const t = fb.triggers ?? { left: OFF, right: OFF };
   r.set(encodeTriggerEffect(t.right), 11);
   r.set(encodeTriggerEffect(t.left), 22);
-  r[9] = fb.micLed;
+  r[9] = level(fb.micLed);
   r[39] = 0x02 | 0x04; // lightbar setup, improved rumble
   r[42] = 0x02;
-  r[43] = fb.brightness;
+  r[43] = level(fb.brightness);
   r[44] = fb.playerLeds & 0x1f;
   r[45] = u8(fb.lightbar.r);
   r[46] = u8(fb.lightbar.g);
