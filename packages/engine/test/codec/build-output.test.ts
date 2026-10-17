@@ -40,6 +40,14 @@ describe('buildOutputReport', () => {
     expect(r[4]).toBe(255);
     expect(r[3]).toBe(0);
   });
+  it('clamps micLed and brightness to 0..2 at runtime', () => {
+    const hi = buildOutputReport({ ...fb, micLed: 7 as never, brightness: 9 as never });
+    expect(hi[9]).toBe(2);
+    expect(hi[43]).toBe(2);
+    const lo = buildOutputReport({ ...fb, micLed: -1 as never, brightness: Number.NaN as never });
+    expect(lo[9]).toBe(0);
+    expect(lo[43]).toBe(0);
+  });
   it('writes trigger effects into right (11..21) and left (22..32) blocks and sets flag0 bits', () => {
     const r = buildOutputReport({
       ...fb,
