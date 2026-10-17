@@ -20,8 +20,11 @@ const updatesDefine = { __UPDATES_ENABLED__: JSON.stringify(updatesEnabled) };
 // Pro licensing (docs/licensing.md): the Lemon Squeezy ids come from the build environment, else from the git-ignored
 // F:\DualForge\.env.licensing. No store id or no product id = a dormant build (no Plan card, no gates, no network).
 const licenseEnvFile = resolve(__dirname, '../../.env.licensing');
+// DUALFORGE_LS_IGNORE_FILE=1 (set by `npm run test:ui`) skips the file so the e2e suite always builds the dormant app.
 const licenseEnv = {
-  ...(existsSync(licenseEnvFile) ? parseEnvFile(readFileSync(licenseEnvFile, 'utf8')) : {}),
+  ...(existsSync(licenseEnvFile) && !process.env.DUALFORGE_LS_IGNORE_FILE
+    ? parseEnvFile(readFileSync(licenseEnvFile, 'utf8'))
+    : {}),
   ...Object.fromEntries(
     Object.entries(process.env).filter(([k, v]) => k.startsWith('DUALFORGE_LS_') && v),
   ),
