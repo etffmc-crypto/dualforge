@@ -255,7 +255,7 @@ export function Settings() {
   );
 }
 
-/** The disclosure shown in the installer, the README and the download page (CEO decision 2026-10-16). */
+/** The disclosure, word for word the same in the README and on the download page (CEO decision 2026-10-16). */
 export const DISCLOSURE =
   "DualForge creates a virtual controller. Some games and anti-cheat systems don't allow input-remapping software. Using DualForge in those games is at your own risk, so check each game's rules.";
 

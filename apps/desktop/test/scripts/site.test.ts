@@ -7,6 +7,13 @@ const site = join(resolve(dirname(fileURLToPath(import.meta.url)), '../../../..'
 const html = readFileSync(join(site, 'index.html'), 'utf8');
 
 describe('download page (site/)', () => {
+  it('carries the disclosure and names no game titles', () => {
+    const text = html.replace(/&rsquo;/g, "'").replace(/\s+/g, ' ');
+    expect(text).toContain(
+      "DualForge creates a virtual controller. Some games and anti-cheat systems don't allow input-remapping software. Using DualForge in those games is at your own risk, so check each game's rules.",
+    );
+    expect(text).not.toMatch(/Warzone|Apex|Battlefield|Call of Duty|Valorant|Fortnite|aim assist/i);
+  });
   it('says "Download for Windows" (the watchdog looks for it)', () => {
     expect(html).toContain('Download for Windows');
   });
