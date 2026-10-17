@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { fillCopy, LICENSE_COPY } from '@dualforge/shared';
 import { DpadIcon } from './icons';
 import { useStore } from '../store';
 
@@ -50,6 +51,13 @@ function shortMessage(code: string, msg: string): string {
       return 'Macro test did not run';
     case 'E_CLIPBOARD':
       return 'Could not copy to the clipboard';
+    case 'E_LICENSE_PRO': {
+      // main names the feature after the code: "E_LICENSE_PRO: Profile slots 3 and 4"
+      const feature = /E_LICENSE_PRO: (.+?)\s*$/.exec(msg)?.[1];
+      return feature
+        ? fillCopy(LICENSE_COPY.gateLine, { feature })
+        : 'This is part of DualForge Pro.';
+    }
     default:
       return stripIpcError(code, msg);
   }

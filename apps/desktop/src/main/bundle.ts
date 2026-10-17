@@ -1,4 +1,4 @@
-import { createWriteStream, readdirSync, statSync, unlinkSync } from 'node:fs';
+import { createWriteStream, readdirSync, readFileSync, statSync, unlinkSync } from 'node:fs';
 import { join, posix } from 'node:path';
 import { ZipFile } from 'yazl';
 import type { HealthState } from '@dualforge/shared';
@@ -89,6 +89,34 @@ function listFiles(
 
 const json = (v: unknown): string => JSON.stringify(v, null, 2);
 
+/**
+ * settings.json with the Pro license block's secrets taken out (the key becomes its last 4 characters, a founder key
+ * only "present"), or null when the file holds no license block and can go into the bundle as it is.
+ */
+export function redactLicense(text: string): string | null {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!raw || typeof raw !== 'object' || !('license' in raw)) return null;
+  const l = (raw as { license: unknown }).license;
+  const lic = l && typeof l === 'object' ? (l as Record<string, unknown>) : {};
+  const str = (v: unknown) => (typeof v === 'string' ? v : '');
+  return json({
+    ...raw,
+    license: {
+      keyHint: str(lic.key).slice(-4),
+      status: str(lic.status),
+      variant: str(lic.variant),
+      expiresAt: str(lic.expiresAt),
+      lastCheck: str(lic.lastCheck),
+      founderKey: str(lic.founderKey) ? 'present' : '',
+    },
+  });
+}
+
 /** Gathers candidate entries from disk (missing folders are fine) plus the generated health.json and system.json. */
 export function collectEntries(o: CollectOpts): BundleEntry[] {
   const out: BundleEntry[] = [];
@@ -124,12 +152,13 @@ export function collectEntries(o: CollectOpts): BundleEntry[] {
   try {
     const p = join(o.dataDir, 'settings.json');
     const st = statSync(p);
+    const redacted = redactLicense(readFileSync(p, 'utf8'));
     out.push({
       name: 'settings.json',
-      size: st.size,
+      size: redacted === null ? st.size : Buffer.byteLength(redacted),
       mtimeMs: st.mtimeMs,
       kind: 'settings',
-      path: p,
+      ...(redacted === null ? { path: p } : { data: redacted }),
     });
   } catch {
     /* no settings yet */

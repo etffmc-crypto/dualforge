@@ -1,0 +1,140 @@
+/* Pro gates (DF-023) and the Plan card. */
+.pro-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 16px;
+  white-space: nowrap;
+  flex: none;
+}
+.pro-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.pro-link {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--accent-hover);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.pro-link:hover {
+  color: var(--text-strong);
+}
+.pro-locked {
+  opacity: 0.55;
+}
+fieldset.pro-fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+fieldset.pro-fieldset:disabled {
+  opacity: 0.5;
+}
+.pro-paused {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.pro-paused-list {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pro-paused-list li {
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: var(--chip-bg);
+  color: var(--text-secondary);
+}
+
+/* Plan card (Settings > Plan) */
+.plan-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.plan-badge {
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--chip-bg);
+  color: var(--text);
+}
+.plan-badge.pro {
+  background: var(--accent);
+  color: #fff;
+}
+.plan-key {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 6px 0 4px;
+}
+.plan-key input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: var(--seg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.plan-key-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-top: 10px;
+}
+.plan-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.plan-msg {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--text-soft);
+}
+.seg-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.seg-btn .pro-tag {
+  margin-left: 4px;
+  padding: 0 5px;
+  font-size: 10px;
+  line-height: 14px;
+  vertical-align: 1px;
+}
+.seg-btn:has(.pro-tag) {
+  padding: 0 6px;
+}
+.turbo-pro {
+  margin: 0 0 12px;
+}

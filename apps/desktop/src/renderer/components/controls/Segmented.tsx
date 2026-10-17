@@ -1,7 +1,8 @@
-import { useRef, type KeyboardEvent } from 'react';
+import { useRef, type KeyboardEvent, type ReactNode } from 'react';
 
 export interface SegmentedProps<T extends string> {
-  options: { value: T; label: string }[];
+  /** `disabled` options cannot be picked (arrow keys skip them); `tag` is drawn after the label (e.g. the Pro tag). */
+  options: { value: T; label: string; disabled?: boolean; tag?: ReactNode }[];
   value: T;
   onChange(v: T): void;
   label?: string;
@@ -24,10 +25,19 @@ export function Segmented<T extends string>({
           : 0;
     if (!d) return;
     e.preventDefault();
-    const n = (i + d + options.length) % options.length;
+    let n = i;
+    for (let k = 0; k < options.length; k++) {
+      n = (n + d + options.length) % options.length;
+      if (!options[n]!.disabled) break;
+    }
+    if (n === i || options[n]!.disabled) return;
     onChange(options[n]!.value);
     ref.current?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[n]?.focus();
   };
+  // the tab stop is the checked option, or the first enabled one when the checked option is disabled (a Pro option on Free)
+  const stop =
+    options.find((o) => o.value === value && !o.disabled)?.value ??
+    options.find((o) => !o.disabled)?.value;
   return (
     <div className="seg" role="radiogroup" aria-label={label} ref={ref}>
       {options.map((o, i) => {
@@ -39,12 +49,14 @@ export function Segmented<T extends string>({
             type="button"
             role="radio"
             aria-checked={checked}
-            tabIndex={checked ? 0 : -1}
+            tabIndex={o.value === stop ? 0 : -1}
             className={`seg-btn${checked ? ' active' : ''}`}
+            disabled={o.disabled}
             onClick={() => onChange(o.value)}
             onKeyDown={(e) => onKey(e, i)}
           >
             {o.label}
+            {o.tag}
           </button>
         );
       })}

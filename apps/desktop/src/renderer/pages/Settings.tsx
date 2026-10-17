@@ -5,6 +5,7 @@ import { Toggle } from '../components/controls/Toggle';
 import { PanelSection } from '../components/SettingsLayout';
 import { FolderIcon } from '../components/icons';
 import { useStore } from '../store';
+import { PlanCard } from './settings/PlanCard';
 import { TurboPrefs } from './settings/TurboPrefs';
 
 type Flag =
@@ -236,6 +237,7 @@ export function Settings() {
             )}
           </PanelSection>
         )}
+        <PlanCard />
         <PanelSection title="Data">
           <p className="psec-hint">Profiles, settings and logs are stored in one folder.</p>
           <button data-nav type="button" className="panel-btn with-icon" onClick={openDataDir}>
@@ -243,10 +245,19 @@ export function Settings() {
             Open data folder
           </button>
         </PanelSection>
+        <PanelSection title="About">
+          <p className="psec-hint" role="note" aria-label="Disclosure">
+            {DISCLOSURE}
+          </p>
+        </PanelSection>
       </section>
     </div>
   );
 }
+
+/** The disclosure, word for word the same in the README and on the download page (CEO decision 2026-10-16). */
+export const DISCLOSURE =
+  "DualForge creates a virtual controller. Some games and anti-cheat systems don't allow input-remapping software. Using DualForge in those games is at your own risk, so check each game's rules.";
 
 const UPDATE_CODES: Record<string, string> = {
   E_UPDATE_DISABLED: 'Turn on "Check for updates" first.',

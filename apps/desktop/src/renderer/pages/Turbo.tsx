@@ -9,6 +9,7 @@ import {
 import { useStore } from '../store';
 import { PadDiagram } from './buttons/PadDiagram';
 import { TurboModal } from './turbo/TurboModal';
+import { ProLine, useProLocked } from '../components/Pro';
 import '../styles/buttons.css';
 import '../styles/turbo.css';
 
@@ -23,6 +24,7 @@ export function Turbo() {
   const turbo = useStore((s) => s.settings?.turbo);
   const updateProfile = useStore((s) => s.updateProfile);
   const [editing, setEditing] = useState<DsButton | null>(null);
+  const locked = useProLocked();
   const onEdit = useCallback((b: DsButton) => setEditing(b), []);
   if (!mappings || !macros || !lights) return null; // still loading
   const configured = DS_BUTTONS.filter((b) => {
@@ -38,6 +40,7 @@ export function Turbo() {
     });
   return (
     <div className="buttons-page turbo-page">
+      {locked && <ProLine feature="turbo" className="turbo-pro" />}
       <div className="turbo-bar">
         <div className={`turbo-live${active ? ' on' : ''}`}>
           <span className="turbo-dot" aria-hidden="true" />
@@ -52,7 +55,7 @@ export function Turbo() {
           data-nav
           type="button"
           className="panel-btn"
-          disabled={configured.length === 0}
+          disabled={configured.length === 0 || locked}
           onClick={clearAll}
         >
           Clear all turbo

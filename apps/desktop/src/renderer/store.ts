@@ -5,6 +5,7 @@ import {
   ProfileSchema,
   type EngineSnapshot,
   type HealthState,
+  type LicenseView,
   type Profile,
   type ProfileSummary,
   type Settings,
@@ -57,6 +58,13 @@ interface State {
    * else and navigation ignores it. Use `suspendNav()` / `navSuspended()` rather than this count.
    */
   navHolds: number;
+  /** Pro licensing view from main; null until loaded (and in tests that do not provide it), which gates nothing. */
+  license: LicenseView | null;
+  /** Bumped by `goPlan`; Settings scrolls the Plan card into view when it changes. */
+  planFocus: number;
+  setLicense(v: LicenseView): void;
+  /** "Get Pro" links: opens Settings at the Plan card. */
+  goPlan(): void;
   /** Dismisses the error the footer chip shows. */
   clearError(): void;
   /** Takes a hold; the returned release is idempotent, so each owner releases exactly its own. */
@@ -93,8 +101,13 @@ let pending: ReturnType<typeof setTimeout> | null = null;
 
 /** True while any gamepad-navigation hold is outstanding. */
 export const navSuspended = (): boolean => useStore.getState().navHolds > 0;
-const fail = (code: string) => (err: unknown) =>
-  useStore.setState({ lastError: { code, msg: String(err) } });
+const fail = (code: string) => (err: unknown) => {
+  const msg = String(err);
+  // a Pro refusal from main keeps its own code, so the footer can say which feature is Pro
+  useStore.setState({
+    lastError: { code: /\bE_LICENSE_PRO\b/.test(msg) ? 'E_LICENSE_PRO' : code, msg },
+  });
+};
 
 export const useStore = create<State>((set, get) => {
   const send = () => {
@@ -127,6 +140,10 @@ export const useStore = create<State>((set, get) => {
     subTab: { sticks: 'left', triggers: 'left' },
     health: null,
     navHolds: 0,
+    license: null,
+    planFocus: 0,
+    setLicense: (license) => set({ license }),
+    goPlan: () => set((s) => ({ page: 'settings', planFocus: s.planFocus + 1 })),
     clearError: () => set({ lastError: null }),
     suspendNav: () => {
       set((s) => ({ navHolds: s.navHolds + 1 }));
@@ -217,10 +234,17 @@ export const useStore = create<State>((set, get) => {
           Object.assign(d, applyTurboEdits(d, e.edits));
         });
       });
+      const lic = window.dualforge.license;
+      lic
+        ?.get()
+        .then((v) => set({ license: v }))
+        .catch(fail('E_LICENSE_LOAD'));
+      const offLicense = lic?.onChanged((v) => set({ license: v }));
       return () => {
         offEngine();
         offActive();
         offTurbo?.();
+        offLicense?.();
       };
     },
     updateProfile: (mutate) => {

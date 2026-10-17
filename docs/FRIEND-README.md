@@ -2,9 +2,11 @@
 
 DualForge is a PS5 DualSense tuning app for Windows (GameSir-Connect style): remaps, stick curves and deadzones, calibration, smoothing, triggers, gyro, lights, macros, turbo, profiles with per-game auto-switch. It drives a virtual Xbox 360 controller so every PC game sees your tuned input.
 
+**Disclosure:** DualForge creates a virtual controller. Some games and anti-cheat systems don't allow input-remapping software. Using DualForge in those games is at your own risk, so check each game's rules.
+
 ## 1. Install
 
-1. Run `DualForge-Setup-0.3.6.exe`. Windows SmartScreen will say "unknown publisher" (the installer is not code-signed yet): click **More info → Run anyway**. It installs per-user; no admin needed for the app itself.
+1. Run `DualForge-Setup-0.3.7.exe`. Windows SmartScreen will say "unknown publisher" (the installer is not code-signed yet): click **More info → Run anyway**. It installs per-user; no admin needed for the app itself.
 2. Plug the DualSense in over **USB** (Bluetooth is not supported yet).
 3. Open DualForge. The first page is Home; it should say "Connected · USB".
 

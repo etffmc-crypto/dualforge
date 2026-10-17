@@ -20,6 +20,8 @@ export interface GameWatcherOpts {
   ownPid?: number;
   /** Called whenever the sampled "DualForge (any of its windows, native dialogs included) is in front" value changes. */
   onOwnForeground?: (own: boolean) => void;
+  /** False while per-game auto-switch is not allowed (Pro licensing, Free tier): the rules are ignored. Default: on. */
+  rulesEnabled?: () => boolean;
   /** Executable basenames treated like an unknown foreground (DualForge itself). Default: this process and electron.exe. */
   ignore?: string[];
 }
@@ -89,7 +91,8 @@ export function createGameWatcher(o: GameWatcherOpts) {
     }
     lastForeign = { name: fg, elevated, at: (o.now ?? Date.now)() };
     const s = o.settings();
-    const rule = s.autoSwitch.find((r) => r.exe.toLowerCase() === fg);
+    const rules = o.rulesEnabled?.() === false ? [] : s.autoSwitch; // on Free the rules stay saved but do nothing
+    const rule = rules.find((r) => r.exe.toLowerCase() === fg);
     if (rule) {
       if (current !== rule.profileId) {
         if (current === null && rule.profileId === s.activeProfile) {

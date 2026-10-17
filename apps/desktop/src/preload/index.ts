@@ -4,6 +4,7 @@ import type {
   HealthRepairRequest,
   HealthRepairResult,
   HealthState,
+  LicenseView,
   Profile,
   ProfileSummary,
   Settings,
@@ -138,6 +139,23 @@ const api = {
       const h = (_: unknown, p: { percent: number; transferred: number; total: number }) => cb(p);
       ipcRenderer.on('updates:progress', h);
       return () => ipcRenderer.removeListener('updates:progress', h);
+    },
+  },
+  license: {
+    /** The Plan card's view (never the full key); `enforced: false` in a dormant build, which shows no Plan card. */
+    get: (): Promise<LicenseView> => ipcRenderer.invoke('license:get'),
+    /** A store key from the receipt, or a `DFKEY1.` founder key. Resolves with the new view (its message says why not). */
+    activate: (text: string): Promise<LicenseView> => ipcRenderer.invoke('license:activate', text),
+    check: (): Promise<LicenseView> => ipcRenderer.invoke('license:check'),
+    remove: (): Promise<LicenseView> => ipcRenderer.invoke('license:remove'),
+    /** Opens the built-in checkout link in the browser; false when the build has none. */
+    openCheckout: (): Promise<boolean> => ipcRenderer.invoke('license:openCheckout'),
+    /** Opens the built-in Lemon Squeezy billing portal link; false when the build has none. */
+    openPortal: (): Promise<boolean> => ipcRenderer.invoke('license:openPortal'),
+    onChanged(cb: (v: LicenseView) => void): () => void {
+      const h = (_: unknown, v: LicenseView) => cb(v);
+      ipcRenderer.on('license:changed', h);
+      return () => ipcRenderer.removeListener('license:changed', h);
     },
   },
   app: {

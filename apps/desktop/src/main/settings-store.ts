@@ -2,7 +2,10 @@ import { join } from 'node:path';
 import {
   AutoSwitchRuleSchema,
   defaultSettings,
+  emptyLicenseState,
+  LicenseStateSchema,
   MAX_AUTO_SWITCH_RULES,
+  type LicenseState,
   SettingsSchema,
   type Settings,
 } from '@dualforge/shared';
@@ -18,6 +21,18 @@ import {
 export function createSettingsStore(dir: string, log: StoreLog, io: FileIo = nodeIo) {
   const file = join(dir, 'settings.json');
   let cache: Settings | null = null;
+  // The Pro license block lives in the same file but outside Settings: the renderer and the engine never see it, and
+  // only main's LicenseService writes it (setLicense). Every settings write carries it along unchanged.
+  let license: LicenseState = emptyLicenseState();
+  const isEmpty = (l: LicenseState) => Object.values(l).every((v) => v === '');
+  const body = (s: Settings): object => (isEmpty(license) ? s : { ...s, license });
+  function readLicense(raw: unknown): void {
+    const l =
+      raw && typeof raw === 'object' && 'license' in raw
+        ? LicenseStateSchema.safeParse((raw as { license: unknown }).license)
+        : null;
+    license = l?.success ? l.data : emptyLicenseState();
+  }
 
   /** Field-by-field recovery: defaults overlaid with every key that validates on its own; null when `raw` is not an object. */
   function salvage(raw: unknown): Settings | null {
@@ -53,6 +68,7 @@ export function createSettingsStore(dir: string, log: StoreLog, io: FileIo = nod
     try {
       const raw = readJsonFile(file);
       if (raw === undefined) return defaultSettings();
+      readLicense(raw);
       const r = SettingsSchema.safeParse(raw);
       if (r.success) return r.data;
       const salvaged = salvage(raw);
@@ -60,7 +76,7 @@ export function createSettingsStore(dir: string, log: StoreLog, io: FileIo = nod
         // Keep the original for inspection, but do not lose the settings that were fine.
         quarantine(file, join(dir, 'corrupt'), log, 'E_SETTINGS_SALVAGED', r.error.message, io);
         try {
-          writeJsonAtomic(file, salvaged, io);
+          writeJsonAtomic(file, body(salvaged), io);
         } catch (e) {
           log.error({
             code: 'E_SETTINGS_SALVAGED',
@@ -83,13 +99,30 @@ export function createSettingsStore(dir: string, log: StoreLog, io: FileIo = nod
     set(patch: Partial<Settings>): Settings {
       const next = SettingsSchema.parse({ ...this.get(), ...patch, schemaVersion: 1 });
       try {
-        writeJsonAtomic(file, next, io);
+        writeJsonAtomic(file, body(next), io);
       } catch (e) {
         log.error({ code: 'E_SETTINGS_WRITE', msg: (e as Error).message });
         throw new Error('E_SETTINGS_WRITE', { cause: e });
       }
       cache = next;
       return next;
+    },
+    getLicense(): LicenseState {
+      this.get();
+      return license;
+    },
+    /** LicenseService only. Throws E_SETTINGS_WRITE like set(); the cached block changes only once it is on disk. */
+    setLicense(next: LicenseState): void {
+      const s = this.get();
+      const prev = license;
+      license = LicenseStateSchema.parse(next);
+      try {
+        writeJsonAtomic(file, body(s), io);
+      } catch (e) {
+        license = prev;
+        log.error({ code: 'E_SETTINGS_WRITE', msg: (e as Error).message });
+        throw new Error('E_SETTINGS_WRITE', { cause: e });
+      }
     },
   };
 }

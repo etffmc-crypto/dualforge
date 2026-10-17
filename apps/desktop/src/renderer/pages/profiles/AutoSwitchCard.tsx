@@ -3,6 +3,7 @@ import { MAX_AUTO_SWITCH_RULES, MAX_EXE_LENGTH, type Settings } from '@dualforge
 import { Segmented } from '../../components/controls/Segmented';
 import { TrashIcon } from '../../components/icons';
 import { useStore } from '../../store';
+import { ProLine, useProLocked } from '../../components/Pro';
 import { PickGameModal } from './PickGameModal';
 import { slotOptions, type Slot } from './slots';
 
@@ -33,6 +34,7 @@ export function AutoSwitchCard({ slots }: { slots: Slot[] }) {
   const [profileId, setProfileId] = useState<Rule['profileId']>(slots[1]!.id);
   const [problem, setProblem] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
+  const locked = useProLocked(); // on Free the rules stay listed, greyed; main's game watcher ignores them
   const full = rules.length >= MAX_AUTO_SWITCH_RULES;
   const nameOf = (id: string) => slots.find((s) => s.id === id)?.name ?? id;
 
@@ -59,103 +61,106 @@ export function AutoSwitchCard({ slots }: { slots: Slot[] }) {
         While one of these games is in front, DualForge runs its profile. Switch away and your
         active profile comes back.
       </p>
-      <table className="as-table">
-        <thead>
-          <tr>
-            <th scope="col">Game executable</th>
-            <th scope="col">Profile</th>
-            <th scope="col">
-              <span className="sr-only">Remove</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rules.length === 0 && (
+      {locked && <ProLine feature="autoSwitch" />}
+      <fieldset className={`pro-fieldset${locked ? ' pro-locked' : ''}`} disabled={locked}>
+        <table className="as-table">
+          <thead>
             <tr>
-              <td colSpan={3} className="as-empty">
-                No games yet. Add one below.
-              </td>
+              <th scope="col">Game executable</th>
+              <th scope="col">Profile</th>
+              <th scope="col">
+                <span className="sr-only">Remove</span>
+              </th>
             </tr>
-          )}
-          {rules.map((r) => (
-            <tr key={r.exe} aria-label={`${r.exe} → ${nameOf(r.profileId)}`}>
-              <td className="as-exe">{r.exe}</td>
-              <td>
-                <span className="as-profile">
-                  <span className="as-arrow" aria-hidden="true">
-                    →
+          </thead>
+          <tbody>
+            {rules.length === 0 && (
+              <tr>
+                <td colSpan={3} className="as-empty">
+                  No games yet. Add one below.
+                </td>
+              </tr>
+            )}
+            {rules.map((r) => (
+              <tr key={r.exe} aria-label={`${r.exe} → ${nameOf(r.profileId)}`}>
+                <td className="as-exe">{r.exe}</td>
+                <td>
+                  <span className="as-profile">
+                    <span className="as-arrow" aria-hidden="true">
+                      →
+                    </span>
+                    {nameOf(r.profileId)}
                   </span>
-                  {nameOf(r.profileId)}
-                </span>
-              </td>
-              <td className="as-act">
-                <button
-                  data-nav
-                  type="button"
-                  className="step-icon danger"
-                  aria-label={`Remove rule for ${r.exe}`}
-                  title="Remove"
-                  onClick={() => remove(r)}
-                >
-                  <TrashIcon size={16} />
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <form className="as-add" onSubmit={add} noValidate>
-        <div className="as-exe-row">
-          <input
-            data-nav
-            className="pf-input mono-in"
-            aria-label="Game executable"
-            placeholder="game.exe"
-            value={exe}
-            maxLength={MAX_EXE_LENGTH + 16}
-            spellCheck={false}
-            disabled={full}
-            onChange={(e) => {
-              setExe(e.currentTarget.value);
-              setProblem(null);
-            }}
+                </td>
+                <td className="as-act">
+                  <button
+                    data-nav
+                    type="button"
+                    className="step-icon danger"
+                    aria-label={`Remove rule for ${r.exe}`}
+                    title="Remove"
+                    onClick={() => remove(r)}
+                  >
+                    <TrashIcon size={16} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <form className="as-add" onSubmit={add} noValidate>
+          <div className="as-exe-row">
+            <input
+              data-nav
+              className="pf-input mono-in"
+              aria-label="Game executable"
+              placeholder="game.exe"
+              value={exe}
+              maxLength={MAX_EXE_LENGTH + 16}
+              spellCheck={false}
+              disabled={full}
+              onChange={(e) => {
+                setExe(e.currentTarget.value);
+                setProblem(null);
+              }}
+            />
+            <button
+              data-nav
+              type="button"
+              className="panel-btn"
+              disabled={full}
+              onClick={() => setPicking(true)}
+            >
+              Pick running game
+            </button>
+          </div>
+          <span className="pf-field-label" aria-hidden="true">
+            Runs profile
+          </span>
+          <Segmented
+            label="Profile for this game"
+            options={slotOptions(slots)}
+            value={profileId}
+            onChange={(v) => setProfileId(v)}
           />
-          <button
-            data-nav
-            type="button"
-            className="panel-btn"
-            disabled={full}
-            onClick={() => setPicking(true)}
-          >
-            Pick running game
-          </button>
-        </div>
-        <span className="pf-field-label" aria-hidden="true">
-          Runs profile
-        </span>
-        <Segmented
-          label="Profile for this game"
-          options={slotOptions(slots)}
-          value={profileId}
-          onChange={(v) => setProfileId(v)}
-        />
-        <div className="pf-line">
-          {problem ? (
-            <span className="pf-err" role="alert">
-              {problem}
-            </span>
-          ) : (
-            <span className="psec-hint">
-              {full
-                ? `${MAX_AUTO_SWITCH_RULES} rules is the limit. Remove one to add another.`
-                : `${rules.length} of ${MAX_AUTO_SWITCH_RULES} rules`}
-            </span>
-          )}
-          <button data-nav type="submit" className="panel-btn primary" disabled={full}>
-            Add rule
-          </button>
-        </div>
-      </form>
+          <div className="pf-line">
+            {problem ? (
+              <span className="pf-err" role="alert">
+                {problem}
+              </span>
+            ) : (
+              <span className="psec-hint">
+                {full
+                  ? `${MAX_AUTO_SWITCH_RULES} rules is the limit. Remove one to add another.`
+                  : `${rules.length} of ${MAX_AUTO_SWITCH_RULES} rules`}
+              </span>
+            )}
+            <button data-nav type="submit" className="panel-btn primary" disabled={full}>
+              Add rule
+            </button>
+          </div>
+        </form>
+      </fieldset>
       {picking && (
         <PickGameModal
           taken={new Set(rules.map((r) => r.exe.toLowerCase()))}

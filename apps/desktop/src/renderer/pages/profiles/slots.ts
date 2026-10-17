@@ -1,4 +1,6 @@
-import { PROFILE_IDS } from '@dualforge/shared';
+import { createElement } from 'react';
+import { isFreeSlot, PROFILE_IDS } from '@dualforge/shared';
+import { ProTag } from '../../components/Pro';
 import { useStore } from '../../store';
 
 export interface Slot {
@@ -21,8 +23,13 @@ export function useSlots(): Slot[] {
 export const useActiveId = () =>
   useStore((s) => s.activeProfileId ?? s.settings?.activeProfile ?? null);
 
-export const slotOptions = (slots: Slot[]): { value: Slot['id']; label: string }[] =>
-  slots.map((s) => ({ value: s.id, label: s.name }));
+/** Slot choices; with `locked` (Pro gates on Free) slots 3 and 4 are disabled and carry the Pro tag. */
+export const slotOptions = (slots: Slot[], locked = false) =>
+  slots.map((s) =>
+    locked && !isFreeSlot(s.id)
+      ? { value: s.id, label: s.name, disabled: true, tag: createElement(ProTag) }
+      : { value: s.id, label: s.name },
+  );
 
 /** Main rejects with "Error invoking remote method 'x': Error: E_CODE"; this pulls out the E_CODE (or the raw text). */
 export function errorCode(err: unknown): string {

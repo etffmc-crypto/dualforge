@@ -4,7 +4,7 @@ Applied 2026-10-09 from community research (Gamer Guides 2026, trophi.ai, TheSpi
 
 ## Why the pad side is kept transparent — and square
 
-Rocket League applies its own controller deadzone, dodge deadzone and sensitivity, so anything added on the pad stacks on top of that and makes the car feel heavy or late. Stick **shape** matters more here than in a shooter: aerials and air roll want diagonal inputs that reach 1.0, and the game's own deadzone shape (Cross by default, Square for some players) assumes the native square stick range. A circular normalisation would cap diagonals at about 0.71. So: Raw trajectory, tiny deadzone, linear, no smoothing.
+Rocket League applies its own controller deadzone, dodge deadzone and sensitivity, so anything added on the pad stacks on top of that and makes the car feel heavy or late. Stick **shape** matters more here than in most games: aerials and air roll want diagonal inputs that reach 1.0, and the game's own deadzone shape (Cross by default, Square for some players) assumes the native square stick range. A circular normalisation would cap diagonals at about 0.71. So: Raw trajectory, tiny deadzone, linear, no smoothing.
 
 ## DualForge Profile 2
 

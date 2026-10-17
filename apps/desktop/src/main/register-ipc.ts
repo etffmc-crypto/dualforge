@@ -6,7 +6,12 @@ import {
   SettingsSchema,
   TestRumbleSchema,
   applyTurboEdits,
+  isFreeSlot,
+  isPro,
+  PRO_FEATURES,
   type EngineCommand,
+  type Entitlements,
+  type ProFeature,
   type Profile,
   type Settings,
   type TurboEdit,
@@ -47,12 +52,28 @@ export interface IpcDeps {
   /** Profile names or slots changed (rename, duplicate, reset, import, save, activate); the tray menu refreshes from it. */
   onProfilesChanged?: () => void;
   onSettingsChanged?: (prev: Settings, next: Settings) => void | Promise<void>;
+  /** Pro licensing; absent (or not enforced) = every feature allowed, as in 0.3.x. */
+  license?: { entitlements(): Entitlements };
 }
 
 /** Every handler validates its input with zod in the main process; renderer data is never trusted. */
 export function registerIpc(d: IpcDeps) {
   let engineProfileId: string = d.settings.get().activeProfile;
   let engineSource: 'manual' | 'auto' = 'manual';
+
+  /** Logs at warn level (error when the logger has none), keeping the logger bound: pino methods need their `this`. */
+  const warn = (o: object): void => (d.log.warn ? d.log.warn(o) : d.log.error(o));
+  const pro = () => !d.license || isPro(d.license.entitlements());
+  /** Refuses a Pro action on Free with E_LICENSE_PRO (the message names the feature for the footer). */
+  function requirePro(feature: ProFeature): void {
+    if (pro()) return;
+    warn({ code: 'E_LICENSE_PRO', feature });
+    throw new Error(`E_LICENSE_PRO: ${PRO_FEATURES[feature]}`);
+  }
+  /** Slots 3 and 4 are Pro: writing to them or switching to them is refused on Free (their files stay as they are). */
+  const requireSlot = (id: string): void => {
+    if (!isFreeSlot(id)) requirePro('slots34');
+  };
 
   /** Loads a profile into the engine without persisting it as the user's active profile (used by auto-switch). */
   function applyProfile(id: string, source: 'manual' | 'auto' = 'manual'): Profile {
@@ -65,6 +86,7 @@ export function registerIpc(d: IpcDeps) {
     return p;
   }
   function activate(id: string): Profile {
+    requireSlot(id);
     d.store.flush();
     d.settings.set({ activeProfile: IdSchema.parse(id) });
     return applyProfile(id);
@@ -75,6 +97,7 @@ export function registerIpc(d: IpcDeps) {
       d.log.error({ code: 'E_PROFILE_SCHEMA', msg: 'profiles:set rejected' });
       throw new Error('E_PROFILE_SCHEMA');
     }
+    requireSlot(parsed.data.id);
     d.store.setDeferred(parsed.data); // cache + engine first; the disk write is debounced and cannot block the update
     if (parsed.data.id === engineProfileId)
       d.engine.send({ type: 'setProfile', profile: d.store.get(engineProfileId) });
@@ -88,6 +111,7 @@ export function registerIpc(d: IpcDeps) {
   h('profiles:get', (id) => d.store.get(IdSchema.parse(id)));
   h('profiles:set', saveProfile);
   h('profiles:rename', (id, name) => {
+    requireSlot(IdSchema.parse(id));
     d.store.rename(IdSchema.parse(id), NameSchema.parse(name));
     if (id === engineProfileId)
       d.engine.send({ type: 'setProfile', profile: d.store.get(engineProfileId) });
@@ -95,6 +119,7 @@ export function registerIpc(d: IpcDeps) {
   });
   h('profiles:duplicate', (from, to) => {
     const slot = IdSchema.parse(to);
+    requireSlot(slot);
     const p = d.store.duplicate(IdSchema.parse(from), slot);
     if (slot === engineProfileId) d.engine.send({ type: 'setProfile', profile: p });
     d.onProfilesChanged?.();
@@ -106,7 +131,10 @@ export function registerIpc(d: IpcDeps) {
     if (pid === engineProfileId) d.engine.send({ type: 'setProfile', profile: d.store.get(pid) });
     d.onProfilesChanged?.();
   }
-  h('profiles:reset', resetProfile);
+  h('profiles:reset', (id) => {
+    requireSlot(IdSchema.parse(id));
+    resetProfile(id);
+  });
   h('profiles:export', async (id) => {
     const pid = IdSchema.parse(id);
     const r = await d.dialog.showSaveDialog({
@@ -119,6 +147,7 @@ export function registerIpc(d: IpcDeps) {
   });
   h('profiles:import', async (toSlot) => {
     const slot = IdSchema.parse(toSlot);
+    requireSlot(slot);
     const r = await d.dialog.showOpenDialog({
       properties: ['openFile'],
       filters: [{ name: 'DualForge profile', extensions: ['json'] }],
@@ -130,9 +159,14 @@ export function registerIpc(d: IpcDeps) {
     d.onProfilesChanged?.();
     return p;
   });
-  h('profiles:shareCode', (id) => shareCodeFor(d.store.get(IdSchema.parse(id))));
+  h('profiles:shareCode', (id) => {
+    const pid = IdSchema.parse(id);
+    requirePro('shareExport');
+    return shareCodeFor(d.store.get(pid));
+  });
   h('profiles:importShareCode', (code, toSlot) => {
     const slot = IdSchema.parse(toSlot);
+    requireSlot(slot); // import itself stays free, into slots 1 and 2
     let decoded: Profile;
     try {
       decoded = profileFromShareCode(CodeSchema.parse(code));
@@ -149,12 +183,20 @@ export function registerIpc(d: IpcDeps) {
   h('profiles:activate', (id) => activate(IdSchema.parse(id)));
   h('settings:get', () => d.settings.get());
   h('settings:set', (patch) => {
+    // the license block is main's alone: whatever the renderer sends for it is dropped, the saved one stays
+    if (patch && typeof patch === 'object' && Object.hasOwn(patch, 'license')) {
+      warn({ code: 'LICENSE_PATCH_IGNORED' });
+      const rest = { ...(patch as Record<string, unknown>) };
+      delete rest.license;
+      patch = rest;
+    }
     const parsed = PatchSchema.safeParse(patch);
     if (!parsed.success) {
       d.log.error({ code: 'E_SETTINGS_SCHEMA', msg: 'settings:set rejected' });
       throw new Error('E_SETTINGS_SCHEMA');
     }
-    if (parsed.data.activeProfile !== undefined) IdSchema.parse(parsed.data.activeProfile);
+    if (parsed.data.activeProfile !== undefined)
+      requireSlot(IdSchema.parse(parsed.data.activeProfile));
     const prev = d.settings.get();
     const next = d.settings.set(parsed.data as Partial<Settings>);
     d.engine.send({ type: 'setSettings', settings: next });
@@ -170,7 +212,11 @@ export function registerIpc(d: IpcDeps) {
       throw new Error('E_PROCESSES');
     }
   });
-  h('engine:runMacro', (id) => d.engine.send({ type: 'runMacro', id: MacroIdSchema.parse(id) }));
+  h('engine:runMacro', (id) => {
+    const mid = MacroIdSchema.parse(id);
+    requirePro('macros');
+    d.engine.send({ type: 'runMacro', id: mid });
+  });
   h('engine:stopMacro', (id) => d.engine.send({ type: 'stopMacro', id: MacroIdSchema.parse(id) }));
   h('engine:testRumble', (req) =>
     d.engine.send({ type: 'testRumble', ...TestRumbleSchema.parse(req) }),
@@ -192,7 +238,7 @@ export function registerIpc(d: IpcDeps) {
     }
     if (parsed.data.profileId !== engineProfileId) {
       // a profile switch raced the combo: expected now and then, not a fault
-      (d.log.warn ?? d.log.error)({
+      warn({
         code: 'E_PROFILE_EDIT',
         msg: 'profileEdit for a profile not running',
       });
