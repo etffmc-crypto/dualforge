@@ -12,6 +12,8 @@ import { Toggle } from '../../components/controls/Toggle';
 import { useStore } from '../../store';
 import { TargetPicker, type PickerTab } from './TargetPicker';
 import { TurboControls } from './TurboControls';
+import { ProLine, useProLocked } from '../../components/Pro';
+import type { ProFeature } from '@dualforge/shared';
 import { MAX_TARGETS, mappingOf, pickTarget, targetKey, targetText } from './targets';
 
 const NO_MACROS: Macro[] = [];
@@ -42,6 +44,7 @@ export function MappingModal({ button, onClose }: MappingModalProps) {
   // the parent keys this component by button, so these start fresh for every button
   const [tab, setTab] = useState<PickerTab>(() => tabFor(mapping?.targets[0]));
   const [multi, setMulti] = useState(() => (mapping?.targets.length ?? 0) > 1);
+  const locked = useProLocked();
 
   if (!button || !mapping) return null;
   const label = BUTTON_LABELS[button];
@@ -49,6 +52,29 @@ export function MappingModal({ button, onClose }: MappingModalProps) {
     updateProfile((d) => fn((d.mappings[button] ??= mappingOf(d.mappings, button))));
   const real = mapping.targets.filter((t) => t.type !== 'none');
   const full = multi && real.length >= MAX_TARGETS;
+  /** On Free: the Pro line instead of the picker, and this button's saved outputs of that kind listed as paused. */
+  const gate = (feature: ProFeature, type: Target['type']) => {
+    const paused = mapping.targets.filter((t) => t.type === type);
+    return (
+      <div className="picker-empty">
+        <ProLine feature={feature} />
+        {paused.length > 0 && (
+          <ul className="pro-paused-list" aria-label="Paused outputs">
+            {paused.map((t) => (
+              <li key={targetKey(t)}>{targetText(t, macros)} (paused)</li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  };
+  const lockedTabs = locked
+    ? {
+        keyboard: gate('keyMouse', 'key'),
+        mouse: gate('keyMouse', 'mouse'),
+        macro: gate('macros', 'macro'),
+      }
+    : undefined;
 
   const setMultiMode = (on: boolean) => {
     setMulti(on);
@@ -76,6 +102,7 @@ export function MappingModal({ button, onClose }: MappingModalProps) {
         subject={label}
         selected={mapping.targets}
         full={full}
+        locked={lockedTabs}
         macros={macros}
         onPick={(t) =>
           edit((m) => {

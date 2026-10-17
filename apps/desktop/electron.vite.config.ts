@@ -1,7 +1,8 @@
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 import react from '@vitejs/plugin-react';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { configFromEnv, parseEnvFile } from './src/main/licensing/config';
 
 // Workspace packages ship TypeScript sources, so they must be bundled, not externalized.
 const bundled = ['@dualforge/engine', '@dualforge/shared'];
@@ -16,11 +17,25 @@ const publishOwner = /^\s*owner:\s*['"]?([^'"\s#]+)/m.exec(
 )?.[1];
 const updatesEnabled = !!publishOwner && publishOwner !== 'dualforge';
 const updatesDefine = { __UPDATES_ENABLED__: JSON.stringify(updatesEnabled) };
+// Pro licensing (docs/licensing.md): the Lemon Squeezy ids come from the build environment, else from the git-ignored
+// F:\DualForge\.env.licensing. No store id or no product id = a dormant build (no Plan card, no gates, no network).
+const licenseEnvFile = resolve(__dirname, '../../.env.licensing');
+const licenseEnv = {
+  ...(existsSync(licenseEnvFile) ? parseEnvFile(readFileSync(licenseEnvFile, 'utf8')) : {}),
+  ...Object.fromEntries(
+    Object.entries(process.env).filter(([k, v]) => k.startsWith('DUALFORGE_LS_') && v),
+  ),
+};
+const licenseDefine = { __LICENSE_CONFIG__: JSON.stringify(configFromEnv(licenseEnv)) };
 
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin({ exclude: bundled })],
-    define: { __APP_VERSION__: JSON.stringify(rootPkg.version), ...updatesDefine },
+    define: {
+      __APP_VERSION__: JSON.stringify(rootPkg.version),
+      ...updatesDefine,
+      ...licenseDefine,
+    },
     build: {
       rollupOptions: {
         input: {

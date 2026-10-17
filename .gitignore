@@ -18,3 +18,8 @@ maintenance/reports/responder-*.md
 maintenance/reports/????-??-??.md
 maintenance/reports/actions-*.json
 maintenance/outbox/*.json
+
+# licensing: the founder private key and the Lemon Squeezy build config never enter git
+secrets/
+*.pem
+.env*

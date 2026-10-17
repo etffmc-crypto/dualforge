@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { isFreeSlot } from '@dualforge/shared';
 import { useStore } from '../../store';
+import { ProTag, useProLocked } from '../../components/Pro';
 import { DuplicateDialog, ResetSlotDialog } from './SlotDialogs';
 import { flushEdits, reportError, type Slot } from './slots';
 
@@ -66,6 +68,8 @@ export function SlotCard({ slot, slots, active, onNotice }: SlotCardProps) {
   const [editing, setEditing] = useState(false);
   const [dialog, setDialog] = useState<'duplicate' | 'reset' | null>(null);
   const close = () => setDialog(null);
+  // slots 3 and 4 on Free: their content stays on disk, but switching to them and editing them waits for Pro
+  const locked = useProLocked() && !isFreeSlot(slot.id);
 
   const commitName = (raw: string | null) => {
     setEditing(false);
@@ -126,6 +130,7 @@ export function SlotCard({ slot, slots, active, onNotice }: SlotCardProps) {
         </span>
         <span className="slot-eyebrow">Slot {slot.n}</span>
         {active && <span className="slot-badge">Active</span>}
+        {locked && <ProTag />}
       </div>
       {editing ? (
         <NameField slot={slot} onDone={commitName} />
@@ -139,25 +144,43 @@ export function SlotCard({ slot, slots, active, onNotice }: SlotCardProps) {
           data-nav
           type="button"
           className="slot-btn"
-          disabled={active}
+          disabled={active || locked}
           onClick={() => void activate(slot.id).catch(reportError('E_PROFILE_ACTIVATE'))}
         >
           Activate
         </button>
-        <button data-nav type="button" className="slot-btn" onClick={() => setEditing(true)}>
+        <button
+          data-nav
+          type="button"
+          className="slot-btn"
+          disabled={locked}
+          onClick={() => setEditing(true)}
+        >
           Rename
         </button>
         <button data-nav type="button" className="slot-btn" onClick={() => setDialog('duplicate')}>
           Duplicate to…
         </button>
-        <button data-nav type="button" className="slot-btn" onClick={() => setDialog('reset')}>
+        <button
+          data-nav
+          type="button"
+          className="slot-btn"
+          disabled={locked}
+          onClick={() => setDialog('reset')}
+        >
           Reset
         </button>
         <span className="slot-sep" aria-hidden="true" />
         <button data-nav type="button" className="slot-btn" onClick={() => void exportFile()}>
           Export
         </button>
-        <button data-nav type="button" className="slot-btn" onClick={() => void importFile()}>
+        <button
+          data-nav
+          type="button"
+          className="slot-btn"
+          disabled={locked}
+          onClick={() => void importFile()}
+        >
           Import
         </button>
       </div>

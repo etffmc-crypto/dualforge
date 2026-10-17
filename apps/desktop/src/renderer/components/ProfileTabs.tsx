@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { PROFILE_IDS } from '@dualforge/shared';
+import { isFreeSlot, PROFILE_IDS } from '@dualforge/shared';
+import { ProTag, useProLocked } from './Pro';
 import { useStore } from '../store';
 import { onTabKeyDown } from './controls/tabKeys';
 import { PencilIcon } from './icons';
@@ -61,6 +62,8 @@ export function ProfileTabs() {
   const activate = useStore((s) => s.activateProfile);
   const rename = useStore((s) => s.renameProfile);
   const [editing, setEditing] = useState<string | null>(null);
+  const proLocked = useProLocked();
+  const goPlan = useStore((s) => s.goPlan);
 
   const slots = PROFILE_IDS.map((id, i) => ({
     id,
@@ -95,6 +98,7 @@ export function ProfileTabs() {
     >
       {slots.map(({ id, name }) => {
         const active = id === activeId;
+        const locked = proLocked && !isFreeSlot(id); // slots 3 and 4 on Free: a click opens the Plan card
         if (editing === id) {
           return (
             <span key={id} className={`ptab editing${active ? ' active' : ''}`}>
@@ -117,7 +121,8 @@ export function ProfileTabs() {
               className="ptab-btn"
               title={`${name} — right-click or F2 to rename`}
               onClick={() => {
-                if (!active)
+                if (locked && !active) goPlan();
+                else if (!active)
                   void activate(id).catch((err: unknown) =>
                     useStore.setState({
                       lastError: { code: 'E_PROFILE_ACTIVATE', msg: String(err) },
@@ -131,6 +136,7 @@ export function ProfileTabs() {
             >
               <span className="ptab-dot" aria-hidden="true" />
               <span className="ptab-name">{name}</span>
+              {locked && <ProTag />}
             </button>
             {active && (
               <button

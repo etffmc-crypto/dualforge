@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Macro } from '@dualforge/shared';
 import { Modal } from '../components/Modal';
 import { useStore } from '../store';
+import { ProLine, useProLocked } from '../components/Pro';
 import { MacroEditor } from './macros/MacroEditor';
 import { MacroList } from './macros/MacroList';
 import {
@@ -21,6 +22,7 @@ export function Macros() {
   const updateProfile = useStore((s) => s.updateProfile);
   const [editing, setEditing] = useState<{ macro: Macro; isNew: boolean } | null>(null);
   const [deleting, setDeleting] = useState<Macro | null>(null);
+  const locked = useProLocked();
   if (!profile) return null; // still loading
 
   const full = profile.macros.length >= MAX_MACROS;
@@ -60,6 +62,7 @@ export function Macros() {
           New macro
         </button>
       </header>
+      {locked && <ProLine feature="macros" />}
       {profile.macros.length === 0 ? (
         <div className="macros-empty">
           <h3>No macros yet</h3>

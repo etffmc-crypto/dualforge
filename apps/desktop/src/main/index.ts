@@ -46,6 +46,15 @@ import { createTray, type AppTray } from './tray.js';
 import { createUpdater, registerUpdateIpc, resolveAutoUpdater } from './updater.js';
 import { createQuitCleanup } from './quit-cleanup.js';
 import { createDriverInstaller, registerDriverIpc, type DriverStatus } from './driver-installer.js';
+import { isPro } from '@dualforge/shared';
+import { configFromEnv, resolveLicenseMode } from './licensing/config.js';
+import { createFounderVerifier } from './licensing/founder.js';
+import { FakeLicenseProvider } from './licensing/fake.js';
+import { createEngineGate } from './licensing/gate.js';
+import { registerLicenseIpc } from './licensing/ipc.js';
+import { LemonSqueezyProvider } from './licensing/lemonsqueezy.js';
+import { cachedFingerprint } from './licensing/machine-id.js';
+import { createLicenseService } from './licensing/service.js';
 
 let win: BrowserWindow | null = null;
 let tray: AppTray | null = null;
@@ -74,6 +83,50 @@ const crashDir = join(dataDir, 'crashes');
 startCrashReporter(app, crashReporter, crashDir);
 const store = createProfileStore(dataDir, logger);
 const settings = createSettingsStore(dataDir, logger);
+// Pro licensing (docs/licensing.md): dormant unless the build baked in a Lemon Squeezy store and product, or a test run
+// asked for the fake provider. Dormant = no Plan card, no gates, no network, exactly 0.3.x.
+const licenseMode = resolveLicenseMode(
+  typeof __LICENSE_CONFIG__ === 'object' && __LICENSE_CONFIG__
+    ? __LICENSE_CONFIG__
+    : configFromEnv({}),
+  process.env,
+  !app.isPackaged, // a shipped build never honours the test-only fake provider
+);
+const licenseCheckout = licenseMode.kind === 'dormant' ? '' : licenseMode.config.checkoutUrl;
+const licensePortal = licenseMode.kind === 'dormant' ? '' : licenseMode.config.portalUrl;
+const license = createLicenseService({
+  provider:
+    licenseMode.kind === 'lemonsqueezy'
+      ? new LemonSqueezyProvider(licenseMode.config)
+      : licenseMode.kind === 'fake'
+        ? new FakeLicenseProvider(licenseMode.dataDir)
+        : null,
+  settingsStore: settings,
+  founderVerifier: createFounderVerifier(
+    licenseMode.kind === 'fake' ? licenseMode.founderPublicKey : undefined,
+  ),
+  log: logger,
+  enforced: licenseMode.kind !== 'dormant',
+  checkoutUrl: licenseCheckout,
+  portalUrl: licensePortal,
+  fingerprint: cachedFingerprint(),
+  onChange: (view, tierChanged) => {
+    if (tierChanged) {
+      gate.refresh(); // the engine runs the saved profile again, gated for the new tier
+      tray?.refresh();
+    }
+    if (win && !win.isDestroyed()) win.webContents.send('license:changed', view);
+  },
+});
+// every profile and settings push to the engine goes through the gate (applyEntitlements, turbo combo off on Free)
+const gate = createEngineGate(engine, () => license.entitlements());
+registerLicenseIpc({
+  ipc: ipcMain,
+  service: license,
+  checkoutUrl: licenseCheckout,
+  portalUrl: licensePortal,
+  openExternal: (url) => shell.openExternal(url),
+});
 const updater = createUpdater({
   enabled: () => __UPDATES_ENABLED__ && settings.get().updates, // build-time gate: off until a real publish owner is set
   isPackaged: app.isPackaged,
@@ -147,7 +200,8 @@ const ipc = registerIpc({
   dialog,
   store,
   settings,
-  engine,
+  engine: gate,
+  license,
   log: logger,
   processes: createProcessLister(undefined, [basename(process.execPath)]),
   notifyActive: (id) => {
@@ -161,7 +215,7 @@ const ipc = registerIpc({
   onSettingsChanged: createSettingsHooks({
     hidhide: hidHideQueue,
     settingsStore: settings,
-    engine,
+    engine: gate,
     log: logger,
     applyLoginItem: (next) => applyLoginItem(app, next, logger),
     onUpdatesEnabled: () => {
@@ -174,7 +228,7 @@ const ipc = registerIpc({
 });
 
 // The main process loads the addon too, only to read the foreground process name for auto-switching (E_INJECT_LOAD is logged once).
-const focusGate = createFocusGate((focused) => engine.send({ type: 'uiFocused', focused }));
+const focusGate = createFocusGate((focused) => gate.send({ type: 'uiFocused', focused }));
 const injector = createInjector((code, msg) => logger.error({ code, msg }));
 const watcher = createGameWatcher({
   foreground: () => injector.foreground(),
@@ -185,6 +239,7 @@ const watcher = createGameWatcher({
   foregroundElevated: () => injector.foregroundElevated(),
   foregroundPid: () => injector.foregroundPid(),
   onOwnForeground: (own) => focusGate.ownForeground(own),
+  rulesEnabled: () => isPro(license.entitlements()),
 });
 
 const installer = createDriverInstaller({
@@ -257,7 +312,7 @@ const health = createHealthService({
       // the setting is turned on inside the queue, before converge reads it; the quit/startup logic follows it
       hidHideQueue.repair(() => {
         if (!settings.get().hidHide)
-          engine.send({ type: 'setSettings', settings: settings.set({ hidHide: true }) });
+          gate.send({ type: 'setSettings', settings: settings.set({ hidHide: true }) });
       }),
     exportBundle: async () =>
       (await bundle.exportWithDialog()) ? { ok: true } : { ok: false, code: 'E_BUNDLE_CANCELLED' },
@@ -357,7 +412,7 @@ function createWindow(): void {
 
 ipcMain.handle('engine:replay', (_e, raw: unknown) => {
   try {
-    engine.send({ type: 'replay', path: validateReplayPath(raw) });
+    gate.send({ type: 'replay', path: validateReplayPath(raw) });
   } catch (err) {
     if ((err as Error).message !== 'E_REPLAY_PATH')
       logger.error({ code: 'E_REPLAY_PATH', msg: (err as Error).message });
@@ -366,7 +421,7 @@ ipcMain.handle('engine:replay', (_e, raw: unknown) => {
 });
 // no payload: the renderer can only ever open our own data folder
 ipcMain.handle('system:openDataDir', () => shell.openPath(dataDir));
-ipcMain.handle('engine:useDevice', () => engine.send({ type: 'useDevice' }));
+ipcMain.handle('engine:useDevice', () => gate.send({ type: 'useDevice' }));
 ipcMain.on('window:minimize', () => win?.minimize());
 ipcMain.on('window:toggleMaximize', () =>
   win?.isMaximized() ? win.unmaximize() : win?.maximize(),
@@ -425,12 +480,13 @@ if (hasInstanceLock) {
     if (__UPDATES_ENABLED__ && settings.get().updates)
       setTimeout(() => void updater.check(), 10_000); // opt-in only
     engine.start();
-    engine.send({ type: 'setSettings', settings: settings.get() });
+    gate.send({ type: 'setSettings', settings: settings.get() });
     focusGate.windowFocus(win?.isFocused() ?? true);
     focusGate.resend();
     ipc.applyProfile(settings.get().activeProfile);
     watcher.start();
     health.start();
+    license.start(); // re-derives the tier and runs the daily check (only when a provider is configured)
     if (settings.get().hidHide) void startupHidHide(); // cloak is off after a quit/reboot: switch it on again
   });
   // the cloak-off runs once (here or already from "Install & restart"); the real quit waits for it
@@ -450,6 +506,7 @@ if (hasInstanceLock) {
     }
     tray?.destroy();
     health.stop();
+    license.stop();
     watcher.stop();
     ipc.flush();
     engine.stop();
