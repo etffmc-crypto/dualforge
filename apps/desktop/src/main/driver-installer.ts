@@ -24,7 +24,10 @@ export interface DriverPin {
   sha256: string | null;
 }
 export const DRIVER_PINS: Partial<Record<DriverId, DriverPin>> = {
-  vigem: { tag: 'v1.22.0', sha256: null },
+  vigem: {
+    tag: 'v1.22.0',
+    sha256: '89220a7865076b342892f98865f3499fb7c4cfd673159e89d352c360fd014c6a',
+  },
 };
 export const SIGNER = 'Nefarius Software Solutions';
 export const MAX_DOWNLOAD_BYTES = 50 * 1024 * 1024;
