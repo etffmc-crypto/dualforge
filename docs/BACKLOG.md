@@ -32,7 +32,7 @@ Carried from the Plan 1 and Plan 2 review ledgers. Triage into Plan 3/4 tasks.
 - Plan 4 hand-off: preload surface (flags.navReplay, profiles._, settings._, system.{openDataDir,processes}, engine.{runMacro,testRumble}); env DUALFORGE_DATA_DIR (logs ignore it — fix), DUALFORGE_NO_INJECT, DUALFORGE_NAV_REPLAY; e2e temp dirs never cleaned; nav e2e needs real window focus; Home auto-routes to Overview on first connected snapshot.
 - [done] stopMacro command + stop play-test on editor close/blur (keys can inject into another app after alt-tab).
 - Store races: edits during profile switch lost (sequence counter); rename vs in-flight save (flushPending before rename); overlapping optimistic settings updates.
-- system:openDataDir ignores shell.openPath error string; handler not in registerIpc (untested).
+- [done] system:openDataDir now rejects (and logs E_OPEN_DATA_DIR) when shell.openPath returns an error string (open-path.ts, tested); handler still not in registerIpc.
 - Header: Home + Input Test duplicated (tab strip and right icons) — settle when adding Health.
 - Header profile tabs vs active auto-switch semantics (manual activate during a game rule).
 - [done Plan 4] Spec: .dfprofile vs .dualforge.json; Vibrations trigger-effect strength missing from schema (moot for digital triggers).
