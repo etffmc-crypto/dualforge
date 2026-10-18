@@ -75,4 +75,4 @@ Every feature whose point is a felt or visible effect must ship with a test that
 - Updater: with an `unknown` current version the fallback `version !== currentVersion` reports an update when electron-updater omits `isUpdateAvailable` (not reachable in the packaged build).
 - Health "Retry now" shows Done even if the CLI hangs again; the card keeps its title (wording only).
 - [done] Health HidHide hang text now derives from HIDHIDE_PROBE_TIMEOUT_MS / HIDHIDE_BACKOFF_MS.
-- A non-timeout, non-denied HidHideCLI list failure is still logged on every run (no memo).
+- [done] A non-timeout, non-denied HidHideCLI list failure is logged once per flag and code (memo.listFailed), re-armed by a successful call.

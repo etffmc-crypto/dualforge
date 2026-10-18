@@ -125,9 +125,11 @@ export interface HidHideMemo {
   until: number;
   /** The state already written to the log (cleared when the CLI answers again). */
   logged: HidHideCliState | null;
+  /** List flags whose (non-hang, non-denied) failure is already in the log, with the code it was logged under. */
+  listFailed: Map<string, string>;
 }
 export function createHidHideMemo(): HidHideMemo {
-  return { state: null, until: 0, logged: null };
+  return { state: null, until: 0, logged: null, listFailed: new Map() };
 }
 
 /** Forget an unresponsive CLI so the next health run probes it again (the "Retry now" repair). */
@@ -220,7 +222,9 @@ export async function queryHidHide(d: HidHideDeps): Promise<HealthInput['hidhide
   const list = async (flag: string): Promise<string | null> => {
     if (hung || denied) return null;
     try {
-      return (await d.exec(d.cliPath, [flag], { timeoutMs: HIDHIDE_PROBE_TIMEOUT_MS })).stdout;
+      const out = (await d.exec(d.cliPath, [flag], { timeoutMs: HIDHIDE_PROBE_TIMEOUT_MS })).stdout;
+      memo.listFailed.delete(flag);
+      return out;
     } catch (e) {
       if (isTimeout(e)) {
         hung = (e as Error).message;
@@ -230,10 +234,12 @@ export async function queryHidHide(d: HidHideDeps): Promise<HealthInput['hidhide
         denied = `${flag}: ${(e as Error).message} (needs administrator)`;
         return null;
       }
-      d.onError(
-        e instanceof HealthAdapterError ? e.code : 'E_HEALTH_HIDHIDE',
-        `${flag}: ${(e as Error).message}`,
-      );
+      // logged once per flag and code, not on every 5-minute run; a successful call re-arms it
+      const code = e instanceof HealthAdapterError ? e.code : 'E_HEALTH_HIDHIDE';
+      if (memo.listFailed.get(flag) !== code) {
+        memo.listFailed.set(flag, code);
+        d.onError(code, `${flag}: ${(e as Error).message}`);
+      }
       return null;
     }
   };
