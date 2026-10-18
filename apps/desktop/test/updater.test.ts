@@ -14,6 +14,7 @@ function rig(
   opts: {
     enabled?: boolean;
     packaged?: boolean;
+    currentVersion?: string;
     check?: () => Promise<unknown>;
     download?: () => Promise<unknown>;
     beforeInstall?: () => Promise<void>;
@@ -44,7 +45,7 @@ function rig(
     onResult: (r) => results.push(r),
     onProgress: (p) => progressSeen.push(p),
     ...(opts.beforeInstall ? { beforeInstall: opts.beforeInstall } : {}),
-    currentVersion: '0.1.0',
+    currentVersion: opts.currentVersion ?? '0.1.0',
   });
   return { u, au, load, log, results, progressSeen, emitProgress: (p: never) => progress?.(p) };
 }
@@ -69,6 +70,17 @@ describe('updater', () => {
       check: async () => ({ isUpdateAvailable: false, updateInfo: { version: '0.1.0' } }),
     });
     expect(await r.u.check()).toEqual({ available: false });
+  });
+  it('never claims an update when the running version is unknown and the flag is missing', async () => {
+    const r = rig({
+      currentVersion: 'unknown',
+      check: async () => ({ updateInfo: { version: '0.2.0' } }),
+    });
+    expect(await r.u.check()).toEqual({ available: false });
+  });
+  it('still falls back to a version compare when the flag is missing and the version is known', async () => {
+    const r = rig({ check: async () => ({ updateInfo: { version: '0.2.0' } }) });
+    expect(await r.u.check()).toEqual({ available: true, version: '0.2.0' });
   });
   it('dev builds answer E_UPDATE_DEV without touching the network', async () => {
     const r = rig({ packaged: false });
