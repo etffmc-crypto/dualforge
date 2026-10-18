@@ -14,9 +14,11 @@ test('app launches, pages render, replay drives widgets', async () => {
     (p) => window.dualforge.replay(p),
     resolve(import.meta.dirname, '../../../packages/engine/test/fixtures/stick-sweep.hidlog'),
   );
-  await expect
-    .poll(async () => page.locator('.cell.on').count(), { timeout: 5000 })
-    .toBeGreaterThan(0);
+  // The fixture pulses cross (20 frames on, 20 off). Watching it go on and then off proves the replay drives the
+  // grid; a held button on a real pad would satisfy a bare `.cell.on` count.
+  const cross = page.locator('.cell', { hasText: /^cross$/ });
+  await expect(cross).toHaveClass(/(^| )on( |$)/, { timeout: 5000 });
+  await expect(cross).not.toHaveClass(/(^| )on( |$)/, { timeout: 5000 });
   await app.close();
 });
 
