@@ -1,23 +1,28 @@
+import { Suspense, lazy } from 'react';
 import { Shell } from './components/Shell';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useStore } from './store';
 import { Home } from './pages/Home';
-import { InputTest } from './pages/InputTest';
-import { Sticks } from './pages/Sticks';
-import { Triggers } from './pages/Triggers';
-import { Settings } from './pages/Settings';
 import { Overview } from './pages/Overview';
-import { Buttons } from './pages/Buttons';
-import { Turbo } from './pages/Turbo';
-import { Macros } from './pages/Macros';
-import { Motion } from './pages/Motion';
-import { Vibrations } from './pages/Vibrations';
-import { Lights } from './pages/Lights';
-import { Profiles } from './pages/Profiles';
-import { Health } from './pages/Health';
 import './styles/shell.css';
 import './styles/pages.css';
 import './styles/controls.css';
+
+// secondary pages load on first visit so the first paint ships a smaller bundle
+const InputTest = lazy(() => import('./pages/InputTest').then((m) => ({ default: m.InputTest })));
+const Sticks = lazy(() => import('./pages/Sticks').then((m) => ({ default: m.Sticks })));
+const Triggers = lazy(() => import('./pages/Triggers').then((m) => ({ default: m.Triggers })));
+const Settings = lazy(() => import('./pages/Settings').then((m) => ({ default: m.Settings })));
+const Buttons = lazy(() => import('./pages/Buttons').then((m) => ({ default: m.Buttons })));
+const Turbo = lazy(() => import('./pages/Turbo').then((m) => ({ default: m.Turbo })));
+const Macros = lazy(() => import('./pages/Macros').then((m) => ({ default: m.Macros })));
+const Motion = lazy(() => import('./pages/Motion').then((m) => ({ default: m.Motion })));
+const Vibrations = lazy(() =>
+  import('./pages/Vibrations').then((m) => ({ default: m.Vibrations })),
+);
+const Lights = lazy(() => import('./pages/Lights').then((m) => ({ default: m.Lights })));
+const Profiles = lazy(() => import('./pages/Profiles').then((m) => ({ default: m.Profiles })));
+const Health = lazy(() => import('./pages/Health').then((m) => ({ default: m.Health })));
 
 function Page() {
   const page = useStore((s) => s.page);
@@ -58,7 +63,9 @@ export default function App() {
   return (
     <ErrorBoundary>
       <Shell>
-        <Page />
+        <Suspense fallback={null}>
+          <Page />
+        </Suspense>
       </Shell>
     </ErrorBoundary>
   );
