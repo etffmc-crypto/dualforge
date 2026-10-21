@@ -349,7 +349,7 @@ describe('turbo through the pipeline', () => {
   it('compileProfile records turbo settings (default when omitted) and whether any turbo is set', () => {
     const p = defaultProfile('p', 'p');
     expect(compileProfile(p).turbo).toEqual({
-      modeButton: 'touchpad',
+      modeButton: 'mic',
       lightbarPulse: true,
       onPadAssign: true,
     });

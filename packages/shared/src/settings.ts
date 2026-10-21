@@ -7,8 +7,11 @@ export const MAX_EXE_LENGTH = 64;
 
 /** On-pad turbo: hold `modeButton` + press a button to cycle its turbo; double-tap `modeButton` clears all turbo. */
 export const TurboSettingsSchema = z.object({
-  /** null disables the on-pad combo (the button keeps its normal mapping). */
-  modeButton: z.enum(DS_BUTTONS).nullable().default('touchpad'),
+  /**
+   * null disables the on-pad combo (the button keeps its normal mapping). The mic mute button is the default: games
+   * never read it on PC, while the touchpad click is a live input in many of them.
+   */
+  modeButton: z.enum(DS_BUTTONS).nullable().default('mic'),
   /** The lightbar pulses red while any button has turbo set. */
   lightbarPulse: z.boolean().default(true),
   onPadAssign: z.boolean().default(true),

@@ -22,12 +22,12 @@ function fakeSink(): PadSink & { frames: XInputState[] } {
   };
 }
 /** A USB input report with the d-pad neutral and the given buttons down. */
-function usb(o: { cross?: boolean; touchpad?: boolean } = {}): Uint8Array {
+function usb(o: { cross?: boolean; mic?: boolean } = {}): Uint8Array {
   const b = new Uint8Array(64);
   b[0] = 0x01;
   b[1] = b[2] = b[3] = b[4] = 128;
   b[8] = 0x08 | (o.cross ? 0x20 : 0);
-  b[10] = o.touchpad ? 0x02 : 0;
+  b[10] = o.mic ? 0x04 : 0; // mic mute button: the default turbo mode button
   return b;
 }
 
@@ -83,10 +83,10 @@ afterEach(() => vi.useRealTimers());
 describe('engine loop turbo', () => {
   it('the on-pad combo emits profileEdit and applies it locally, so the next combo keeps cycling', async () => {
     const r = await rig();
-    r.send({ touchpad: true });
-    expect(r.send({ touchpad: true, cross: true })).toBe(false);
-    r.send({ touchpad: true });
-    r.send({ touchpad: true, cross: true });
+    r.send({ mic: true });
+    expect(r.send({ mic: true, cross: true })).toBe(false);
+    r.send({ mic: true });
+    r.send({ mic: true, cross: true });
     expect(r.edits()).toEqual([
       {
         type: 'profileEdit',
@@ -103,19 +103,19 @@ describe('engine loop turbo', () => {
   });
   it('a replay never edits the profile', async () => {
     const r = await rig('replay');
-    r.send({ touchpad: true });
-    r.send({ touchpad: true, cross: true });
+    r.send({ mic: true });
+    r.send({ mic: true, cross: true });
     expect(r.edits()).toEqual([]);
     await r.loop.stop();
   });
-  it('settings.turbo reaches the mapping stage: modeButton null makes touchpad + cross a plain press', async () => {
+  it('settings.turbo reaches the mapping stage: modeButton null makes mic + cross a plain press', async () => {
     const r = await rig();
     r.loop.setSettings({
       ...defaultSettings(),
       turbo: { ...defaultSettings().turbo, modeButton: null },
     });
-    r.send({ touchpad: true });
-    expect(r.send({ touchpad: true, cross: true })).toBe(true);
+    r.send({ mic: true });
+    expect(r.send({ mic: true, cross: true })).toBe(true);
     expect(r.edits()).toEqual([]);
     await r.loop.stop();
   });

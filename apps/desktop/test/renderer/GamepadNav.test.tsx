@@ -269,28 +269,28 @@ describe('gamepad navigation', () => {
     expect(onBottom).toHaveBeenCalledTimes(2);
   });
 
-  it('the on-pad turbo combo (touchpad + cross) is not a click, nor is releasing the touchpad first', () => {
-    useStore.setState({ settings: defaultSettings() }); // turbo mode button: touchpad
+  it('the on-pad turbo combo (mic + cross) is not a click, nor is releasing the mic button first', () => {
+    useStore.setState({ settings: defaultSettings() }); // turbo mode button: mic
     const onBottom = vi.fn();
     mount(<Stacked onBottom={onBottom} />);
     screen.getByRole('button', { name: 'Bottom' }).focus();
     feed([]);
-    feed(['touchpad']);
-    feed(['touchpad', 'cross']);
-    feed(['touchpad']);
-    feed(['touchpad', 'cross', 'r1']);
-    feed(['cross', 'r1']); // touchpad let go while cross and R1 are still down: not presses
+    feed(['mic']);
+    feed(['mic', 'cross']);
+    feed(['mic']);
+    feed(['mic', 'cross', 'r1']);
+    feed(['cross', 'r1']); // mic let go while cross and R1 are still down: not presses
     feed([]);
     expect(onBottom).not.toHaveBeenCalled();
     expect(useStore.getState().page).toBe('buttons');
     tap('cross'); // a plain press still clicks
     expect(onBottom).toHaveBeenCalledTimes(1);
-    // with on-pad assignment off the touchpad is no modifier
+    // with on-pad assignment off the mic button is no modifier
     useStore.setState({
       settings: { ...defaultSettings(), turbo: { ...defaultSettings().turbo, onPadAssign: false } },
     });
-    feed(['touchpad']);
-    feed(['touchpad', 'cross']);
+    feed(['mic']);
+    feed(['mic', 'cross']);
     expect(onBottom).toHaveBeenCalledTimes(2);
   });
 
