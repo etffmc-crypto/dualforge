@@ -121,7 +121,7 @@ describe('applySettingsEntitlements', () => {
   it('turns the on-pad turbo combo off when not Pro, without mutating', () => {
     const s = defaultSettings();
     expect(applySettingsEntitlements(s, FREE).turbo.modeButton).toBeNull();
-    expect(s.turbo.modeButton).toBe('touchpad');
+    expect(s.turbo.modeButton).toBe('mic');
     expect(applySettingsEntitlements(s, PRO)).toBe(s);
     expect(applySettingsEntitlements(s, DORMANT)).toBe(s);
   });
