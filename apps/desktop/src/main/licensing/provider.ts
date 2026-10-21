@@ -21,7 +21,7 @@ export interface ProviderAnswer {
   instanceName?: string;
   /** null = lifetime. */
   expiresAt?: string | null;
-  /** monthly | yearly | lifetime | founder-lifetime, or '' when the variant is not recognised. */
+  /** monthly | yearly | lifetime, or '' when the variant is not recognised. */
   variant?: string;
   error?: 'bad-key' | 'limit' | 'wrong-product' | 'unreachable' | string;
 }

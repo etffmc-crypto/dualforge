@@ -26,7 +26,7 @@ interface LsBody {
 
 /**
  * The variant from the explicit ids first (DUALFORGE_LS_VARIANT_*), else from the variant name
- * ("Founder" before "Lifetime", then "Yearly", "Monthly", case-insensitive); '' when neither matches.
+ * ("Lifetime", then "Yearly", "Monthly", case-insensitive); '' when neither matches.
  */
 export function mapVariant(
   meta: LsBody['meta'],
@@ -34,13 +34,11 @@ export function mapVariant(
 ): ProviderAnswer['variant'] {
   const id = meta?.variant_id === undefined ? '' : String(meta.variant_id);
   if (id) {
-    if (v.founder && id === v.founder) return 'founder-lifetime';
     if (v.lifetime && id === v.lifetime) return 'lifetime';
     if (v.yearly && id === v.yearly) return 'yearly';
     if (v.monthly && id === v.monthly) return 'monthly';
   }
   const name = (meta?.variant_name ?? '').toLowerCase();
-  if (name.includes('founder')) return 'founder-lifetime';
   if (name.includes('lifetime')) return 'lifetime';
   if (name.includes('yearly')) return 'yearly';
   if (name.includes('monthly')) return 'monthly';

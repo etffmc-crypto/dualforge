@@ -127,16 +127,15 @@ describe('Lemon Squeezy provider', () => {
 
 describe('variant mapping', () => {
   const none = configFromEnv({}).variants;
-  it('matches the variant name, Founder before Lifetime, case-insensitive', () => {
+  it('matches the variant name, case-insensitive', () => {
     expect(mapVariant({ variant_name: 'Pro Monthly' }, none)).toBe('monthly');
     expect(mapVariant({ variant_name: 'YEARLY' }, none)).toBe('yearly');
     expect(mapVariant({ variant_name: 'Lifetime' }, none)).toBe('lifetime');
-    expect(mapVariant({ variant_name: 'Founder lifetime' }, none)).toBe('founder-lifetime');
     expect(mapVariant({ variant_name: 'Default' }, none)).toBe('');
   });
   it('explicit variant ids win over the name', () => {
-    const v = configFromEnv({ DUALFORGE_LS_VARIANT_FOUNDER: '77' }).variants;
-    expect(mapVariant({ variant_id: 77, variant_name: 'Lifetime' }, v)).toBe('founder-lifetime');
-    expect(mapVariant({ variant_id: 78, variant_name: 'Lifetime' }, v)).toBe('lifetime');
+    const v = configFromEnv({ DUALFORGE_LS_VARIANT_LIFETIME: '77' }).variants;
+    expect(mapVariant({ variant_id: 77, variant_name: 'Default' }, v)).toBe('lifetime');
+    expect(mapVariant({ variant_id: 78, variant_name: 'Yearly' }, v)).toBe('yearly');
   });
 });
