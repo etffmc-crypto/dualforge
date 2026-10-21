@@ -10,7 +10,7 @@ export interface LicenseBuildConfig {
   /** The store's customer billing portal (https://<store>.lemonsqueezy.com/billing); '' = plain text on the card. */
   portalUrl: string;
   /** Optional explicit variant ids; they win over the variant-name match. */
-  variants: { monthly: string; yearly: string; lifetime: string; founder: string };
+  variants: { monthly: string; yearly: string; lifetime: string };
 }
 
 export type LicenseMode =
@@ -38,7 +38,6 @@ export function configFromEnv(env: Env): LicenseBuildConfig {
       monthly: (env.DUALFORGE_LS_VARIANT_MONTHLY ?? '').trim(),
       yearly: (env.DUALFORGE_LS_VARIANT_YEARLY ?? '').trim(),
       lifetime: (env.DUALFORGE_LS_VARIANT_LIFETIME ?? '').trim(),
-      founder: (env.DUALFORGE_LS_VARIANT_FOUNDER ?? '').trim(),
     },
   };
 }
