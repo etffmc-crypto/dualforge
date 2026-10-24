@@ -67,7 +67,22 @@ export function evaluateLut(lut: Float32Array, v: number): number {
   return a + (b - a) * f;
 }
 
-export function applyStickLut(x: number, y: number, lut: Float32Array): { x: number; y: number } {
+/**
+ * `square` (Raw trajectory): the curve runs on each axis alone, so a full diagonal (1, 1) stays (1, 1).
+ * The circular path clamps the vector magnitude to 1, which would cap a Raw corner at about 0.707.
+ */
+export function applyStickLut(
+  x: number,
+  y: number,
+  lut: Float32Array,
+  square = false,
+): { x: number; y: number } {
+  if (square) {
+    return {
+      x: Math.sign(x) * evaluateLut(lut, Math.abs(x)),
+      y: Math.sign(y) * evaluateLut(lut, Math.abs(y)),
+    };
+  }
   const mag = Math.hypot(x, y);
   if (mag === 0) return { x: 0, y: 0 };
   const out = evaluateLut(lut, Math.min(1, mag));

@@ -419,6 +419,7 @@ h2 {
   text-transform: uppercase;
 }
 .steps,
+.shape,
 .reqs,
 .problem {
   padding: clamp(40px, 6vw, 72px) 0;
@@ -486,6 +487,7 @@ h2 {
   font-size: 15px;
 }
 
+.shape p,
 .problem p {
   max-width: 66ch;
   margin: 0 0 24px;

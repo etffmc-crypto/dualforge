@@ -6,6 +6,10 @@
 
 - **The on-pad turbo mode button is now the mic mute button by default, not the touchpad.** Many games read the touchpad click, so holding it to set turbo (or double-tapping it to clear turbo) also fired the touchpad in the game. The mic button does nothing on PC, so it is free for the job: hold mic and press a button to step its turbo, double-tap mic to clear all turbo. An existing install keeps whatever **Settings > Turbo > Mode button** already says; pick **Mic** there to move over.
 
+### Sticks
+
+- **Raw stick trajectory now reaches the corners.** The curve stage clamped every stick to a circle, so a full diagonal in **Raw** left the app at about 0.71 on each axis, the same as **Circle**. In Raw the curve and anti-deadzone now leave a full diagonal at 1.0 on both axes. Circle is unchanged.
+
 ## 0.3.7
 
 ### Keyboard and screen-reader navigation
