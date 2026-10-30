@@ -141,6 +141,15 @@ Find the store id under Settings, General; product and variant ids in their dash
 the product's Share; the billing portal is `https://<store-subdomain>.lemonsqueezy.com/billing`. Then rebuild
 (`npm run dist:installer`). DF-031 proves a test-mode key activates, lapses and reactivates on the real store.
 
+### Release builds: from the tag only (DF-072)
+
+A local `npm run dist:installer` on the main PC reads the filled `F:\DualForge\.env.licensing`, so the installer it
+makes enforces Pro and points at the real store. Never ship that file. Release builds come from `release.yml` on the
+`v*` tag only. CI has no `.env.licensing` (it is git-ignored) and `release.yml` sets no `DUALFORGE_LS_*` variables, so
+the tag build is dormant: no Pro, no checkout link. That is right for 0.3.8, which has no Pro. A release that ships
+Pro (0.4.0) first needs the store config passed to the workflow (repository variables or secrets); until then the tag
+build cannot enforce Pro.
+
 ## Plan card
 
 Settings > Plan, above Data, only when enforced. Badge (Free / Pro / Pro (founder key)), the DF-023 lines, the
