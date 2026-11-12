@@ -18,6 +18,12 @@ export const TurboSettingsSchema = z.object({
 });
 export type TurboSettings = z.infer<typeof TurboSettingsSchema>;
 
+/** The schema minus its `.default()` / `.prefault()` wrapper, so an absent value stays absent instead of becoming the default. */
+const withoutDefault = (s: z.ZodType): z.ZodType =>
+  s instanceof z.ZodDefault || s instanceof z.ZodPrefault
+    ? withoutDefault(s.unwrap() as z.ZodType)
+    : s;
+
 /** One per-game rule: while `exe` (case-insensitive basename) is in front, the engine runs `profileId`. */
 export const AutoSwitchRuleSchema = z.object({
   exe: z
@@ -43,9 +49,22 @@ export const SettingsSchema = z.object({
   closeToTray: z.boolean().default(true),
   theme: z.enum(['dark', 'light']).default('dark'),
   updates: z.boolean().default(false),
-  turbo: TurboSettingsSchema.default({}),
+  turbo: TurboSettingsSchema.prefault({}), // parsed, so every turbo field gets its own default
 });
 export type Settings = z.infer<typeof SettingsSchema>;
+
+type SettingsPatchShape = { [K in keyof Settings]: z.ZodOptional<z.ZodType<Settings[K]>> };
+/**
+ * A sparse patch for `settings:set`: every field optional and without its default, so a one-field patch parses to
+ * that one field. (zod 4's `.partial()` applies the defaults of the absent fields, which would turn `{ hasRumble }`
+ * into a full settings object and reset everything else.) Unknown keys are rejected.
+ */
+export const SettingsPatchSchema = z.strictObject(
+  Object.fromEntries(
+    Object.entries(SettingsSchema.shape).map(([k, s]) => [k, withoutDefault(s).optional()]),
+  ) as SettingsPatchShape,
+);
+export type SettingsPatch = z.infer<typeof SettingsPatchSchema>;
 
 export function defaultSettings(): Settings {
   return SettingsSchema.parse({ schemaVersion: 1 });

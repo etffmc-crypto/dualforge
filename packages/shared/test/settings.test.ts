@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { SettingsSchema, defaultSettings, EngineCommandSchema } from '../src/index.js';
+import {
+  SettingsPatchSchema,
+  SettingsSchema,
+  defaultSettings,
+  EngineCommandSchema,
+} from '../src/index.js';
 
 describe('settings', () => {
   it('defaults', () => {
@@ -39,6 +44,18 @@ describe('settings', () => {
     expect(ok(Array.from({ length: 33 }, (_, i) => rule(`g${i}.exe`)))).toBe(false);
     expect(ok([rule(`${'a'.repeat(60)}.exe`)])).toBe(true);
     expect(ok([rule(`${'a'.repeat(61)}.exe`)])).toBe(false);
+  });
+  it('a settings patch stays sparse: absent fields are not filled with defaults', () => {
+    // zod 4's .partial() would apply every default, turning { hasRumble } into a full settings object
+    expect(SettingsPatchSchema.parse({ hasRumble: true })).toEqual({ hasRumble: true });
+    expect(SettingsPatchSchema.parse({ turbo: { modeButton: null } })).toEqual({
+      turbo: { modeButton: null, lightbarPulse: true, onPadAssign: true },
+    });
+    expect(SettingsPatchSchema.safeParse({ theme: 'x' }).success).toBe(false);
+    expect(SettingsPatchSchema.safeParse({ nope: 1 }).success).toBe(false);
+    expect(Object.keys(SettingsPatchSchema.shape).sort()).toEqual(
+      Object.keys(SettingsSchema.shape).sort(),
+    );
   });
   it('ipc accepts uiFocused and setSettings', () => {
     expect(EngineCommandSchema.safeParse({ type: 'uiFocused', focused: true }).success).toBe(true);

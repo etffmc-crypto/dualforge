@@ -3,7 +3,7 @@ import {
   PROFILE_IDS,
   ProfileEditEventSchema,
   ProfileSchema,
-  SettingsSchema,
+  SettingsPatchSchema,
   TestRumbleSchema,
   applyTurboEdits,
   isFreeSlot,
@@ -23,7 +23,7 @@ import { profileFromShareCode, shareCodeFor } from './share.js';
 const IdSchema = z.enum(PROFILE_IDS);
 const NameSchema = z.string().trim().min(1).max(40);
 const CodeSchema = z.string().max(64 * 1024);
-const PatchSchema = SettingsSchema.partial().strict();
+const PatchSchema = SettingsPatchSchema; // sparse: absent fields stay absent (see its doc comment)
 const MacroIdSchema = z.string().min(1).max(64);
 const ProcessListSchema = z.array(z.string());
 
