@@ -204,11 +204,11 @@ describe('createPollingRate', () => {
   it('set: a second change while one is in progress is E_POLLING_BUSY', async () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));
-    const { p } = rig({ query: [line(1), line(2)], measured: 4007 });
+    const base = rig({ query: [line(1), line(2)], measured: 4007 });
     const slow = createPollingRate({
-      exec: async (file, args, o) => {
+      exec: async (file, args) => {
         if (args.join(' ').includes('Start-Process')) await gate;
-        return rig().exec(file, args, o);
+        return base.exec(file, args);
       },
       dataDir: DATA,
       writeFile: () => undefined,
@@ -216,7 +216,6 @@ describe('createPollingRate', () => {
       sleep: async () => undefined,
       log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     });
-    void p;
     const first = slow.set(4000);
     const second = await slow.set(2000);
     expect(second.code).toBe('E_POLLING_BUSY');
