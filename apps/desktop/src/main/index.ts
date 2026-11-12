@@ -40,6 +40,7 @@ import { createFocusGate } from './focus-gate.js';
 import { createGameWatcher } from './game-watcher.js';
 import { createProcessLister } from './processes.js';
 import { createHidHide, createHidHideQueue } from './hidhide.js';
+import { createPollingRate, registerPollingIpc } from './polling-rate.js';
 import { createSettingsHooks } from './settings-hooks.js';
 import { applyLoginItem, shouldHideOnClose, shouldStartHidden } from './startup.js';
 import { createTray, type AppTray } from './tray.js';
@@ -344,6 +345,17 @@ registerHealthIpc({
   exportBundle: () => bundle.exportWithDialog(),
 });
 registerLogIpc({ ipc: ipcMain, dir: LOG_DIR, log: logger });
+// USB polling rate for pads with the hidusbf filter: the stored value is changed through one elevated script (UAC)
+const polling = createPollingRate({
+  dataDir,
+  measuredHz: () => engineFeed.view().snapshot?.reportHz ?? 0,
+  onApplied: () => {
+    health.resetDeviceBaseline();
+    void health.run();
+  },
+  log: logger,
+});
+registerPollingIpc({ ipc: ipcMain, polling, log: logger });
 
 const MAX_REPLAY_BYTES = 16 * 1024 * 1024;
 function validateReplayPath(raw: unknown): string {

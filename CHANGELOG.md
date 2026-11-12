@@ -2,6 +2,10 @@
 
 ## 0.3.8
 
+### Settings
+
+- **New: Polling rate, for pads with the 8 kHz USB mod.** Settings > Controller > Polling rate offers 8000, 4000, 2000 and 1000 Hz on a DualSense that carries SweetLow's hidusbf filter and runs above 1 kHz; a stock controller never sees the section. Picking a rate stores it and restarts the USB device (one administrator prompt), the controller reconnects within a few seconds, and the measured rate under the picker shows the change took. Before, the stored rate could sit unapplied until the next device restart. Health no longer reports a rate you lowered yourself as a drop.
+
 ### Turbo
 
 - **The on-pad turbo mode button is now the mic mute button by default, not the touchpad.** Many games read the touchpad click, so holding it to set turbo (or double-tapping it to clear turbo) also fired the touchpad in the game. The mic button does nothing on PC, so it is free for the job: hold mic and press a button to step its turbo, double-tap mic to clear all turbo. An existing install keeps whatever **Settings > Turbo > Mode button** already says; pick **Mic** there to move over.

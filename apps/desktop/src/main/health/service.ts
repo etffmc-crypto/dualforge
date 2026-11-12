@@ -181,6 +181,10 @@ export function createHealthService(d: HealthDeps) {
     },
     run,
     repair,
+    /** The USB polling rate was changed on purpose: forget the best rate seen, so the new one is the baseline. */
+    resetDeviceBaseline(): void {
+      highestSeenHz = 0;
+    },
   };
 }
 export type HealthService = ReturnType<typeof createHealthService>;

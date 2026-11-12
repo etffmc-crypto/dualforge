@@ -193,7 +193,7 @@ export function runChecks(i: HealthInput): HealthResult[] {
         id: 'reportRate',
         status: 'warn',
         title: 'Report rate is low',
-        detail: `The pad is reporting ${Math.round(d.reportHz)} Hz (best this session ${Math.round(d.highestSeenHz)} Hz). A healthy DualSense on this setup runs at 8 kHz (a standard pad at 1 kHz); try another USB port or cable, and avoid hubs.`,
+        detail: `The pad is reporting ${Math.round(d.reportHz)} Hz (best this session ${Math.round(d.highestSeenHz)} Hz). A healthy DualSense on this setup runs at 8 kHz (a standard pad at 1 kHz); try another USB port or cable, and avoid hubs. A rate you lowered yourself under Settings > Polling rate is fine.`,
       });
     } else out.push(ok('reportRate', 'Report rate healthy', `${Math.round(d.reportHz)} Hz.`));
   }
