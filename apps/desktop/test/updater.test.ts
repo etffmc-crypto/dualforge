@@ -206,7 +206,7 @@ describe('loading electron-updater (E_UPDATE_LOAD)', () => {
     expect(typeof u.autoDownload).toBe('boolean');
     u.autoDownload = false; // the exact assignment that crashed 0.3.3 / 0.3.4
     expect(u.autoDownload).toBe(false);
-  });
+  }, 30_000); // the cold import of electron-updater took 5.5 s under load, past vitest's 5 s default
   it('accepts both the ESM namespace shape ({ default: { autoUpdater } }) and the CJS shape ({ autoUpdater })', () => {
     const au = { checkForUpdates: () => Promise.resolve(null), autoDownload: true };
     expect(resolveAutoUpdater({ default: { autoUpdater: au } })).toBe(au);
