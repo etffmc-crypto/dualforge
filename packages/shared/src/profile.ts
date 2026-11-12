@@ -238,8 +238,10 @@ export const ProfileSchema = z
       speed: z.number().min(0).max(100).default(40),
       micLed: z.number().int().min(0).max(2).default(0),
     }),
-    mappings: z.record(z.enum(DS_BUTTONS), MappingSchema),
-    gyro: GyroConfigSchema.default({}),
+    // partialRecord: a profile maps only some buttons (zod 4 makes an enum-keyed z.record exhaustive)
+    mappings: z.partialRecord(z.enum(DS_BUTTONS), MappingSchema),
+    // prefault: the empty object is parsed so every gyro field gets its own default (zod 4's .default() would return {} as is)
+    gyro: GyroConfigSchema.prefault({}),
     macros: z.array(MacroSchema).max(32).default([]),
   })
   .refine((p) => new Set(p.macros.map((m) => m.id)).size === p.macros.length, {
