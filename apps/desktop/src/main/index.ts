@@ -40,11 +40,13 @@ import { createFocusGate } from './focus-gate.js';
 import { createGameWatcher } from './game-watcher.js';
 import { createProcessLister } from './processes.js';
 import { createHidHide, createHidHideQueue } from './hidhide.js';
+import { createPollingRate, registerPollingIpc } from './polling-rate.js';
 import { createSettingsHooks } from './settings-hooks.js';
 import { applyLoginItem, shouldHideOnClose, shouldStartHidden } from './startup.js';
 import { createTray, type AppTray } from './tray.js';
 import { createUpdater, registerUpdateIpc, resolveAutoUpdater } from './updater.js';
 import { createQuitCleanup } from './quit-cleanup.js';
+import { openPathOrThrow } from './open-path.js';
 import { createDriverInstaller, registerDriverIpc, type DriverStatus } from './driver-installer.js';
 import { isPro } from '@dualforge/shared';
 import { configFromEnv, resolveLicenseMode } from './licensing/config.js';
@@ -343,6 +345,17 @@ registerHealthIpc({
   exportBundle: () => bundle.exportWithDialog(),
 });
 registerLogIpc({ ipc: ipcMain, dir: LOG_DIR, log: logger });
+// USB polling rate for pads with the hidusbf filter: the stored value is changed through one elevated script (UAC)
+const polling = createPollingRate({
+  dataDir,
+  measuredHz: () => engineFeed.view().snapshot?.reportHz ?? 0,
+  onApplied: () => {
+    health.resetDeviceBaseline();
+    void health.run();
+  },
+  log: logger,
+});
+registerPollingIpc({ ipc: ipcMain, polling, log: logger });
 
 const MAX_REPLAY_BYTES = 16 * 1024 * 1024;
 function validateReplayPath(raw: unknown): string {
@@ -420,7 +433,9 @@ ipcMain.handle('engine:replay', (_e, raw: unknown) => {
   }
 });
 // no payload: the renderer can only ever open our own data folder
-ipcMain.handle('system:openDataDir', () => shell.openPath(dataDir));
+ipcMain.handle('system:openDataDir', () =>
+  openPathOrThrow((p) => shell.openPath(p), dataDir, logger),
+);
 ipcMain.handle('engine:useDevice', () => gate.send({ type: 'useDevice' }));
 ipcMain.on('window:minimize', () => win?.minimize());
 ipcMain.on('window:toggleMaximize', () =>

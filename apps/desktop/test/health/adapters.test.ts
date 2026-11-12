@@ -214,6 +214,33 @@ describe('queryHidHide (basics)', () => {
   });
 });
 
+describe('queryHidHide list failures', () => {
+  const base = {
+    cliPath: 'C:\\HH\\HidHideCLI.exe',
+    ownExe: 'C:\\Apps\\DualForge.exe',
+    exists: () => true,
+  };
+  it('logs a repeating list failure once per run series, and again after the CLI recovers', async () => {
+    let broken = true;
+    const exec: Exec = async (_f, a) => {
+      if (a[0] === '--app-list' && broken) throw new Error('cli broke');
+      return { stdout: '' };
+    };
+    const onError = vi.fn();
+    const memo = createHidHideMemo();
+    const run = () => queryHidHide({ ...base, exec, onError, memo });
+    await run();
+    await run();
+    await run();
+    expect(onError).toHaveBeenCalledTimes(1);
+    broken = false;
+    await run();
+    broken = true;
+    await run();
+    expect(onError).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('queryHidHide unresponsive CLI', () => {
   const base = {
     cliPath: 'C:\\HH\\HidHideCLI.exe',

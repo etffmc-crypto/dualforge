@@ -191,6 +191,7 @@ export function CalibrationWizard({ side, onClose }: { side: Side; onClose(): vo
             raw={raw}
             out={proposed}
             deadzone={cfg?.deadzone ?? { center: 0, outer: 0 }}
+            calibration={{ cx: center.x, cy: center.y, radius }}
             size={160}
           />
           <div>

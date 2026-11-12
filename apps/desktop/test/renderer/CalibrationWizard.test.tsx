@@ -78,6 +78,26 @@ describe('CalibrationWizard', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('draws the raw dot in calibrated space on the verify step', () => {
+    render(<CalibrationWizard side="left" onClose={vi.fn()} />);
+    for (let i = 0; i < 130; i++) feed(0.1 + (i % 2 ? 0.002 : -0.002), -0.05);
+    fireEvent.click(next());
+    for (let i = 0; i < 250; i++) {
+      const a = (i / 125) * 2 * Math.PI;
+      feed(0.1 + 0.8 * Math.cos(a), -0.05 + 0.8 * Math.sin(a));
+    }
+    fireEvent.click(next());
+    feed(0.1, -0.05); // resting at the measured centre
+    const dot = document.querySelector('.dot-raw')!;
+    expect(Number(dot.getAttribute('cx'))).toBeCloseTo(80, 1);
+    expect(Number(dot.getAttribute('cy'))).toBeCloseTo(80, 1);
+    feed(0.9, -0.05); // at the measured edge: one radius to the right
+    expect(Number(document.querySelector('.dot-raw')!.getAttribute('cx'))).toBeCloseTo(
+      80 + (160 * 70) / 160,
+      0,
+    );
+  });
+
   it('keeps Next disabled on the edge step until the stick has actually been rotated', () => {
     render(<CalibrationWizard side="left" onClose={() => {}} />);
     for (let i = 0; i < 120; i++) feed(0, 0);

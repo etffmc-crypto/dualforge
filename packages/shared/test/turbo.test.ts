@@ -83,9 +83,9 @@ describe('turbo schema', () => {
 });
 
 describe('turbo settings', () => {
-  it('defaults: touchpad mode button, pulse on, on-pad assignment on', () => {
+  it('defaults: mic mode button, pulse on, on-pad assignment on', () => {
     expect(defaultSettings().turbo).toEqual({
-      modeButton: 'touchpad',
+      modeButton: 'mic',
       lightbarPulse: true,
       onPadAssign: true,
     });
@@ -98,7 +98,7 @@ describe('turbo settings', () => {
   });
   it('fills partial turbo settings with defaults', () => {
     const s = SettingsSchema.parse({ schemaVersion: 1, turbo: { lightbarPulse: false } });
-    expect(s.turbo).toEqual({ modeButton: 'touchpad', lightbarPulse: false, onPadAssign: true });
+    expect(s.turbo).toEqual({ modeButton: 'mic', lightbarPulse: false, onPadAssign: true });
   });
 });
 

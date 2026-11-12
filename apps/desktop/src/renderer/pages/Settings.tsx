@@ -6,6 +6,7 @@ import { PanelSection } from '../components/SettingsLayout';
 import { FolderIcon } from '../components/icons';
 import { useStore } from '../store';
 import { PlanCard } from './settings/PlanCard';
+import { PollingRatePrefs } from './settings/PollingRatePrefs';
 import { TurboPrefs } from './settings/TurboPrefs';
 
 type Flag =
@@ -155,6 +156,7 @@ export function Settings() {
             }
           />
         </PanelSection>
+        <PollingRatePrefs />
         <TurboPrefs />
       </section>
 

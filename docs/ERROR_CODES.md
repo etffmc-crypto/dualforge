@@ -322,6 +322,34 @@ HidHide refused the unelevated CLI call (access denied), so DualForge wrote `hid
 
 On quit or logoff, cloak-off was refused for lack of administrator rights (or did not finish within 5 s), so the DualSense stays hidden from games while DualForge is closed. When this session had cloaked, Health shows a persistent warning until a later cloak-off succeeds. Fix: open the HidHide Configuration Client and untick "Enable device hiding", or turn HidHide off in DualForge and accept the prompt.
 
+## Polling rate (hidusbf)
+
+Settings > Controller > Polling rate is shown only for a DualSense whose USB composite device carries SweetLow's `hidusbf` lower filter (the "8 kHz" mod) and that the engine sees above 1 kHz. The filter reads the rate from the pad's driver key (`HKLM\SYSTEM\CurrentControlSet\Control\Class\{36fc9e60-…}\<nnnn>`, value `bInterval`: 1 = 8000 Hz, 2 = 4000, 3 = 2000, 4 = 1000). DualForge never installs or removes the filter.
+
+### E_POLLING_QUERY
+
+The read-only PowerShell query (PnP device + two registry reads) failed or timed out (5 s). The option is hidden until a later query succeeds; the Settings page retries every 5 s. Logged once per run of failures. Fix: reconnect the controller; if it persists, send a diagnostics bundle.
+
+### E_POLLING_UNAVAILABLE
+
+A rate change was asked for a pad where the option is unavailable (`msg` says why: no pad on USB, no hidusbf filter, not High Speed). Nothing was changed. Fix: none needed on a stock controller; the option is not for it.
+
+### E_POLLING_ELEVATION_DECLINED
+
+DualForge wrote `polling-rate.cmd` (one `reg add … bInterval` and one `pnputil /restart-device`) to `%APPDATA%\DualForge` and ran it with a UAC prompt, but the prompt was declined or the script failed. The stored rate is unchanged. Fix: pick the rate again and accept the prompt.
+
+### E_POLLING_APPLY
+
+The elevated script completed but the stored value read back is not the one asked for (`msg` has both), or the re-read failed. Fix: unplug and replug the controller, then check the measured rate under the picker; if it is still wrong, change the rate in the hidusbf Setup tool.
+
+### E_POLLING_BUSY
+
+A second rate change was asked while one was still running (the pad restarts for a few seconds). Nothing was queued. Fix: wait for the controller to reconnect and pick again.
+
+### E_POLLING_REQUEST
+
+The renderer sent a `polling:set` payload that is not `{ hz: 8000 | 4000 | 2000 | 1000 }`. Internal; a bug if it appears.
+
 ## Startup, tray and updates
 
 ### E_TRAY_ICON
@@ -463,6 +491,10 @@ Info: at startup the CLI hung and the stuck marker (`hidhide-cloak-stuck`) shows
 ### HIDHIDE_ELEVATED_SETUP
 
 Info: the elevated `hidhide-setup.cmd` completed (`instance`).
+
+### POLLING_RATE_SET
+
+Info: the USB polling rate was changed and read back (`hz`, `from` = the previous stored rate or null, `instance`). Health forgets its "best rate this session" so the lower rate is not reported as a drop.
 
 ### HIDHIDE_WAIT_DEVICE
 

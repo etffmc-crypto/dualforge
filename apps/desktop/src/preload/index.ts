@@ -5,6 +5,9 @@ import type {
   HealthRepairResult,
   HealthState,
   LicenseView,
+  PollingRateHz,
+  PollingRateResult,
+  PollingRateState,
   Profile,
   ProfileSummary,
   Settings,
@@ -105,6 +108,13 @@ const api = {
       ipcRenderer.on('health:changed', h);
       return () => ipcRenderer.removeListener('health:changed', h);
     },
+  },
+  polling: {
+    /** The USB polling rate of a pad with the hidusbf filter (the 8 kHz mod); `available` is false on a stock pad. */
+    get: (): Promise<PollingRateState> => ipcRenderer.invoke('polling:get'),
+    /** Stores the rate and restarts the USB device (one UAC prompt); the pad drops for a few seconds. */
+    set: (hz: PollingRateHz): Promise<PollingRateResult> =>
+      ipcRenderer.invoke('polling:set', { hz }),
   },
   logs: {
     /** Last `lines` (1..500) lines of today's log (raw pino JSON lines); `file` is null when there is no log yet. */

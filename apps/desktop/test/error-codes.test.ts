@@ -59,6 +59,7 @@ describe('error-code registry', () => {
       'ENGINE_STDERR',
       'HIDHIDE_CLI_HANG',
       'HIDHIDE_STILL_CLOAKED',
+      'POLLING_RATE_SET',
     ])
       expect(documented.has(c)).toBe(true);
   });

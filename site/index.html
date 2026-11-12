@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://api.github.com https://objects.githubusercontent.com https://release-assets.githubusercontent.com; base-uri 'none'; form-action 'none'"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; connect-src https://api.github.com https://objects.githubusercontent.com https://release-assets.githubusercontent.com; base-uri 'none'; form-action 'none'"
     />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
     <title>DualForge — DualSense tuning for Windows</title>
@@ -18,12 +18,6 @@
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230d0b10'/%3E%3Cpath d='M6 24 C 14 24, 16 8, 26 8' stroke='%23e2403f' stroke-width='3.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"
-    />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
     />
     <link rel="stylesheet" href="style.css" />
     <script src="app.js" defer></script>
@@ -211,6 +205,34 @@
         </ol>
       </section>
 
+      <section class="shape" aria-labelledby="shape-title">
+        <h2 id="shape-title">Per-axis or round deadzones, your choice</h2>
+        <p>
+          Choose how the deadzone is measured. On DualForge&rsquo;s <strong>Sticks</strong> page,
+          <strong>Stick Trajectory</strong> has two settings. <strong>Raw</strong> applies the
+          deadzone to each axis on its own, so a small wobble on the other axis inside the deadzone
+          is ignored. <strong>Circle</strong> measures the deadzone from the centre, the same in
+          every direction.
+        </p>
+        <p>
+          Set where the stick starts responding and where it reaches full output with the
+          <strong>Deadzone</strong> slider (Initial and Max), and lift small movements with
+          <strong>Anti-Deadzone</strong>. Each stick has its own settings, and you can calibrate
+          drift in a short three-step wizard.
+        </p>
+        <p>No Steam launch required, and no account.</p>
+        <p>
+          <strong>Good to know:</strong> games see a virtual Xbox controller, so most show Xbox
+          button prompts, not PlayStation ones. DualSense over USB only, on Windows 10 and 11
+          (64-bit).
+        </p>
+        <p>
+          DualForge creates a virtual controller. Some games and anti-cheat systems don&rsquo;t
+          allow input-remapping software. Using DualForge in those games is at your own risk, so
+          check each game&rsquo;s rules.
+        </p>
+      </section>
+
       <section class="reqs" aria-labelledby="reqs-title">
         <h2 id="reqs-title">You need</h2>
         <dl>
@@ -252,7 +274,11 @@
         <a href="https://github.com/etffmc-crypto/dualforge/blob/main/CHANGELOG.md">Changelog</a>
         <a href="https://github.com/etffmc-crypto/dualforge/issues/new/choose">Report a problem</a>
       </p>
-      <p class="fine">Not affiliated with Sony, Microsoft or GameSir.</p>
+      <p class="fine">
+        DualSense and PlayStation are trademarks of Sony Interactive Entertainment Inc. Xbox is a
+        trademark of Microsoft Corporation. DualForge is not affiliated with, endorsed, or sponsored
+        by Sony, Microsoft, GameSir, HyperStrike, or Nefarius Software Solutions.
+      </p>
     </footer>
   </body>
 </html>

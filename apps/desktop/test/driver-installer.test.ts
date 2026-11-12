@@ -438,6 +438,11 @@ describe('driver installer', () => {
       expect(DRIVER_PINS.vigem?.tag).toBe('v1.22.0');
       expect(DRIVER_PINS.hidhide).toBeUndefined();
     });
+    it('ships the ViGEmBus 1.22.0 installer SHA-256 as 64 lower-case hex digits', () => {
+      expect(DRIVER_PINS.vigem?.sha256).toBe(
+        '89220a7865076b342892f98865f3499fb7c4cfd673159e89d352c360fd014c6a',
+      );
+    });
     it('looks the pinned tag up instead of latest', async () => {
       const { inst, r } = mkInst({ hidhide: { tag: 'v1.5.0', sha256: null } });
       await inst.install('hidhide');

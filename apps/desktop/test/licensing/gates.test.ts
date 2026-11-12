@@ -91,7 +91,7 @@ describe('engine gate', () => {
     >;
     expect(set.settings.turbo.modeButton).toBeNull();
     expect((call('settings:get') as { turbo: { modeButton: string } }).turbo.modeButton).toBe(
-      'touchpad',
+      'mic',
     );
   });
   it('a tier change re-sends the saved profile and settings gated for the new tier', () => {
@@ -108,7 +108,7 @@ describe('engine gate', () => {
     expect(prof.profile.mappings.cross!.targets).toEqual([{ type: 'key', code: 'VK_SPACE' }]);
     expect(
       (sent[0] as Extract<EngineCommand, { type: 'setSettings' }>).settings.turbo.modeButton,
-    ).toBe('touchpad');
+    ).toBe('mic');
   });
   it('dormant and Pro pass everything through unchanged', () => {
     for (const e of [DORMANT, PRO]) {

@@ -128,7 +128,10 @@ export function createUpdater(d: UpdaterDeps) {
       const u = await ensureImpl();
       const r = await u.checkForUpdates();
       const version = r?.updateInfo.version;
-      const available = !!r && (r.isUpdateAvailable ?? version !== d.currentVersion);
+      // Without the flag, compare versions, but an unknown running version proves nothing.
+      const available =
+        !!r &&
+        (r.isUpdateAvailable ?? (d.currentVersion !== 'unknown' && version !== d.currentVersion));
       const res: UpdateResult =
         available && version ? { available: true, version } : { available: false };
       lastResult = res;

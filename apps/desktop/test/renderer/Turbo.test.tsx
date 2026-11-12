@@ -134,9 +134,9 @@ describe('Turbo page', () => {
   it('the help card names the mode button from settings, or says on-pad assignment is off', () => {
     render(<Turbo />);
     const help = screen.getByRole('note');
-    expect(help.textContent).toContain('Hold Touchpad + press a button');
+    expect(help.textContent).toContain('Hold Mic + press a button');
     expect(help.textContent).toContain('Slow → Medium → Fast → Off');
-    expect(help.textContent).toContain('Double-tap Touchpad');
+    expect(help.textContent).toContain('Double-tap Mic');
     act(() =>
       useStore.setState({
         settings: { ...defaultSettings(), turbo: { ...defaultSettings().turbo, modeButton: 'ps' } },
@@ -175,7 +175,7 @@ describe('Settings: turbo', () => {
       fireEvent.click(screen.getByRole('switch', { name: 'Pulse the lightbar red' }));
     });
     expect(stored.turbo).toEqual({
-      modeButton: 'touchpad',
+      modeButton: 'mic',
       lightbarPulse: false,
       onPadAssign: true,
     });
@@ -185,13 +185,13 @@ describe('Settings: turbo', () => {
     expect(stored.turbo.onPadAssign).toBe(false);
     // with on-pad assignment off there is no mode button to pick
     expect(
-      (screen.getByRole('button', { name: 'Mode button: Touchpad' }) as HTMLButtonElement).disabled,
+      (screen.getByRole('button', { name: 'Mode button: Mic' }) as HTMLButtonElement).disabled,
     ).toBe(true);
     await act(async () => {
       fireEvent.click(screen.getByRole('switch', { name: 'Assign turbo on the controller' }));
     });
     expect(stored.turbo.onPadAssign).toBe(true);
-    fireEvent.click(screen.getByRole('button', { name: 'Mode button: Touchpad' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Mode button: Mic' }));
     await act(async () => {
       fireEvent.click(dialog().getByRole('button', { name: 'PS' }));
     });
@@ -244,12 +244,12 @@ describe('turbo decisions', () => {
       );
     render(<TurboPrefs />);
     const warn = () => screen.queryByText(/own output will be delayed or suppressed/);
-    expect(warn()).toBeNull(); // touchpad sends nothing by default
+    expect(warn()).toBeNull(); // mic sends nothing by default
     at('ps'); // mapped to Guide
     expect(warn()).toBeTruthy();
     at('cross');
     expect(warn()).toBeTruthy();
-    at('mic'); // no output by default
+    at('touchpad'); // no output by default
     expect(warn()).toBeNull();
     act(() => {
       useStore.getState().updateProfile((p) => {

@@ -9,6 +9,6 @@ declare const __LICENSE_CONFIG__:
       productIds: string[];
       checkoutUrl: string;
       portalUrl: string;
-      variants: { monthly: string; yearly: string; lifetime: string; founder: string };
+      variants: { monthly: string; yearly: string; lifetime: string };
     }
   | undefined;

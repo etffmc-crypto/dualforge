@@ -87,8 +87,8 @@ All decisions are in the main process (`apps/desktop/src/main/licensing/`); the 
   fixed. An answer whose `meta.store_id` is not ours, or whose `meta.product_id` is not in the product list, is
   refused (`wrong-product`). The activation-limit error is `limit`. Network errors, timeouts and 5xx are "not
   reached": the PC keeps its cached state.
-- Variants: explicit variant ids win (`DUALFORGE_LS_VARIANT_MONTHLY`, `_YEARLY`, `_LIFETIME`, `_FOUNDER`); otherwise
-  the variant name decides, case-insensitive: contains "Founder" = founder-lifetime, else "Lifetime" = lifetime, else
+- Variants: explicit variant ids win (`DUALFORGE_LS_VARIANT_MONTHLY`, `_YEARLY`, `_LIFETIME`); otherwise
+  the variant name decides, case-insensitive: "Lifetime" = lifetime, else
   "Yearly" = yearly, else "Monthly" = monthly.
 - Pasting the same key again on the same PC validates the instance it already holds, so a reactivation never uses a
   second seat; if the store no longer knows that instance, it activates afresh. Pasting a different key frees the old
@@ -119,29 +119,36 @@ DUALFORGE_LS_PRODUCT_IDS=67890,67891
 DUALFORGE_LS_CHECKOUT_URL=https://dualforge.lemonsqueezy.com/buy/xxxxxxxx
 # "billing portal" in the subscription line becomes a link to this (blank = plain text)
 DUALFORGE_LS_PORTAL_URL=https://dualforge.lemonsqueezy.com/billing
-# optional: variant ids, only if the variant names do not contain Monthly / Yearly / Lifetime / Founder
+# optional: variant ids, only if the variant names do not contain Monthly / Yearly / Lifetime
 DUALFORGE_LS_VARIANT_MONTHLY=
 DUALFORGE_LS_VARIANT_YEARLY=
 DUALFORGE_LS_VARIANT_LIFETIME=
-DUALFORGE_LS_VARIANT_FOUNDER=
 ```
 
 `DUALFORGE_LS_PRODUCT_ID` (singular) still works and is added to the list.
 
 How the store maps to plans:
 
-| Plan                     | Lemon Squeezy                        | Variant name (or id variable)                         |
-| ------------------------ | ------------------------------------ | ----------------------------------------------------- |
-| Pro monthly, $4.99       | subscription variant                 | contains "Monthly" (`DUALFORGE_LS_VARIANT_MONTHLY`)   |
-| Pro yearly, $29.99       | subscription variant                 | contains "Yearly" (`DUALFORGE_LS_VARIANT_YEARLY`)     |
-| Pro lifetime, $49.99     | single-payment variant               | contains "Lifetime" (`DUALFORGE_LS_VARIANT_LIFETIME`) |
-| Founder lifetime, $39.99 | single-payment variant (launch only) | contains "Founder" (`DUALFORGE_LS_VARIANT_FOUNDER`)   |
+| Plan                 | Lemon Squeezy          | Variant name (or id variable)                         |
+| -------------------- | ---------------------- | ----------------------------------------------------- |
+| Pro monthly, $4.99   | subscription variant   | contains "Monthly" (`DUALFORGE_LS_VARIANT_MONTHLY`)   |
+| Pro yearly, $29.99   | subscription variant   | contains "Yearly" (`DUALFORGE_LS_VARIANT_YEARLY`)     |
+| Pro lifetime, $49.99 | single-payment variant | contains "Lifetime" (`DUALFORGE_LS_VARIANT_LIFETIME`) |
 
 If the dashboard will not mix subscription and single-payment variants in one product, make two products (Pro
 subscription, Pro lifetime) and list both ids in `DUALFORGE_LS_PRODUCT_IDS`. Turn on license keys for every variant.
 Find the store id under Settings, General; product and variant ids in their dashboard URLs; the checkout link under
 the product's Share; the billing portal is `https://<store-subdomain>.lemonsqueezy.com/billing`. Then rebuild
 (`npm run dist:installer`). DF-031 proves a test-mode key activates, lapses and reactivates on the real store.
+
+### Release builds: from the tag only (DF-072)
+
+A local `npm run dist:installer` on the main PC reads the filled `F:\DualForge\.env.licensing`, so the installer it
+makes enforces Pro and points at the real store. Never ship that file. Release builds come from `release.yml` on the
+`v*` tag only. CI has no `.env.licensing` (it is git-ignored) and `release.yml` sets no `DUALFORGE_LS_*` variables, so
+the tag build is dormant: no Pro, no checkout link. That is right for 0.3.8, which has no Pro. A release that ships
+Pro (0.4.0) first needs the store config passed to the workflow (repository variables or secrets); until then the tag
+build cannot enforce Pro.
 
 ## Plan card
 

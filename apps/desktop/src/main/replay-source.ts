@@ -12,19 +12,30 @@ export function createReplaySource(path: string, loop = true): InputSource {
         onStatus(false);
         return;
       }
+      // Release each report at its recorded time (relative to the first entry).
+      // A looped replay shifts every pass by one pass length, so the timestamps
+      // handed to the engine keep increasing instead of jumping back to 0.
+      const first = log[0]!.t;
+      const span = Math.max(1, log[log.length - 1]!.t - first + 1);
       let i = 0;
+      let pass = 0;
       const t0 = performance.now();
       onStatus(true);
       timer = setInterval(() => {
-        const e = log[i]!;
-        onReport(entryBytes(e), t0 + e.t);
-        i++;
-        if (i >= log.length) {
-          if (loop) i = 0;
-          else {
-            if (timer) clearInterval(timer);
-            onStatus(false);
-          }
+        const elapsed = performance.now() - t0;
+        while (i < log.length) {
+          const e = log[i]!;
+          const at = pass * span + (e.t - first);
+          if (at > elapsed) return;
+          onReport(entryBytes(e), t0 + at);
+          i++;
+        }
+        if (loop) {
+          i = 0;
+          pass++;
+        } else {
+          if (timer) clearInterval(timer);
+          onStatus(false);
         }
       }, 1);
     },

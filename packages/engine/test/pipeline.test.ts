@@ -349,7 +349,7 @@ describe('turbo through the pipeline', () => {
   it('compileProfile records turbo settings (default when omitted) and whether any turbo is set', () => {
     const p = defaultProfile('p', 'p');
     expect(compileProfile(p).turbo).toEqual({
-      modeButton: 'touchpad',
+      modeButton: 'mic',
       lightbarPulse: true,
       onPadAssign: true,
     });
@@ -390,5 +390,39 @@ describe('turbo through the pipeline', () => {
     const o = processReport(tpCross, cp, s, 10);
     expect(o.turboEdits).toEqual([]);
     expect(o.xinput.buttons.A).toBe(true);
+  });
+});
+
+describe('stick trajectory through the full pipeline', () => {
+  const corner = (circular: boolean, anti = 0) => {
+    const p = defaultProfile('p', 'p');
+    p.sticks.left.circular = circular;
+    p.sticks.left.deadzone.anti = anti;
+    return processReport(
+      parseDualSenseUsb(
+        report((b) => {
+          b[1] = 255;
+          b[2] = 0;
+        }),
+      ),
+      compileProfile(p),
+      createPipelineState(),
+      0,
+    ).xinput;
+  };
+  it('Raw (square) delivers a full diagonal as (1, 1)', () => {
+    const o = corner(false);
+    expect(o.lx).toBeCloseTo(1, 2);
+    expect(o.ly).toBeCloseTo(1, 2);
+  });
+  it('Raw keeps the full diagonal with an anti-deadzone set', () => {
+    const o = corner(false, 0.2);
+    expect(o.lx).toBeCloseTo(1, 2);
+    expect(o.ly).toBeCloseTo(1, 2);
+  });
+  it('Circle still caps the diagonal on the unit circle', () => {
+    const o = corner(true);
+    expect(Math.hypot(o.lx, o.ly)).toBeCloseTo(1, 2);
+    expect(o.lx).toBeCloseTo(Math.SQRT1_2, 2);
   });
 });

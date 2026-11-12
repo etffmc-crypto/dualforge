@@ -43,6 +43,13 @@ export const createPipelineState = (): PipelineState => ({
   lastMs: -1,
 });
 
+/** Raw (square) sticks keep a corner beyond magnitude 1 untouched: the lift would pull (1, 1) back toward the circle. */
+function antiDeadzone(p: { x: number; y: number }, cfg: CompiledProfile['left']['cfg']) {
+  const anti = cfg.deadzone.anti ?? 0;
+  if (!cfg.circular && Math.hypot(p.x, p.y) >= 1) return p;
+  return applyAntiDeadzone(p, anti);
+}
+
 export function processReport(
   raw: RawState,
   cp: CompiledProfile,
@@ -55,12 +62,12 @@ export function processReport(
   const L = cp.left,
     R = cp.right;
   let l = applyStickShaping(raw.lx, raw.ly, L.cfg);
-  l = applyStickLut(l.x, l.y, L.lut);
-  l = applyAntiDeadzone(l, L.cfg.deadzone.anti);
+  l = applyStickLut(l.x, l.y, L.lut, !L.cfg.circular);
+  l = antiDeadzone(l, L.cfg);
   l = applyStickFilter(l.x, l.y, L.cfg.filter, s.filterL, dt);
   let r = applyStickShaping(raw.rx, raw.ry, R.cfg);
-  r = applyStickLut(r.x, r.y, R.lut);
-  r = applyAntiDeadzone(r, R.cfg.deadzone.anti);
+  r = applyStickLut(r.x, r.y, R.lut, !R.cfg.circular);
+  r = antiDeadzone(r, R.cfg);
   r = applyStickFilter(r.x, r.y, R.cfg.filter, s.filterR, dt);
   const lt = applyTrigger(raw.l2, cp.lt.cfg, cp.lt.lut, s.trigL);
   const rt = applyTrigger(raw.r2, cp.rt.cfg, cp.rt.lut, s.trigR);
