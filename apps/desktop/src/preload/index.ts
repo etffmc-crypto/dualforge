@@ -160,7 +160,7 @@ const api = {
     remove: (): Promise<LicenseView> => ipcRenderer.invoke('license:remove'),
     /** Opens the built-in checkout link in the browser; false when the build has none. */
     openCheckout: (): Promise<boolean> => ipcRenderer.invoke('license:openCheckout'),
-    /** Opens the built-in Lemon Squeezy billing portal link; false when the build has none. */
+    /** Opens the built-in store billing portal link; false when the build has none. */
     openPortal: (): Promise<boolean> => ipcRenderer.invoke('license:openPortal'),
     onChanged(cb: (v: LicenseView) => void): () => void {
       const h = (_: unknown, v: LicenseView) => cb(v);

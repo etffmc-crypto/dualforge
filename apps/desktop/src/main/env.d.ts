@@ -2,7 +2,7 @@
 declare const __UPDATES_ENABLED__: boolean;
 /** DualForge's own version (root package.json), injected at build time; see electron.vite.config.ts. */
 declare const __APP_VERSION__: string | undefined;
-/** Lemon Squeezy build config (store id, product ids, checkout URL, variant ids); see electron.vite.config.ts. */
+/** Store build config (Polar organization and benefits, Lemon Squeezy store and products, links); see electron.vite.config.ts. */
 declare const __LICENSE_CONFIG__:
   | {
       storeId: string;
@@ -10,5 +10,10 @@ declare const __LICENSE_CONFIG__:
       checkoutUrl: string;
       portalUrl: string;
       variants: { monthly: string; yearly: string; lifetime: string };
+      polar: {
+        organizationId: string;
+        benefits: { monthly: string; yearly: string; lifetime: string };
+        sandbox: boolean;
+      };
     }
   | undefined;

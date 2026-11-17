@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Licensing
+
+- **Pro keys can come from Polar.** Lemon Squeezy stopped taking new stores, so a build with a Polar organization and Pro benefit ids baked in checks keys with Polar instead (same Plan card, same 14-day offline grace, same one-seat-per-PC rule). Builds without ids stay dormant, exactly as before.
+
 ## 0.3.9
 
 ### A new look

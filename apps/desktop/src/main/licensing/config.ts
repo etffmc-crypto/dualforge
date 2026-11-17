@@ -1,6 +1,7 @@
 /**
- * Licensing build configuration. The Lemon Squeezy ids are baked in at build time (electron.vite.config.ts reads the
- * environment, else F:\DualForge\.env.licensing, into `__LICENSE_CONFIG__`). No store id or no product id = dormant.
+ * Licensing build configuration. The store ids are baked in at build time (electron.vite.config.ts reads the
+ * environment, else F:\DualForge\.env.licensing, into `__LICENSE_CONFIG__`). Polar (an organization id and at least
+ * one Pro benefit id) wins over Lemon Squeezy (a store id and a product id); neither = dormant.
  */
 export interface LicenseBuildConfig {
   storeId: string;
@@ -11,10 +12,17 @@ export interface LicenseBuildConfig {
   portalUrl: string;
   /** Optional explicit variant ids; they win over the variant-name match. */
   variants: { monthly: string; yearly: string; lifetime: string };
+  /** Polar (DF-030c): the organization, one license key benefit per Pro plan, and whether the build talks to the sandbox. */
+  polar: {
+    organizationId: string;
+    benefits: { monthly: string; yearly: string; lifetime: string };
+    sandbox: boolean;
+  };
 }
 
 export type LicenseMode =
   | { kind: 'dormant' }
+  | { kind: 'polar'; config: LicenseBuildConfig }
   | { kind: 'lemonsqueezy'; config: LicenseBuildConfig }
   | { kind: 'fake'; config: LicenseBuildConfig; dataDir: string; founderPublicKey?: string };
 
@@ -26,21 +34,40 @@ const list = (v: string | undefined): string[] =>
     .map((s) => s.trim())
     .filter(Boolean);
 
-/** Reads the DUALFORGE_LS_* keys (DUALFORGE_LS_PRODUCT_IDS, comma-separated; DUALFORGE_LS_PRODUCT_ID still counts). */
+const str = (v: string | undefined): string => (v ?? '').trim();
+
+/**
+ * Reads the DUALFORGE_POLAR_* and DUALFORGE_LS_* keys (DUALFORGE_LS_PRODUCT_IDS, comma-separated;
+ * DUALFORGE_LS_PRODUCT_ID still counts). The checkout and portal links come from Polar's keys first.
+ */
 export function configFromEnv(env: Env): LicenseBuildConfig {
   const ids = [...list(env.DUALFORGE_LS_PRODUCT_IDS), ...list(env.DUALFORGE_LS_PRODUCT_ID)];
   return {
-    storeId: (env.DUALFORGE_LS_STORE_ID ?? '').trim(),
+    storeId: str(env.DUALFORGE_LS_STORE_ID),
     productIds: [...new Set(ids)],
-    checkoutUrl: (env.DUALFORGE_LS_CHECKOUT_URL ?? '').trim(),
-    portalUrl: (env.DUALFORGE_LS_PORTAL_URL ?? '').trim(),
+    checkoutUrl: str(env.DUALFORGE_POLAR_CHECKOUT_URL) || str(env.DUALFORGE_LS_CHECKOUT_URL),
+    portalUrl: str(env.DUALFORGE_POLAR_PORTAL_URL) || str(env.DUALFORGE_LS_PORTAL_URL),
     variants: {
       monthly: (env.DUALFORGE_LS_VARIANT_MONTHLY ?? '').trim(),
       yearly: (env.DUALFORGE_LS_VARIANT_YEARLY ?? '').trim(),
       lifetime: (env.DUALFORGE_LS_VARIANT_LIFETIME ?? '').trim(),
     },
+    polar: {
+      organizationId: str(env.DUALFORGE_POLAR_ORG_ID),
+      benefits: {
+        monthly: str(env.DUALFORGE_POLAR_BENEFIT_MONTHLY),
+        yearly: str(env.DUALFORGE_POLAR_BENEFIT_YEARLY),
+        lifetime: str(env.DUALFORGE_POLAR_BENEFIT_LIFETIME),
+      },
+      sandbox: /^(1|true|yes)$/i.test(str(env.DUALFORGE_POLAR_SANDBOX)),
+    },
   };
 }
+
+/** True when the build names a Polar organization and at least one Pro benefit. */
+export const hasPolar = (c: LicenseBuildConfig): boolean =>
+  !!c.polar?.organizationId &&
+  !!(c.polar.benefits.monthly || c.polar.benefits.yearly || c.polar.benefits.lifetime);
 
 /** Only https links are opened (Get Pro, billing portal). */
 export const safeCheckoutUrl = (u: string): string => {
@@ -77,6 +104,15 @@ export function resolveLicenseMode(
         : {}),
     };
   }
+  if (hasPolar(baked))
+    return {
+      kind: 'polar',
+      config: {
+        ...baked,
+        checkoutUrl: safeCheckoutUrl(baked.checkoutUrl),
+        portalUrl: safeCheckoutUrl(baked.portalUrl),
+      },
+    };
   if (baked.storeId && baked.productIds.length > 0)
     return {
       kind: 'lemonsqueezy',

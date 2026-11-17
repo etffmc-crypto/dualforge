@@ -23,7 +23,9 @@ A lapse never deletes anything. Profiles keep every Pro setting on disk; the eng
 
 A build only enforces anything when it has a provider:
 
-- **Lemon Squeezy**: a store id and at least one product id baked in at build time (below), or
+- **Polar** (2026-11-17, replaces Lemon Squeezy, which stopped taking new stores): an organization id and at least one
+  Pro benefit id baked in at build time (below). Polar wins when both are configured, or
+- **Lemon Squeezy** (kept until the Polar path is live, then removed): a store id and at least one product id, or
 - **the fake provider** in tests: `DUALFORGE_LICENSE_PROVIDER=fake` together with `DUALFORGE_DATA_DIR` (the e2e marker),
   only in an unpackaged run (`!app.isPackaged`); a shipped build ignores both.
 
@@ -98,6 +100,22 @@ All decisions are in the main process (`apps/desktop/src/main/licensing/`); the 
   `meta`, a 422, or a License API reason (license key, instance id, activation limit). Unreachable means: the PC keeps its state and the 14-day grace applies.
 - Remove license deactivates the instance when the store is reachable. Offline it still clears this PC, but the seat
   stays used on the store until removed from the Lemon Squeezy dashboard.
+- `PolarProvider` (`polar.ts`) uses Polar's customer-portal license key endpoints, which need no API key and are
+  meant for desktop apps (polar.sh/docs, API 2026-10, read 2026-11-17): `POST https://api.polar.sh/v1/customer-portal/license-keys/activate`
+  (`key`, `organization_id`, `label` = the PC name plus its `[df:…]` tag), `/validate` (`key`, `organization_id`,
+  `activation_id`), `/deactivate` (same, answers 204). JSON bodies, 10 s timeout, base URL fixed
+  (`https://sandbox-api.polar.sh` when `DUALFORGE_POLAR_SANDBOX=1`). Every call names our organization, so another
+  seller's key is unknown to Polar (404, `bad-key`).
+  - Plans: Polar's answer carries no product or variant, only the license key benefit, so each Pro plan has its own
+    benefit (`DUALFORGE_POLAR_BENEFIT_MONTHLY`, `_YEARLY`, `_LIFETIME`). Any other benefit is `wrong-product`; on
+    activate its activation is given back at once so the buyer's seat stays free.
+  - Lapses: validate has no "expired" answer. A revoked, disabled or expired key, and an activation that is gone, are
+    all a 404, which the service treats as "instance gone" and activates afresh; activate then answers 403
+    (`NotPermitted`): "…activations…" in the detail is `limit`, anything else is `expired` (the subscription ended or
+    was refunded). Subscription keys carry no expiry date (`expiresAt` stays empty); Polar revokes them when the
+    subscription ends.
+  - Not reached: a 5xx, a 429, a timeout, a network error, or an error answer without Polar's own error name
+    (`ResourceNotFound`, `NotPermitted`) or a 422 `detail` list (a proxy or captive portal page).
 - `FakeLicenseProvider` (`fake.ts`, tests only) reads `<dataDir>/fake-license-server.json` on every call:
   `{ "keys": { "FAKE-MONTHLY": { "status": "active", "variant": "monthly", "expiresAt": "2026-11-16T00:00:00Z", "limit": 2 } }, "down": false }`
   (`status` active | expired | disabled, `wrongProduct: true` answers as another product, unknown key = bad key,
@@ -105,6 +123,29 @@ All decisions are in the main process (`apps/desktop/src/main/licensing/`); the 
   `DUALFORGE_FOUNDER_PUBLIC_KEY` may come from the environment, so tests use their own founder keypair.
 
 ## Build config Ethan fills in
+
+### Polar
+
+```ini
+# F:\DualForge\.env.licensing
+DUALFORGE_POLAR_ORG_ID=00000000-0000-0000-0000-000000000000
+# one license key benefit per Pro plan (Polar dashboard, Benefits, the benefit's id); at least one is required
+DUALFORGE_POLAR_BENEFIT_MONTHLY=
+DUALFORGE_POLAR_BENEFIT_YEARLY=
+DUALFORGE_POLAR_BENEFIT_LIFETIME=
+# "Get Pro" (a Polar checkout link, https only; blank hides the button)
+DUALFORGE_POLAR_CHECKOUT_URL=
+# "billing portal": the organization's customer portal link (blank = plain text)
+DUALFORGE_POLAR_PORTAL_URL=
+# 1 = talk to sandbox-api.polar.sh (test purchases); remove for a release build
+DUALFORGE_POLAR_SANDBOX=1
+```
+
+In Polar: one organization (Flags Software); a License Keys benefit per plan with device activations on and the
+same seat limit as before; products Pro monthly $4.99 and yearly $29.99 (subscriptions) and Pro lifetime $49.99
+(one-time), each with its benefit. Test with the sandbox (sandbox.polar.sh, test card) before the live organization.
+
+### Lemon Squeezy (until removed)
 
 The build reads these from the environment, and for any that are not set there from `F:\DualForge\.env.licensing`
 (git-ignored via `.env*`; no file and no variables = a dormant build). They are baked into the main bundle by
