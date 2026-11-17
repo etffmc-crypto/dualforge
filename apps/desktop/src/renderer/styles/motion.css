@@ -108,7 +108,7 @@
 }
 .mbtn.active {
   background: var(--accent);
-  border-color: var(--accent);
+  border-color: var(--accent-ink);
   color: #fff;
 }
 

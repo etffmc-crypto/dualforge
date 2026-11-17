@@ -163,9 +163,9 @@
   color: #fff;
 }
 .bpill.pressed .bpill-src {
-  border-color: var(--accent);
-  background: rgba(226, 64, 63, 0.22);
-  box-shadow: 0 0 14px rgba(226, 64, 63, 0.55);
+  border-color: var(--accent-ink);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
 /* ---------- mapping modal (GameSir ss6) ---------- */

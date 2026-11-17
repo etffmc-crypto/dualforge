@@ -84,7 +84,7 @@
 }
 .stepper li.current .stepper-n {
   background: var(--accent);
-  border-color: var(--accent);
+  border-color: var(--accent-ink);
 }
 .stepper li.done {
   color: var(--text-secondary);
@@ -130,7 +130,7 @@
   margin-top: 8px;
 }
 .cal-reach {
-  fill: rgba(226, 64, 63, 0.18);
+  fill: color-mix(in srgb, var(--accent) 18%, transparent);
   stroke: var(--accent);
   stroke-width: 1.5;
   stroke-linejoin: round;

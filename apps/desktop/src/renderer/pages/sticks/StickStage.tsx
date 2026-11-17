@@ -39,7 +39,7 @@ export function StickStage({ side, cfg }: { side: Side; cfg: StickConfig }) {
           deadzone={cfg.deadzone}
           calibration={cfg.calibration}
           size={148}
-          label={`${name} · grey raw, red output`}
+          label={`${name} · grey raw, violet output`}
         />
       </div>
       <div className="stage-pad">
