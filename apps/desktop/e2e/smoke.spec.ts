@@ -65,6 +65,6 @@ test('face-lift tokens applied', async () => {
     /Geist/,
   );
   await expect(page.locator('.footer .badge-a')).toHaveText('✕');
-  await expect(page.locator('.footer .version')).toHaveText('V0.3.8'); // injected from root package.json
+  await expect(page.locator('.footer .version')).toHaveText('V0.3.9'); // injected from root package.json
   await app.close();
 });
