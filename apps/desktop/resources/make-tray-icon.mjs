@@ -1,11 +1,11 @@
-// Generates tray.png (16 px) and tray@2x.png (32 px): the accent-red rounded badge with a white "D".
+// Generates tray.png (16 px) and tray@2x.png (32 px): the accent-violet rounded badge with a white "D".
 // Run: node apps/desktop/resources/make-tray-icon.mjs
 import { writeFileSync } from 'node:fs';
 import { deflateSync, crc32 } from 'node:zlib';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ACCENT = [0xe2, 0x40, 0x3f];
+const ACCENT = [0x73, 0x52, 0xf0];
 const WHITE = [0xff, 0xff, 0xff];
 // 8 x 10 glyph on a 16-pixel grid, drawn at (4, 3)
 const D = [

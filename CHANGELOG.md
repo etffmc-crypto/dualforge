@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.9
+
+### A new look
+
+- **DualForge has its own look now.** A deep plum background, cards with a soft lift, and one violet accent across the sliders, toggles, buttons and tabs, in both the dark and the light theme. Green, amber and red now only ever mean status: an error chip, the error bar, the turbo warning and the macro record dot stay red, and the footer's Back hint keeps the controller's own Circle red.
+- **New font: Geist.** It is bundled with the app, so it looks the same offline.
+- **New app icon and tray icon:** a violet square with a white D.
+- **Fixed: the top bar no longer overlaps itself at the default window size.** The section tabs were about 50 px too wide for a 1280 px window, so the L1 and R1 hints sat on top of the logo and the first header button.
+
+### Security
+
+- **zod 4.6** replaces zod 3.25 (GHSA-mrhx-c7xc-m3w5). Nothing changes in how the app behaves.
+
 ## 0.3.8
 
 ### Settings

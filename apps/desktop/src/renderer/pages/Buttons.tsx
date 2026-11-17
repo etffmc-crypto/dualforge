@@ -19,7 +19,7 @@ export function Buttons() {
         <PadDiagram mappings={mappings} macros={macros} lights={lights} onEdit={onEdit} />
       </div>
       <p className="buttons-hint">
-        Select a button to change what it sends. Red pills differ from the standard Xbox layout.
+        Select a button to change what it sends. Violet pills differ from the standard Xbox layout.
       </p>
       <MappingModal key={editing ?? ''} button={editing} onClose={() => setEditing(null)} />
     </div>

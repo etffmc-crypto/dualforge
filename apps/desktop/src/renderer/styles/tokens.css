@@ -1,150 +1,156 @@
+/* DualForge wears the Empire design system: deep plum ground, machined cards with a 1px chrome top edge,
+   one violet accent, and status colours that only ever mean status. Geist (Vercel, OFL) is bundled. */
 @font-face {
-  font-family: 'Poppins';
-  font-weight: 400;
+  font-family: 'Geist';
+  font-weight: 100 900;
   font-style: normal;
   font-display: block;
-  src: url('../fonts/Poppins-Regular.ttf') format('truetype');
+  src: url('../fonts/Geist-Variable.woff2') format('woff2');
 }
 @font-face {
-  font-family: 'Poppins';
-  font-weight: 500;
+  font-family: 'Geist Mono';
+  font-weight: 100 900;
   font-style: normal;
   font-display: block;
-  src: url('../fonts/Poppins-Medium.ttf') format('truetype');
-}
-@font-face {
-  font-family: 'Poppins';
-  font-weight: 600;
-  font-style: normal;
-  font-display: block;
-  src: url('../fonts/Poppins-SemiBold.ttf') format('truetype');
+  src: url('../fonts/GeistMono-Variable.woff2') format('woff2');
 }
 
 :root {
-  --bg: #0d0b10;
-  --glow: radial-gradient(900px 600px at 12% 8%, #4a1f2c 0%, rgba(74, 31, 44, 0) 60%);
-  --header-bg: #171318;
-  --hairline: rgba(255, 255, 255, 0.06);
-  --card: rgba(255, 255, 255, 0.045);
-  --card-border: rgba(255, 255, 255, 0.07);
-  --radius: 16px;
-  --accent: #e2403f;
-  --accent-hover: #ee5756;
-  --focus: #f08a3c;
-  --link: #3b82f6;
-  --text: #f2f0f3;
-  --muted: #a39fa8;
-  --text-secondary: #d9d5dc; /* tab labels, captions, chips */
-  --text-soft: #e8e5ea; /* icon buttons, segmented labels, footer */
-  --text-tertiary: #c9c5cc; /* home status line */
-  --text-window: #cfcbd2; /* window-control glyphs */
-  --text-dim: #8b8690; /* shoulder pills, d-pad hint glyph */
-  --bad-text: #ff7a79;
+  --bg: #13101c;
+  --glow: radial-gradient(
+    1100px 700px at 50% -20%,
+    rgba(115, 82, 240, 0.07) 0%,
+    rgba(115, 82, 240, 0) 70%
+  );
+  --header-bg: #1b1726;
+  --hairline: #2e2840;
+  --card: #1b1726;
+  --card-border: #2e2840;
+  --radius: 14px;
+  --accent: #7352f0; /* fills: buttons, slider fills, toggles, active segments */
+  --accent-hover: #8466f5;
+  --accent-ink: #9b7dff; /* the accent as text and thin lines on dark surfaces */
+  --focus: #b39cff;
+  --link: #9b7dff;
+  --text: #f4f2f8;
+  --muted: #aba5bb;
+  --text-secondary: #d6d2e0; /* tab labels, captions, chips */
+  --text-soft: #e6e3ee; /* icon buttons, segmented labels, footer */
+  --text-tertiary: #c4bfd2; /* home status line */
+  --text-window: #cbc6d8; /* window-control glyphs */
+  --text-dim: #8c859f; /* shoulder pills, d-pad hint glyph */
+  --bad-text: #ff7a7a;
   --face-triangle: #2fbf71;
   --face-circle: #ff5a5a;
   --face-cross: #4a90ff;
   --face-square: #ff6fb0;
-  --track: rgba(255, 255, 255, 0.12);
-  --handle-ring: #1a1216;
-  --toggle-off: #3a3540;
-  --seg: rgba(255, 255, 255, 0.06);
-  --chip-bg: rgba(255, 255, 255, 0.06);
-  --badge-a: #8fd14f;
-  --badge-a-ink: #1d2a10;
-  --badge-b: #e2403f;
+  --track: #2c2640;
+  --handle-ring: #13101c;
+  --toggle-off: #3a3350;
+  --seg: #241f33;
+  --chip-bg: #241f33;
+  --badge-a: #3fd69b;
+  --badge-a-ink: #0b2a1d;
+  --badge-b: #e2403f; /* the B / Circle button's own red, not the brand accent */
   --text-strong: #fff; /* hovered / selected labels */
-  --hover: rgba(255, 255, 255, 0.1);
+  --hover: rgba(255, 255, 255, 0.08);
   --hover-faint: rgba(255, 255, 255, 0.03);
-  --toggle-ring: rgba(255, 255, 255, 0.55);
+  --toggle-ring: rgba(255, 255, 255, 0.45);
   --toggle-ring-on: rgba(255, 255, 255, 0.85);
-  --plot-frame: rgba(255, 255, 255, 0.85);
-  --plot-grid: rgba(255, 255, 255, 0.07);
+  --plot-frame: rgba(255, 255, 255, 0.7);
+  --plot-grid: #2a2539;
   --plot-curve: #fff;
-  --plot-ref: rgba(255, 255, 255, 0.3);
-  --well: rgba(0, 0, 0, 0.2);
-  --gate-stroke: rgba(255, 255, 255, 0.18);
+  --plot-ref: rgba(255, 255, 255, 0.28);
+  --well: rgba(0, 0, 0, 0.22);
+  --gate-stroke: rgba(255, 255, 255, 0.16);
   --scroll-thumb: rgba(255, 255, 255, 0.12);
-  --modal-bg: #1b161c;
-  --backdrop: rgba(13, 11, 16, 0.55);
-  --modal-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
-  --card-shadow: none;
-  --card-head: rgba(255, 255, 255, 0.035);
-  --lead: rgba(255, 255, 255, 0.34);
+  --modal-bg: #1b1726;
+  --backdrop: rgba(19, 16, 28, 0.6);
+  --modal-shadow: 0 0 0 1px #2e2840, 0 24px 60px rgba(0, 0, 0, 0.55);
+  --card-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 1px 2px rgba(0, 0, 0, 0.4),
+    0 8px 24px rgba(0, 0, 0, 0.25);
+  --card-head: #1f1a2c;
+  --lead: rgba(255, 255, 255, 0.3);
   --lead-dot: #fff;
-  --pill-ring: rgba(255, 255, 255, 0.6);
-  --pill-bg: rgba(13, 11, 16, 0.55);
-  --key: rgba(255, 255, 255, 0.08);
-  --key-hover: rgba(255, 255, 255, 0.15);
-  --foot-bg: rgba(255, 255, 255, 0.04);
+  --pill-ring: rgba(255, 255, 255, 0.55);
+  --pill-bg: rgba(19, 16, 28, 0.6);
+  --key: rgba(255, 255, 255, 0.07);
+  --key-hover: rgba(255, 255, 255, 0.13);
+  --foot-bg: #1b1726;
   --xb-a: #6fcf4a;
   --xb-b: #ff5a5a;
   --xb-x: #4a90ff;
   --xb-y: #f2c230;
-  --st-ok: #8fd14f;
-  --st-warn: #f0a028;
-  --st-error: #ff5a5a; /* health lamps: the DualSense lightbar's three moods */
-  --font: 'Poppins', 'Segoe UI', system-ui, sans-serif;
-  --mono: 'Cascadia Mono', Consolas, monospace;
+  --st-ok: #3fd69b;
+  --st-warn: #f5b83d;
+  --st-error: #ff7a7a; /* health lamps: the DualSense lightbar's three moods */
+  --font: 'Geist', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'Geist Mono', 'Cascadia Mono', Consolas, monospace;
   color-scheme: dark;
 }
 
 /* Light theme: same accent and layout, daylight surfaces. Toggled from Settings via <html data-theme="light">. */
 :root[data-theme='light'] {
-  --bg: #f5f5f7;
-  --glow: radial-gradient(
-    900px 600px at 12% 8%,
-    rgba(226, 64, 63, 0.07) 0%,
-    rgba(226, 64, 63, 0) 60%
-  );
+  --bg: #f6f5fa;
+  --glow: none;
   --header-bg: #ffffff;
-  --hairline: rgba(20, 20, 30, 0.08);
+  --hairline: #e2deeb;
   --card: #ffffff;
-  --card-border: rgba(20, 20, 30, 0.09);
-  --text: #1a1a1f;
-  --muted: #6b6872;
-  --text-secondary: #3d3a43;
-  --text-soft: #2a2830;
-  --text-tertiary: #4a4750;
-  --text-window: #4a4750;
-  --text-dim: #8b8690;
-  --bad-text: #c6302f;
-  --track: rgba(20, 20, 30, 0.12);
+  --card-border: #e2deeb;
+  --accent: #6440f0;
+  --accent-hover: #7352f0;
+  --accent-ink: #6440f0;
+  --focus: #6440f0;
+  --link: #6440f0;
+  --text: #17131f;
+  --muted: #5b5470;
+  --text-secondary: #3a3448;
+  --text-soft: #262130;
+  --text-tertiary: #4a4458;
+  --text-window: #4a4458;
+  --text-dim: #6e6782;
+  --bad-text: #bf2a34;
+  --track: #e7e4ef;
   --handle-ring: #ffffff;
-  --toggle-off: #d9d7de;
-  --seg: rgba(20, 20, 30, 0.05);
-  --chip-bg: rgba(20, 20, 30, 0.04);
-  --badge-a: #6dbb35;
-  --badge-a-ink: #11200a;
-  --text-strong: #1a1a1f;
-  --hover: rgba(20, 20, 30, 0.08);
-  --hover-faint: rgba(20, 20, 30, 0.03);
-  --toggle-ring: rgba(20, 20, 30, 0.16);
-  --toggle-ring-on: rgba(20, 20, 30, 0.06);
-  --plot-frame: rgba(20, 20, 30, 0.55);
-  --plot-grid: rgba(20, 20, 30, 0.08);
-  --plot-curve: #1a1a1f;
-  --plot-ref: rgba(20, 20, 30, 0.3);
-  --well: rgba(20, 20, 30, 0.035);
-  --gate-stroke: rgba(20, 20, 30, 0.18);
-  --scroll-thumb: rgba(20, 20, 30, 0.16);
+  --toggle-off: #d6d2e0;
+  --seg: #f0eef6;
+  --chip-bg: #f0eef6;
+  --badge-a: #0b774f;
+  --badge-a-ink: #ffffff;
+  --badge-b: #d63231;
+  --text-strong: #17131f;
+  --hover: rgba(23, 19, 31, 0.07);
+  --hover-faint: rgba(23, 19, 31, 0.03);
+  --toggle-ring: rgba(23, 19, 31, 0.16);
+  --toggle-ring-on: rgba(23, 19, 31, 0.06);
+  --plot-frame: rgba(23, 19, 31, 0.5);
+  --plot-grid: #ece9f2;
+  --plot-curve: #17131f;
+  --plot-ref: rgba(23, 19, 31, 0.28);
+  --well: rgba(23, 19, 31, 0.035);
+  --gate-stroke: rgba(23, 19, 31, 0.18);
+  --scroll-thumb: rgba(23, 19, 31, 0.16);
   --modal-bg: #ffffff;
-  --backdrop: rgba(26, 26, 31, 0.28);
-  --modal-shadow: 0 24px 60px rgba(20, 20, 30, 0.18);
-  --card-shadow: 0 1px 2px rgba(20, 20, 30, 0.04);
-  --card-head: rgba(20, 20, 30, 0.025);
-  --lead: rgba(20, 20, 30, 0.3);
-  --lead-dot: #1a1a1f;
-  --pill-ring: rgba(20, 20, 30, 0.35);
+  --backdrop: rgba(23, 19, 31, 0.28);
+  --modal-shadow: 0 0 0 1px #e2deeb, 0 24px 60px rgba(23, 19, 31, 0.16);
+  --card-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 1px 2px rgba(23, 19, 31, 0.06),
+    0 4px 16px rgba(23, 19, 31, 0.05);
+  --card-head: #faf9fc;
+  --lead: rgba(23, 19, 31, 0.3);
+  --lead-dot: #17131f;
+  --pill-ring: rgba(23, 19, 31, 0.35);
   --pill-bg: #ffffff;
-  --key: rgba(20, 20, 30, 0.06);
-  --key-hover: rgba(20, 20, 30, 0.11);
-  --foot-bg: rgba(20, 20, 30, 0.03);
+  --key: rgba(23, 19, 31, 0.06);
+  --key-hover: rgba(23, 19, 31, 0.11);
+  --foot-bg: #ffffff;
   --xb-a: #3f9a1f;
   --xb-b: #d63231;
   --xb-x: #2563eb;
   --xb-y: #b88a00;
-  --st-ok: #4f9a1c;
-  --st-warn: #c47a00;
-  --st-error: #d63231;
+  --st-ok: #0b774f;
+  --st-warn: #9a5b00;
+  --st-error: #bf2a34;
   color-scheme: light;
 }

@@ -1,69 +1,36 @@
 /* DualForge download page. Same palette as the app (apps/desktop/src/renderer/styles/tokens.css). */
 
-/* Self-hosted fonts (latin subset, SIL OFL; licences in fonts/OFL-*.txt). */
+/* Self-hosted fonts (SIL OFL; licence in fonts/OFL-geist.txt). Same files the app bundles. */
 @font-face {
-  font-family: 'Chakra Petch';
-  font-weight: 500;
+  font-family: 'Geist';
+  font-weight: 100 900;
   font-display: swap;
-  src: url('fonts/chakra-petch-500.woff2') format('woff2');
+  src: url('fonts/Geist-Variable.woff2') format('woff2');
 }
 @font-face {
-  font-family: 'Chakra Petch';
-  font-weight: 600;
+  font-family: 'Geist Mono';
+  font-weight: 100 900;
   font-display: swap;
-  src: url('fonts/chakra-petch-600.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'Chakra Petch';
-  font-weight: 700;
-  font-display: swap;
-  src: url('fonts/chakra-petch-700.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'IBM Plex Mono';
-  font-weight: 400;
-  font-display: swap;
-  src: url('fonts/ibm-plex-mono-400.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'IBM Plex Mono';
-  font-weight: 500;
-  font-display: swap;
-  src: url('fonts/ibm-plex-mono-500.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'IBM Plex Sans';
-  font-weight: 400;
-  font-display: swap;
-  src: url('fonts/ibm-plex-sans-400.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'IBM Plex Sans';
-  font-weight: 500;
-  font-display: swap;
-  src: url('fonts/ibm-plex-sans-500.woff2') format('woff2');
-}
-@font-face {
-  font-family: 'IBM Plex Sans';
-  font-weight: 600;
-  font-display: swap;
-  src: url('fonts/ibm-plex-sans-600.woff2') format('woff2');
+  src: url('fonts/GeistMono-Variable.woff2') format('woff2');
 }
 :root {
-  --bg: #0d0b10;
-  --plum: #4a1f2c;
-  --panel: rgba(255, 255, 255, 0.045);
-  --panel-border: rgba(255, 255, 255, 0.08);
-  --hairline: rgba(255, 255, 255, 0.07);
-  --ember: #e2403f;
-  --ember-hot: #ee5756;
-  --flare: #f08a3c;
-  --text: #f2f0f3;
-  --muted: #a39fa8;
-  --dim: #8b8690;
-  --display: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
-  --body: 'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
-  --mono: 'IBM Plex Mono', Consolas, ui-monospace, monospace;
+  --bg: #13101c;
+  --panel: #1b1726;
+  --panel-border: #2e2840;
+  --hairline: #2e2840;
+  --accent: #7352f0; /* fills: the download button, the curve */
+  --accent-hot: #8466f5;
+  --accent-ink: #9b7dff; /* the accent as text and thin lines */
+  --text: #f4f2f8;
+  --text-2: #d6d2e0;
+  --muted: #aba5bb;
+  --dim: #8c859f;
+  --card-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 1px 2px rgba(0, 0, 0, 0.4),
+    0 8px 24px rgba(0, 0, 0, 0.25);
+  --display: 'Geist', 'Segoe UI', system-ui, sans-serif;
+  --body: 'Geist', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'Geist Mono', Consolas, ui-monospace, monospace;
   --gutter: clamp(16px, 5vw, 64px);
   --max: 1120px;
 }
@@ -86,8 +53,11 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(900px 620px at 8% -6%, var(--plum) 0%, rgba(74, 31, 44, 0) 62%),
-    radial-gradient(700px 520px at 100% 30%, rgba(240, 138, 60, 0.07) 0%, rgba(0, 0, 0, 0) 60%),
+    radial-gradient(
+      1000px 640px at 15% -10%,
+      rgba(115, 82, 240, 0.12) 0%,
+      rgba(115, 82, 240, 0) 65%
+    ),
     var(--bg);
   color: var(--text);
   font: 400 16px/1.6 var(--body);
@@ -96,14 +66,14 @@ body {
 
 a {
   color: var(--text);
-  text-decoration-color: rgba(226, 64, 63, 0.6);
+  text-decoration-color: color-mix(in srgb, var(--accent-ink) 60%, transparent);
   text-underline-offset: 3px;
 }
 a:hover {
-  text-decoration-color: var(--ember-hot);
+  text-decoration-color: var(--accent-ink);
 }
 :focus-visible {
-  outline: 2px solid var(--flare);
+  outline: 2px solid var(--accent-ink);
   outline-offset: 3px;
   border-radius: 6px;
 }
@@ -146,14 +116,14 @@ code {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    var(--ember) 22%,
-    var(--flare) 50%,
-    var(--ember) 78%,
+    var(--accent) 22%,
+    var(--accent-ink) 50%,
+    var(--accent) 78%,
     transparent 100%
   );
   box-shadow:
-    0 0 18px 2px rgba(226, 64, 63, 0.55),
-    0 0 60px 8px rgba(226, 64, 63, 0.18);
+    0 0 18px 2px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 0 60px 8px color-mix(in srgb, var(--accent) 18%, transparent);
   animation: breathe 5.5s ease-in-out infinite;
 }
 @keyframes breathe {
@@ -219,23 +189,22 @@ main,
 .eyebrow {
   margin: 0 0 18px;
   font: 500 13px/1.4 var(--mono);
-  color: var(--flare);
+  color: var(--accent-ink);
   letter-spacing: 0.02em;
 }
 h1 {
   margin: 0;
-  font: 700 clamp(40px, 6.4vw, 76px) / 0.98 var(--display);
-  letter-spacing: -0.01em;
-  text-transform: uppercase;
+  font: 700 clamp(40px, 5.4vw, 62px) / 1.04 var(--display);
+  letter-spacing: -0.035em;
 }
 h1 span {
   display: block;
-  color: var(--ember);
+  color: var(--accent-ink);
 }
 .lead {
   max-width: 54ch;
   margin: 24px 0 32px;
-  color: #d9d5dc;
+  color: var(--text-2);
   font-size: 17px;
 }
 
@@ -251,20 +220,20 @@ h1 span {
   gap: 12px;
   padding: 16px 26px;
   border-radius: 12px;
-  background: var(--ember);
+  background: var(--accent);
   color: #fff;
-  font: 600 18px/1 var(--display);
-  letter-spacing: 0.03em;
+  font: 600 17px/1 var(--display);
+  letter-spacing: -0.01em;
   text-decoration: none;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.1) inset,
-    0 10px 36px -8px rgba(226, 64, 63, 0.7);
+    0 10px 36px -8px color-mix(in srgb, var(--accent) 75%, transparent);
   transition:
     background 0.15s ease,
     transform 0.15s ease;
 }
 .btn-download:hover {
-  background: var(--ember-hot);
+  background: var(--accent-hot);
   transform: translateY(-1px);
 }
 .btn-download:active {
@@ -290,8 +259,9 @@ h1 span {
   margin: 0;
   padding: clamp(16px, 3vw, 28px);
   border: 1px solid var(--panel-border);
-  border-radius: 20px;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015));
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: var(--card-shadow);
 }
 .curve svg {
   display: block;
@@ -299,7 +269,7 @@ h1 span {
   height: auto;
 }
 .curve .grid path {
-  stroke: rgba(255, 255, 255, 0.06);
+  stroke: #2a2539;
   stroke-width: 1;
   fill: none;
 }
@@ -314,7 +284,7 @@ h1 span {
   fill: none;
 }
 .curve .deadzone {
-  fill: rgba(226, 64, 63, 0.12);
+  fill: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 .curve .line {
   fill: none;
@@ -323,11 +293,11 @@ h1 span {
   stroke-dasharray: 420;
   stroke-dashoffset: 0;
   animation: draw 1.4s cubic-bezier(0.3, 0.7, 0.2, 1) both 0.2s;
-  filter: drop-shadow(0 0 6px rgba(226, 64, 63, 0.6));
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent));
 }
 .curve .knob {
   fill: #fff;
-  stroke: var(--ember);
+  stroke: var(--accent);
   stroke-width: 3;
   animation: pop 0.4s ease-out both 1.4s;
 }
@@ -364,8 +334,9 @@ h1 span {
 .note {
   padding: 22px 24px;
   border: 1px solid var(--panel-border);
-  border-radius: 16px;
+  border-radius: 14px;
   background: var(--panel);
+  box-shadow: var(--card-shadow);
 }
 .note.wide {
   grid-column: 1 / -1;
@@ -373,11 +344,11 @@ h1 span {
 .note h3 {
   margin: 0 0 8px;
   font: 600 17px/1.3 var(--display);
-  letter-spacing: 0.02em;
+  letter-spacing: -0.01em;
 }
 .note p {
   margin: 0;
-  color: #d9d5dc;
+  color: var(--text-2);
   font-size: 15px;
 }
 .hash {
@@ -393,7 +364,7 @@ h1 span {
   font-size: 12px;
   line-height: 1.5;
   word-break: break-all;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--bg);
   border: 1px solid var(--hairline);
   border-radius: 8px;
 }
@@ -414,9 +385,8 @@ h1 span {
 /* Sections */
 h2 {
   margin: 0 0 28px;
-  font: 600 clamp(26px, 3.4vw, 36px) / 1.1 var(--display);
-  letter-spacing: 0.01em;
-  text-transform: uppercase;
+  font: 650 clamp(26px, 3.4vw, 36px) / 1.15 var(--display);
+  letter-spacing: -0.025em;
 }
 .steps,
 .shape,
@@ -451,17 +421,17 @@ h2 {
   grid-row: span 2;
   font: 700 40px/1 var(--display);
   color: transparent;
-  -webkit-text-stroke: 1.5px var(--ember);
+  -webkit-text-stroke: 1.5px var(--accent-ink);
 }
 .steps h3 {
   margin: 4px 0 6px;
   font: 600 19px/1.3 var(--display);
-  letter-spacing: 0.02em;
+  letter-spacing: -0.01em;
 }
 .steps p {
   margin: 0;
   max-width: 68ch;
-  color: #d9d5dc;
+  color: var(--text-2);
 }
 
 .reqs dl {
@@ -472,15 +442,14 @@ h2 {
 }
 .reqs dl div {
   padding: 18px 20px;
-  border-left: 2px solid var(--ember);
+  border: 1px solid var(--panel-border);
   background: var(--panel);
-  border-radius: 0 12px 12px 0;
+  border-radius: 14px;
+  box-shadow: var(--card-shadow);
 }
 .reqs dt {
-  font: 500 12px/1.4 var(--mono);
-  color: var(--flare);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font: 500 13px/1.4 var(--body);
+  color: var(--accent-ink);
 }
 .reqs dd {
   margin: 6px 0 0;
@@ -491,19 +460,19 @@ h2 {
 .problem p {
   max-width: 66ch;
   margin: 0 0 24px;
-  color: #d9d5dc;
+  color: var(--text-2);
 }
 .btn-ghost {
   display: inline-block;
   padding: 12px 20px;
-  border: 1px solid rgba(226, 64, 63, 0.6);
+  border: 1px solid color-mix(in srgb, var(--accent-ink) 60%, transparent);
   border-radius: 10px;
   font: 600 15px/1 var(--display);
-  letter-spacing: 0.03em;
+  letter-spacing: -0.005em;
   text-decoration: none;
 }
 .btn-ghost:hover {
-  background: rgba(226, 64, 63, 0.12);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 .foot {

@@ -407,10 +407,10 @@
 }
 .sl-dz.inner {
   stroke: var(--accent);
-  fill: rgba(226, 64, 63, 0.12);
+  fill: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 .sl-dz.outer {
-  stroke: rgba(240, 138, 60, 0.7);
+  stroke: color-mix(in srgb, var(--focus) 70%, transparent);
 }
 .dot-raw {
   fill: var(--muted);

@@ -55,16 +55,16 @@ test('face-lift tokens applied', async () => {
   const app = await launchApp();
   const page = await app.firstWindow();
   const header = page.locator('header.header');
-  expect(await header.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgb(23, 19, 24)');
+  expect(await header.evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgb(27, 23, 38)');
   expect(await header.evaluate((e) => getComputedStyle(e).height)).toBe('100px');
   const active = page
     .getByRole('tablist', { name: 'Sections' })
     .locator('[role="tab"][aria-selected="true"]');
   await expect(active).toHaveCount(1);
   expect(await page.locator('body').evaluate((e) => getComputedStyle(e).fontFamily)).toMatch(
-    /Poppins/,
+    /Geist/,
   );
   await expect(page.locator('.footer .badge-a')).toHaveText('✕');
-  await expect(page.locator('.footer .version')).toHaveText('V0.3.8'); // injected from root package.json
+  await expect(page.locator('.footer .version')).toHaveText('V0.3.9'); // injected from root package.json
   await app.close();
 });

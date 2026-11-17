@@ -126,11 +126,11 @@
   color: var(--text-secondary);
 }
 .chip.ok {
-  border-color: rgba(143, 209, 79, 0.5);
+  border-color: color-mix(in srgb, var(--st-ok) 50%, transparent);
   color: var(--badge-a);
 }
 .chip.bad {
-  border-color: rgba(226, 64, 63, 0.6);
+  border-color: color-mix(in srgb, var(--st-error) 60%, transparent);
   color: var(--bad-text);
 }
 .input-test {
@@ -184,7 +184,7 @@
 }
 .btn-grid .cell.on {
   background: var(--accent);
-  border-color: var(--accent);
+  border-color: var(--accent-ink);
 }
 .span2 {
   grid-column: 1 / -1;
@@ -196,8 +196,8 @@
   align-items: center;
   gap: 12px;
   padding: 10px 12px 10px 14px;
-  background: rgba(240, 160, 40, 0.08);
-  border: 1px solid rgba(240, 160, 40, 0.35);
+  background: color-mix(in srgb, var(--st-warn) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--st-warn) 35%, transparent);
   border-radius: 12px;
 }
 .it-replay {
@@ -208,7 +208,7 @@
   font-weight: 600;
   letter-spacing: 1.5px;
   color: #1d1406;
-  background: #f0a028;
+  background: var(--st-warn);
 }
 .it-source-text {
   flex: 1;
@@ -284,7 +284,7 @@
   transition: border-color 80ms linear;
 }
 .it-touch.pressed {
-  border-color: var(--accent);
+  border-color: var(--accent-ink);
 }
 .it-finger {
   position: absolute;
@@ -298,7 +298,7 @@
   color: #fff;
   font-size: 10px;
   font-weight: 600;
-  box-shadow: 0 0 10px rgba(226, 64, 63, 0.6);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent);
 }
 @media (prefers-reduced-motion: reduce) {
   .it-touch {
@@ -382,7 +382,7 @@
 .update-progress progress {
   flex: 1;
   height: 6px;
-  accent-color: var(--accent);
+  accent-color: var(--accent-ink);
 }
 .psec-toggles {
   display: flex;
@@ -418,7 +418,7 @@
 }
 .panel-btn.primary {
   background: var(--accent);
-  border-color: var(--accent);
+  border-color: var(--accent-ink);
   color: #fff;
 }
 .panel-btn.primary:hover:not(:disabled) {
@@ -554,7 +554,7 @@
   background: var(--accent);
   box-shadow:
     0 0 0 2px var(--handle-ring),
-    0 0 10px rgba(226, 64, 63, 0.7);
+    0 0 10px color-mix(in srgb, var(--accent) 70%, transparent);
 }
 .stage-bars {
   width: min(320px, 50%);
@@ -806,9 +806,9 @@
   border-radius: 999px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--accent);
-  background: rgba(226, 64, 63, 0.12);
-  border: 1px solid rgba(226, 64, 63, 0.45);
+  color: var(--accent-ink);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
 }
 .ov-stick-cols {
   display: grid;
