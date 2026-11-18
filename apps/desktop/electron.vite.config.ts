@@ -26,7 +26,9 @@ const licenseEnv = {
     ? parseEnvFile(readFileSync(licenseEnvFile, 'utf8'))
     : {}),
   ...Object.fromEntries(
-    Object.entries(process.env).filter(([k, v]) => k.startsWith('DUALFORGE_LS_') && v),
+    Object.entries(process.env).filter(
+      ([k, v]) => (k.startsWith('DUALFORGE_LS_') || k.startsWith('DUALFORGE_POLAR_')) && v,
+    ),
   ),
 };
 const licenseDefine = { __LICENSE_CONFIG__: JSON.stringify(configFromEnv(licenseEnv)) };

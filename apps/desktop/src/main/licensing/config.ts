@@ -11,11 +11,17 @@ export interface LicenseBuildConfig {
   portalUrl: string;
   /** Optional explicit variant ids; they win over the variant-name match. */
   variants: { monthly: string; yearly: string; lifetime: string };
+  /** Polar (the merchant chosen 2026-11-17): organization id and one license-key benefit id per tier. All four = Polar runs. */
+  polar: {
+    organizationId: string;
+    benefits: { monthly: string; yearly: string; lifetime: string };
+  };
 }
 
 export type LicenseMode =
   | { kind: 'dormant' }
   | { kind: 'lemonsqueezy'; config: LicenseBuildConfig }
+  | { kind: 'polar'; config: LicenseBuildConfig }
   | { kind: 'fake'; config: LicenseBuildConfig; dataDir: string; founderPublicKey?: string };
 
 type Env = Record<string, string | undefined>;
@@ -26,18 +32,26 @@ const list = (v: string | undefined): string[] =>
     .map((s) => s.trim())
     .filter(Boolean);
 
-/** Reads the DUALFORGE_LS_* keys (DUALFORGE_LS_PRODUCT_IDS, comma-separated; DUALFORGE_LS_PRODUCT_ID still counts). */
+/** Reads the DUALFORGE_POLAR_* keys (org id, three benefit ids; the checkout and portal links fall back to the DUALFORGE_LS_ ones) and the DUALFORGE_LS_* keys (DUALFORGE_LS_PRODUCT_IDS, comma-separated; DUALFORGE_LS_PRODUCT_ID still counts). */
 export function configFromEnv(env: Env): LicenseBuildConfig {
   const ids = [...list(env.DUALFORGE_LS_PRODUCT_IDS), ...list(env.DUALFORGE_LS_PRODUCT_ID)];
   return {
     storeId: (env.DUALFORGE_LS_STORE_ID ?? '').trim(),
     productIds: [...new Set(ids)],
-    checkoutUrl: (env.DUALFORGE_LS_CHECKOUT_URL ?? '').trim(),
-    portalUrl: (env.DUALFORGE_LS_PORTAL_URL ?? '').trim(),
+    checkoutUrl: (env.DUALFORGE_POLAR_CHECKOUT_URL || env.DUALFORGE_LS_CHECKOUT_URL || '').trim(),
+    portalUrl: (env.DUALFORGE_POLAR_PORTAL_URL || env.DUALFORGE_LS_PORTAL_URL || '').trim(),
     variants: {
       monthly: (env.DUALFORGE_LS_VARIANT_MONTHLY ?? '').trim(),
       yearly: (env.DUALFORGE_LS_VARIANT_YEARLY ?? '').trim(),
       lifetime: (env.DUALFORGE_LS_VARIANT_LIFETIME ?? '').trim(),
+    },
+    polar: {
+      organizationId: (env.DUALFORGE_POLAR_ORG_ID ?? '').trim(),
+      benefits: {
+        monthly: (env.DUALFORGE_POLAR_BENEFIT_MONTHLY ?? '').trim(),
+        yearly: (env.DUALFORGE_POLAR_BENEFIT_YEARLY ?? '').trim(),
+        lifetime: (env.DUALFORGE_POLAR_BENEFIT_LIFETIME ?? '').trim(),
+      },
     },
   };
 }
@@ -77,15 +91,16 @@ export function resolveLicenseMode(
         : {}),
     };
   }
-  if (baked.storeId && baked.productIds.length > 0)
-    return {
-      kind: 'lemonsqueezy',
-      config: {
-        ...baked,
-        checkoutUrl: safeCheckoutUrl(baked.checkoutUrl),
-        portalUrl: safeCheckoutUrl(baked.portalUrl),
-      },
-    };
+  const safe = {
+    ...baked,
+    checkoutUrl: safeCheckoutUrl(baked.checkoutUrl),
+    portalUrl: safeCheckoutUrl(baked.portalUrl),
+  };
+  const pb = baked.polar?.benefits;
+  // Polar wins over Lemon Squeezy (winding down) once its org id and all three benefit ids are baked in
+  if (baked.polar?.organizationId && pb?.monthly && pb.yearly && pb.lifetime)
+    return { kind: 'polar', config: safe };
+  if (baked.storeId && baked.productIds.length > 0) return { kind: 'lemonsqueezy', config: safe };
   return { kind: 'dormant' };
 }
 

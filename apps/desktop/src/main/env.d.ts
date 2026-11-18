@@ -10,5 +10,9 @@ declare const __LICENSE_CONFIG__:
       checkoutUrl: string;
       portalUrl: string;
       variants: { monthly: string; yearly: string; lifetime: string };
+      polar: {
+        organizationId: string;
+        benefits: { monthly: string; yearly: string; lifetime: string };
+      };
     }
   | undefined;

@@ -55,6 +55,7 @@ import { FakeLicenseProvider } from './licensing/fake.js';
 import { createEngineGate } from './licensing/gate.js';
 import { registerLicenseIpc } from './licensing/ipc.js';
 import { LemonSqueezyProvider } from './licensing/lemonsqueezy.js';
+import { PolarProvider } from './licensing/polar.js';
 import { cachedFingerprint } from './licensing/machine-id.js';
 import { createLicenseService } from './licensing/service.js';
 
@@ -98,11 +99,13 @@ const licenseCheckout = licenseMode.kind === 'dormant' ? '' : licenseMode.config
 const licensePortal = licenseMode.kind === 'dormant' ? '' : licenseMode.config.portalUrl;
 const license = createLicenseService({
   provider:
-    licenseMode.kind === 'lemonsqueezy'
-      ? new LemonSqueezyProvider(licenseMode.config)
-      : licenseMode.kind === 'fake'
-        ? new FakeLicenseProvider(licenseMode.dataDir)
-        : null,
+    licenseMode.kind === 'polar'
+      ? new PolarProvider(licenseMode.config.polar)
+      : licenseMode.kind === 'lemonsqueezy'
+        ? new LemonSqueezyProvider(licenseMode.config)
+        : licenseMode.kind === 'fake'
+          ? new FakeLicenseProvider(licenseMode.dataDir)
+          : null,
   settingsStore: settings,
   founderVerifier: createFounderVerifier(
     licenseMode.kind === 'fake' ? licenseMode.founderPublicKey : undefined,
